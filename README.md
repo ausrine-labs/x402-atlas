@@ -17,13 +17,24 @@ Two pages:
   wallets. Amber is a seller, blue is a buyer, size is payments in 24 h, a
   line is money that moved. Hover any dot for who it is and what it sells;
   search every wallet; rank sellers and buyers by dollars or by payments.
-- **the market** (`market.html`) — all 1,036 sellers packed into what they
+- **the market** (`market.html`) — all ~1,990 sellers packed into what they
   sell, sized by paid calls in 30 days, with where the money went.
+
+## Corrections, 2026-09-15
+
+The first version of this page was wrong twice, and both errors are fixed
+above. (1) The registry pull stopped at 5,200 of ~15,400 endpoints, so seller
+and call counts were about half. (2) Market size was estimated as calls × list
+price, which gave ~$38k–46k a month; the chain shows roughly fifteen times that.
+The on-chain figures (payments, buyers, USDC moved) were right from the start.
 
 ## What the data said, 2026-09-10 → 11
 
-- **5,200 paid endpoints, 1,036 sellers.** 293,916 paid calls in 30 days,
-  about **$38.5k** by list price.
+- **~15,400 paid endpoints from ~1,990 sellers**, ~394,000 paid calls in 30 days.
+- **Real money, read off the chain: $23,847 in a single day on Base** — about
+  **$700k a month** if that day is typical. (Calls × list price says ~$46k a
+  month. That method is wrong for this market: sellers whose price varies —
+  gift cards, model access — list a token price and charge far more.)
 - **Base is 56% of paid calls, Solana 26%**; everything else is under 4%.
 - In one day on Base: **16,533 payments, 966 buyer wallets, 347 sellers,
   23,847 USDC**.
@@ -60,8 +71,8 @@ are all open. The Base pull takes ~15 minutes and the Solana pull is slower
 
 ## Honest limits
 
-- **"Take" is calls × list price**, an estimate. The chain figures (payments,
-  USDC) are exact; the 30-day registry figures are the facilitator's own.
+- **Dollars on the pages are chain USDC over 24 hours**, not list price. The
+  30-day call counts are the facilitator's own.
 - **x402 only.** Agents also pay through rails that never touch this registry.
 - **Self-dealing is not filtered.** Some traffic may be sellers paying
   themselves. Repeat buyers across sellers are the honest signal.

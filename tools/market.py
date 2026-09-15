@@ -9,7 +9,7 @@ paid calls and unique payers it saw in the last 30 days.
 Flat, still, hover. One circle per seller (the host that serves the
 endpoints), sized by paid calls in 30 days, grouped by what it sells,
 colour by category. Hover: wallet, prices, buyers, the best-selling
-endpoint. A ranked list beside it by estimated 30-day take (calls × price).
+endpoint. A ranked list beside it by real USDC paid in 24 h, read off the chain.
 
     python3 market.py --in data-action/x402-sellers.json --out market-2026-09-10
 """
@@ -40,6 +40,23 @@ def cat(text):
         if re.search(rx, t):
             return name, col
     return "other", "#7f8fa6"
+
+
+def chain_usd(flow_paths, sellers):
+    """Real USDC paid to each seller host, read off the chain (chain_flows.py /
+    solana_flows.py output). A wallet's money goes to its busiest host."""
+    import collections
+    calls = {s["host"].replace("www.", ""): s["calls"] for s in sellers}
+    usd = collections.Counter()
+    hours = None
+    for fp in flow_paths:
+        fl = json.load(open(fp))
+        hours = fl.get("hours", hours)
+        for e in fl["edges"]:
+            hs = sorted(fl["sellers"].get(e["to"], []), key=lambda h: -calls.get(h, 0))
+            if hs:
+                usd[hs[0]] += e["usdc"]
+    return usd, hours
 
 
 def load(path):
@@ -139,7 +156,7 @@ def svg(sellers, groups, today, totals):
     for g in groups:
         o.append('<circle cx="%.1f" cy="%.1f" r="%.1f" fill="%s" fill-opacity="0.06" stroke="%s" stroke-opacity="0.25"/>' % (g["cx"], g["cy"], g["R"], g["col"], g["col"]))
         o.append('<text x="%.1f" y="%.1f" text-anchor="middle" font-size="16" font-weight="600" fill="%s">%s</text>' % (g["cx"], g["cy"] - g["R"] - 14, g["col"], esc(g["name"])))
-        o.append('<text x="%.1f" y="%.1f" text-anchor="middle" font-size="12" fill="%s" fill-opacity="0.8">%d sellers · %s paid calls · ~$%s</text>'
+        o.append('<text x="%.1f" y="%.1f" text-anchor="middle" font-size="12" fill="%s" fill-opacity="0.8">%d sellers · %s paid calls (30 d) · $%s on chain (24 h)</text>'
                  % (g["cx"], g["cy"] - g["R"] - 0, g["col"], g["sellers"], "{:,}".format(g["calls"]), "{:,.0f}".format(g["take"])))
     for s in sorted(sellers, key=lambda s: -s["r"]):
         o.append('<circle class="s" data-h="%s" cx="%.1f" cy="%.1f" r="%.1f" fill="%s" fill-opacity="0.85" stroke="#05060d" stroke-width="0.8"/>'
@@ -150,7 +167,7 @@ def svg(sellers, groups, today, totals):
     o.append('<text x="40" y="%d" font-size="11" fill="#ffffff" fill-opacity="0.45" letter-spacing="1.5">POWERED BY INFOHARMONI</text>' % (H - 24))
     o.append('<text x="40" y="76" font-size="16" fill="#ffffff" fill-opacity="0.7">the market · %s · x402 on Base and friends</text>' % today)
     o.append('<text x="40" y="98" font-size="12" fill="#ffffff" fill-opacity="0.5">circle = one seller with a wallet · size = paid calls in the last 30 days · hover for what it sells and what it charges</text>')
-    o.append('<text x="%d" y="%d" text-anchor="end" font-size="13" fill="#ffffff" fill-opacity="0.55">%s sellers · %s endpoints · %s paid calls · ~$%s changed hands in 30 days · source: x402 facilitator registry</text>'
+    o.append('<text x="%d" y="%d" text-anchor="end" font-size="13" fill="#ffffff" fill-opacity="0.55">%s sellers · %s endpoints · %s paid calls · $%s USDC moved to these sellers in 24 h, read off the chain · source: x402 registry + Base/Solana</text>'
              % (W - 40, H - 24, "{:,}".format(totals["sellers"]), "{:,}".format(totals["endpoints"]), "{:,}".format(totals["calls"]), "{:,.0f}".format(totals["take"])))
     o.append('</svg>')
     return "\n".join(o)
@@ -178,10 +195,10 @@ circle.s{cursor:pointer}circle.s:hover{stroke:#fff;stroke-width:1.5}
 </style>
 <div id="lay"><div id="wrap">%s<div id="tip"></div></div>
 <div id="side">
-<div class="t">where the money went · 30 days</div>%s
+<div class="t">where the money went · last 24 h, on chain</div>%s
 <div class="t">every seller · <span id="cnt"></span></div><input id="q" placeholder="filter by name or what it sells" style="width:100%%;box-sizing:border-box;background:#0b0e1c;border:1px solid var(--line);color:var(--ink);border-radius:8px;padding:7px 10px;font-size:13px;margin-bottom:6px"><div id="all"></div>
 <div class="t">what this is</div>
-<p style="color:var(--muted);margin:0">Every seller here is an agent, or a service built for agents, that takes payment machine-to-machine over x402 — USDC on Base, mostly — with no human in the loop. The counts are the facilitator's own: paid calls and distinct paying wallets in the last 30 days. "Take" is calls × list price, an estimate.</p>
+<p style="color:var(--muted);margin:0">Every seller here is an agent, or a service built for agents, that takes payment machine-to-machine over x402 — USDC on Base, mostly — with no human in the loop. The counts are the facilitator's own: paid calls and paying wallets per endpoint over 30 days. Dollars are real USDC read off the Base and Solana chains over 24 hours — not list price, which badly undercounts sellers whose price varies (gift cards, model access). Circle size is paid calls over 30 days.</p>
 </div></div>
 <script>
 const S=%s; const byH={}; S.forEach(s=>byH[s.host]=s);
@@ -190,7 +207,7 @@ const esc=s=>String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;');
 const money=v=>v>=1000?'$'+(v/1000).toFixed(1)+'k':'$'+v.toFixed(2);
 document.querySelectorAll('circle.s').forEach(c=>{
   c.addEventListener('mousemove',e=>{const s=byH[c.dataset.h]; if(!s)return;
-    tip.innerHTML='<b>'+esc(s.host)+'</b><br>'+s.cat+' · '+s.n+' endpoint'+(s.n>1?'s':'')+'<br>'+s.calls.toLocaleString()+' paid calls · '+s.payers.toLocaleString()+' payers · take ~'+money(s.take)+
+    tip.innerHTML='<b>'+esc(s.host)+'</b><br>'+s.cat+' · '+s.n+' endpoint'+(s.n>1?'s':'')+'<br>'+s.calls.toLocaleString()+' paid calls · '+s.payers.toLocaleString()+' payers · 24 h on chain '+money(s.take)+
       '<br>price '+(s.pmin===s.pmax?'$'+s.pmed:'$'+s.pmin+' – $'+s.pmax)+' per call · '+s.nets.map(n=>({'eip155:8453':'Base','eip155:137':'Polygon','eip155:42161':'Arbitrum','xrpl:0':'XRPL'})[n]||(n.startsWith('solana')?'Solana':n)).join(', ')+
       (s.best?'<div class="q">best seller: '+esc(s.best.desc)+' ('+s.best.calls.toLocaleString()+' calls)</div>':'')+
       '<div class="w">'+s.wallets.slice(0,2).map(esc).join('<br>')+(s.wallets.length>2?'<br>+'+(s.wallets.length-2)+' more wallets':'')+'</div>';
@@ -214,8 +231,13 @@ def main():
     ap.add_argument("--in", dest="inp", default="data-action/x402-sellers.json")
     ap.add_argument("--out", default="market-" + date.today().isoformat())
     ap.add_argument("--date", default=date.today().isoformat())
+    ap.add_argument("--flows", nargs="*", default=[], help="chain flow files; dollars come from these, not list price")
     a = ap.parse_args()
     sellers, items = load(a.inp)
+    if a.flows:
+        usd, _h = chain_usd(a.flows, sellers)
+        for s in sellers:
+            s["take"] = round(usd.get(s["host"].replace("www.", ""), 0.0), 2)
     groups = pack(sellers, 1200, 1000)
     totals = {"sellers": len(sellers), "endpoints": len(items), "calls": sum(s["calls"] for s in sellers), "take": sum(s["take"] for s in sellers)}
     s_svg = svg(sellers, groups, a.date, totals)
@@ -224,7 +246,7 @@ def main():
     def row(s, metric):
         return ('<div class="row"><a href="%s" target="_blank" rel="noopener">%s</a><span class="m">%s</span><span class="d">%s</span></div>'
                 % (esc(s["best"]["url"].split("/")[0] + "//" + s["host"]), esc(s["host"].replace("www.", "")), metric, esc((s["best"]["desc"] or "")[:90])))
-    by_take = "".join(row(s, "~$%s" % "{:,.0f}".format(s["take"])) for s in sorted(sellers, key=lambda s: -s["take"])[:15])
+    by_take = "".join(row(s, "$%s" % "{:,.0f}".format(s["take"])) for s in sorted(sellers, key=lambda s: -s["take"])[:15])
     data = [{k: (sorted(v) if isinstance(v, set) else v) for k, v in s.items() if k not in ("texts", "prices", "x", "y", "r", "col")} for s in sellers]
     page = PAGE % (s_svg, by_take, json.dumps(data))
     open(a.out + ".html", "w").write(page)
