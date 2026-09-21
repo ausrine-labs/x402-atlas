@@ -12,20 +12,26 @@ replay. The numbers are never for sale. They come from the public registry and a
 What you can buy is your own voice on your page, and a deeper look at your corner of the market.</p>
 <p class="muted" id="which"></p>
 <div class="offers">
-<div class="offer"><h3>Radar Verified</h3><div class="p">$29<span class="muted"> / month</span></div><ul>
-<li>The “unclaimed” label becomes a <b>Radar Verified</b> badge</li><li>Your own description, logo and links</li>
+<div class="offer"><h3>Claimed page</h3><div class="p">$29<span class="muted"> / month</span></div><ul>
+<li>The “unclaimed” label becomes <b>Claimed by owner</b></li><li>Your own description, logo and links</li>
 <li>A competitive report every month</li><li>Corrections handled first</li><li>Cancel any time</li></ul>
 <a class="btn buy" href="https://buy.polar.sh/polar_cl_o4rqOAkZsoIAzNV5EqYOA5rVkkazYEDlSTxce2Pk4YF">Claim my page</a></div>
 <div class="offer"><h3>Competitive report</h3><div class="p">$49<span class="muted"> once</span></div><ul>
 <li>You against every rival, day by day</li><li>Where your price sits against the going rate</li>
 <li>Who entered and who left your corner</li><li>The caveats, stated plainly</li>
-<li>A private page and PDF, within 3 business days</li></ul>
+<li>A private page and PDF, within 5 business days</li></ul>
 <a class="btn buy" href="https://buy.polar.sh/polar_cl_dYToSjRR75cE30SY9diS4uYAbCXc4ZizzMSEt1NqNbe">Get my report</a></div></div>
+<h2>What “claimed by owner” means, and does not</h2><p class="muted">It means the owner proved control of
+the service’s host. <b>It is not an endorsement, a safety check, or a judgement that the service is good or
+real.</b> We do not sell rank, and we do not vouch for anyone.</p>
 <h2>How claiming works</h2><p class="muted">After checkout we send you one line of text. Put it in a file at
-<code>/.well-known/x402-atlas.txt</code> on your service’s host. That proves the service is yours. Your page is
-updated within 3 business days. This is business analytics about your own service, not financial advice.</p>
-<h2>Not a seller?</h2><p class="muted">Agents can buy any seller’s report card as JSON, pay-per-call over x402:
-<code>GET https://ausrine-who.onrender.com/who/&lt;host&gt;</code>. Everyone can <a href="https://ausrine-labs.github.io/x402-atlas/s/">browse all sellers</a> for free.</p></main>
+<code>/.well-known/x402-atlas.txt</code> on your service’s host. That proves the service is yours. A person does
+this by hand for now: allow up to 5 business days. If you have paid and heard nothing in 2 business days,
+<a href="https://github.com/ausrine-labs/x402-atlas/issues/new?title=I+paid+and+heard+nothing">tell us here</a> and you go to the front. Refunds on request.
+This is business analytics about your own service, not financial advice.</p>
+<h2>Not a seller?</h2><p class="muted">Everyone can <a href="https://ausrine-labs.github.io/x402-atlas/s/">browse all sellers</a> for free. An agent
+endpoint for the same report cards exists at <code>https://ausrine-who.onrender.com/who/&lt;host&gt;</code>; it is on the <b>test network and
+not yet for sale</b>.</p></main>
 <script>const h=(new URLSearchParams(location.search).get('host')||'').toLowerCase().replace(/[^a-z0-9._:-]/g,'').slice(0,253);
 if(h){document.getElementById('h').textContent=h+' already has a page here.';
 document.getElementById('which').innerHTML='Claiming: <a href="s/'+encodeURIComponent(h.replace(/:/g,'-'))+'/">'+h+'</a>';
