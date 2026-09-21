@@ -77,3 +77,7 @@ are all open. The Base pull takes ~15 minutes and the Solana pull is slower
 - **Self-dealing is not filtered.** Some traffic may be sellers paying
   themselves. Repeat buyers across sellers are the honest signal.
 - Nothing here identifies a person. Wallets, hosts and prices are public.
+
+## Every seller has a page
+
+[**Browse all sellers**](https://ausrine-labs.github.io/x402-atlas/s/) — one page for each of the ~2,000 services selling to agents over x402: rank, paid calls, payers, price, rivals, and the day-by-day replay. Rebuilt from a daily photograph of the public registry. Run a service? [Claim your page](https://ausrine-labs.github.io/x402-atlas/claim.html).

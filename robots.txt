@@ -1,0 +1,3 @@
+User-agent: *
+Allow: /
+Sitemap: https://ausrine-labs.github.io/x402-atlas/sitemap-sellers.xml
