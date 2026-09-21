@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Copied from the Aušrinė lab (commit 22fffd7). Edit it there, not here.
+# Copied from the Aušrinė lab (working tree after 48eeb3b). Edit it there, not here.
 """snapshot_handoff.py — how a seller with no disk gets its market snapshots.
 
 Two halves of one hand-off. Standard library only.
@@ -194,6 +194,21 @@ def fetch(base_url, store, floor=FLOOR, get=http_get):
     return report
 
 
+def coverage(store):
+    """What the long archive holds: first and last day, how many, and every missing day between."""
+    from datetime import date, timedelta
+    days = sorted(NAME.match(f).group(1) for f in os.listdir(store)
+                  if NAME.match(f) and f.endswith(".json")) if os.path.isdir(store) else []
+    if not days:
+        return {"days": 0, "first": None, "last": None, "missing": []}
+    d, end, have, missing = date.fromisoformat(days[0]), date.fromisoformat(days[-1]), set(days), []
+    while d <= end:
+        if d.isoformat() not in have:
+            missing.append(d.isoformat())
+        d += timedelta(days=1)
+    return {"days": len(days), "first": days[0], "last": days[-1], "missing": missing}
+
+
 def archive(base_url, store, floor=FLOOR, get=http_get):
     """For the machine that keeps the LONG history. Adds the published days it lacks and
     does nothing else: never deletes, never overwrites. `fetch` prunes a store to match the
@@ -230,6 +245,7 @@ def archive(base_url, store, floor=FLOOR, get=http_get):
             continue
         _write_atomic(local, raw)
         report["added"].append(day)
+    report["holds"] = coverage(store)
     return report
 
 
@@ -253,7 +269,12 @@ def main():
     a = ap.parse_args()
     try:
         if a.cmd == "archive":
-            print(json.dumps(archive(a.url, a.store, a.floor), indent=1))
+            r = archive(a.url, a.store, a.floor)
+            h = r["holds"]
+            print("archive: +%d day(s)%s; holds %d days, %s to %s; missing forever: %s%s"
+                  % (len(r["added"]), (" " + ",".join(r["added"])) if r["added"] else "", h["days"], h["first"],
+                     h["last"], ", ".join(h["missing"]) or "none",
+                     ("; REJECTED: %s" % r["rejected"]) if r["rejected"] else ""))
             return
         if a.cmd == "publish":
             m = publish(a.store, a.out, a.keep, a.floor)
