@@ -33,8 +33,24 @@ if not glob.glob("store/market-*.json"):
 PY
 
 # 4. the site
-for p in index.html market.html data LICENSE README.md robots.txt; do [ -e "$p" ] && cp -R "$p" _site/; done
+for p in index.html market.html data LICENSE README.md robots.txt *.txt; do [ -e "$p" ] && cp -R "$p" _site/; done
 python3 tools/snapshot_handoff.py publish --store store --out _site/radar
 python3 tools/seller_pages.py --out _site --store store
 touch _site/.nojekyll
 du -sh _site | cut -f1
+
+# 5. tell search engines which pages changed today (IndexNow: a key file on our own site,
+#    no account). Best effort: a failure here never fails the build.
+python3 - <<'PY' || true
+import json, re, urllib.request
+site = "https://ausrine-labs.github.io/x402-atlas"
+key = open(next(f for f in __import__("os").listdir(".") if re.fullmatch(r"[0-9a-f]{32}\.txt", f))).read().strip()
+urls = re.findall(r"<loc>([^<]+)</loc>", open("_site/sitemap-sellers.xml").read())[:10000]
+body = json.dumps({"host": "ausrine-labs.github.io", "key": key, "keyLocation": site + "/" + key + ".txt", "urlList": urls}).encode()
+req = urllib.request.Request("https://api.indexnow.org/indexnow", data=body, headers={"Content-Type": "application/json; charset=utf-8"})
+try:
+    with urllib.request.urlopen(req, timeout=30) as r:
+        print("indexnow:", r.status, "for", len(urls), "urls")
+except Exception as e:
+    print("indexnow failed:", type(e).__name__, getattr(e, "code", ""))
+PY
