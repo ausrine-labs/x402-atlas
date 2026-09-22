@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Copied from the Aušrinė lab (commit 22fffd7). Edit it there, not here.
+# Copied from the Aušrinė lab (commit 8a95a07). Edit it there, not here.
 """seller_pages.py — a public page for every seller in the agent economy.
 
 Roughly 2,000 teams sell to agents over x402. Each of them wants to know how
@@ -233,8 +233,9 @@ def build(out, store=None, site=None, claims=None):
         change = None
         if len(hist) > 1 and hist[0][1]:
             change = 100.0 * (hist[-1][1] - hist[0][1]) / hist[0][1]
-        riv = sorted(((sc, A[h2]["calls"], h2) for sc, h2 in rivals_of[host]), reverse=True)[:8]
-        med = sorted(A[h2]["price_med"] for _o, _c, h2 in riv if A[h2]["price_med"])
+        riv_all = sorted(((sc, A[h2]["calls"], h2) for sc, h2 in rivals_of[host]), reverse=True)
+        riv = riv_all[:8]
+        med = sorted(A[h2]["price_med"] for _o, _c, h2 in riv_all if A[h2]["price_med"])
         going = med[len(med) // 2] if med else None
 
         title = "%s — how this x402 seller is doing · x402 Atlas" % host
@@ -280,8 +281,9 @@ def build(out, store=None, site=None, claims=None):
             p.append("</table></div>")
             if going and me["price_med"]:
                 v = "under" if me["price_med"] < going else "over" if me["price_med"] > going else "at"
-                p.append('<p class="muted">Going rate among these: %s a call. This seller charges %s, '
-                         "which is <b>%s</b> it.</p>" % (price(going), price(me["price_med"]), v))
+                p.append('<p class="muted">Going rate, the median of all %d matched sellers: %s a call. '
+                         "This seller charges %s, which is <b>%s</b> it.</p>"
+                         % (len(riv_all), price(going), price(me["price_med"]), v))
         if not mine:
             p.append('<div class="claim"><h3>Is this your service?</h3><p>Claim this page: add your own words, '
                      "your logo and links, a “claimed by owner” mark, and get the full competitive report — you "

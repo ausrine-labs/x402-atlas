@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Copied from the Aušrinė lab (commit 22fffd7). Edit it there, not here.
+# Copied from the Aušrinė lab (commit 8a95a07). Edit it there, not here.
 """radar.py — Infoharmoni Radar: how the agent market moved, and how you did in it.
 
 The 2009 thesis, applied to the new swarm: *replay beats snapshot.* Listening
@@ -235,9 +235,10 @@ def who_data(target):
             rivals.append({"host": h, "calls": s["calls"], "price_med": s["price_med"],
                            "sells": s["sells"][:80], "_overlap": overlap})
     rivals.sort(key=lambda r: (-r["_overlap"], -r["calls"]))
-    rivals = [{k: v for k, v in r.items() if k != "_overlap"} for r in rivals[:6]]
-    med = sorted(r["price_med"] for r in rivals if r["price_med"])
+    med = sorted(r["price_med"] for r in rivals if r["price_med"])       # every matched rival
     going = med[len(med) // 2] if med else None
+    rivals_matched = len(rivals)
+    rivals = [{k: v for k, v in r.items() if k != "_overlap"} for r in rivals[:6]]
     verdict = None
     if going:
         verdict = ("under" if me["price_med"] < going
@@ -253,8 +254,9 @@ def who_data(target):
         "rank_by_calls": by_calls.index(host) + 1, "rank_by_money": by_take.index(host) + 1,
         "sellers_in_market": len(A), "market_calls_30d": total_calls,
         "share_of_paid_calls_pct": round(100.0 * me["calls"] / max(total_calls, 1), 4),
-        "replay": hist, "rivals": rivals,
-        "going_rate": going, "you_are": verdict,
+        "replay": hist, "rivals": rivals, "rivals_matched": rivals_matched,
+        "going_rate": going, "going_rate_note": "median price of all %d matched rivals" % rivals_matched,
+        "you_are": verdict,
     }
 
 

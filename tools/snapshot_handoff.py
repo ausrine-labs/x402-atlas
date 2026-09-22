@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Copied from the Aušrinė lab (working tree after 48eeb3b). Edit it there, not here.
+# Copied from the Aušrinė lab (commit 8a95a07). Edit it there, not here.
 """snapshot_handoff.py — how a seller with no disk gets its market snapshots.
 
 Two halves of one hand-off. Standard library only.
@@ -54,8 +54,52 @@ class HandoffError(Exception):
     pass
 
 
-def check_snapshot(raw_json, want_date, floor):
-    """Why this snapshot must not be used, or None when it may."""
+ROW_NUMBERS = ("endpoints", "calls", "payers", "take", "price_min", "price_med", "price_max")
+ROW_FIELDS = ROW_NUMBERS + ("chains", "wallets", "sells", "url")
+
+
+def row_problem(host, row):
+    """Why a seller row cannot be sold as an answer, or None. A number that is missing,
+    negative, infinite, or a boolean is not a fact about a seller."""
+    import math
+    if not isinstance(row, dict):
+        return "row for %s is not an object" % host
+    for k in ROW_FIELDS:
+        if k not in row:
+            return "row for %s lacks %r" % (host, k)
+    for k in ROW_NUMBERS:
+        v = row[k]
+        if isinstance(v, bool) or not isinstance(v, (int, float)) or not math.isfinite(v) or v < 0:
+            return "row for %s has %s=%r" % (host, k, v)
+    if row["endpoints"] < 1:
+        return "row for %s has no endpoints" % host
+    if not (row["price_min"] <= row["price_med"] <= row["price_max"]):
+        return "row for %s has prices out of order" % host
+    if not isinstance(row["sells"], str) or not isinstance(row["chains"], list) \
+            or not isinstance(row["wallets"], list) or not isinstance(row["url"], str):
+        return "row for %s has the wrong shape" % host
+    return None
+
+
+def parse_day(s):
+    """A real calendar date in ISO form, or None."""
+    from datetime import date
+    try:
+        return date.fromisoformat(s) if isinstance(s, str) and len(s) == 10 else None
+    except ValueError:
+        return None
+
+
+def check_snapshot(raw_json, want_date, floor, today=None):
+    """Why this snapshot must not be used, or None when it may. Checked: it parses, its
+    date is a real day that is not in the future and matches its name, it holds at least
+    `floor` sellers, and every seller row is complete and sane."""
+    from datetime import date
+    want = parse_day(want_date)
+    if want is None:
+        return "its name is not a real date"
+    if want > (today or date.today()):
+        return "is dated %s, in the future" % want_date
     try:
         snap = json.loads(raw_json)
     except ValueError:
@@ -66,6 +110,10 @@ def check_snapshot(raw_json, want_date, floor):
         return "says it is %r, its name says %s" % (snap.get("date"), want_date)
     if len(snap["sellers"]) < floor:
         return "holds %d sellers, fewer than the floor of %d" % (len(snap["sellers"]), floor)
+    for host, row in snap["sellers"].items():
+        why = row_problem(host, row)
+        if why:
+            return why
     return None
 
 
@@ -125,11 +173,22 @@ def _allowed(url):
     return u.scheme == "https" or (u.scheme == "http" and u.hostname in ("127.0.0.1", "localhost"))
 
 
+class _NoRedirect(urllib.request.HTTPRedirectHandler):
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        raise HandoffError("refusing a redirect from %s to %s" % (req.full_url, newurl))
+
+
+_OPENER = urllib.request.build_opener(_NoRedirect)
+
+
 def http_get(url, limit):
+    """Fetch from the trusted publisher only: https, no redirects, a size cap. The
+    publisher (our own Pages site) is trusted explicitly; this does not make the data
+    independently authentic, it makes sure it came from there."""
     if not _allowed(url):
         raise HandoffError("refusing %s: https only (plain http is for localhost tests)" % url)
     req = urllib.request.Request(url, headers={"User-Agent": "infoharmoni-radar-seller/1.0"})
-    with urllib.request.urlopen(req, timeout=30) as r:
+    with _OPENER.open(req, timeout=30) as r:
         data = r.read(limit + 1)
     if len(data) > limit:
         raise HandoffError("%s is larger than %d bytes" % (url, limit))
