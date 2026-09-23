@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Copied from the Aušrinė lab (commit 5b984e4). Edit it there, not here.
+# Copied from the Aušrinė lab (commit 14d153d). Edit it there, not here.
 """radar.py — Infoharmoni Radar: how the agent market moved, and how you did in it.
 
 The 2009 thesis, applied to the new swarm: *replay beats snapshot.* Listening
@@ -109,7 +109,7 @@ def condense(items):
         pr = sorted(p for p in s["prices"] if p > 0)
         out[h] = {"endpoints": s["endpoints"], "calls": s["calls"], "payers": s["payers"],
                   "take": round(s["take"], 2), "chains": sorted(s["chains"]),
-                  "wallets": sorted(s["wallets"])[:3],
+                  "wallets": sorted(s["wallets"]),        # every one: the chain pull reads these
                   "price_min": pr[0] if pr else 0, "price_med": pr[len(pr) // 2] if pr else 0,
                   "price_max": pr[-1] if pr else 0,
                   "sells": s["best"][1] if s["best"] else "", "url": s["best"][2] if s["best"] else ""}
