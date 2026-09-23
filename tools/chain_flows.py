@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Copied from the Aušrinė lab (commit 14d153d). Edit it there, not here.
+# Copied from the Aušrinė lab (commit 19e73aa). Edit it there, not here.
 """chain_flows.py — who paid whom: x402 payments read straight off Base.
 
 The registry says how many calls a seller got. The chain says who paid.
@@ -10,8 +10,17 @@ market are public: this reads them from the free public RPC.
     edge    buyer wallet → seller wallet, count of payments and USDC total
     window  the last --hours (2000-block chunks; the public RPC caps payloads)
 
-Emits flows-<date>.json: {"since_block","head","edges":[{from,to,n,usdc}],
-"sellers":{wallet:[hosts]}}. Standard library only. MIT.
+Not every transfer to a seller's wallet is an x402 payment: bitrefill's
+payTo is also its ordinary gift-card checkout, and 71 of its last 80
+incoming transfers on 2026-09-23 were plain `transfer` calls from people.
+An x402 'exact' payment is settled by a facilitator with EIP-3009
+transferWithAuthorization, and USDC logs AuthorizationUsed in the same
+transaction. So each edge also carries n_x402 / usdc_x402: the transfers
+whose transaction used an authorization — a facilitator settled them.
+The rest is money that reached the same wallet some other way.
+
+Emits flows-<date>.json: {"since_block","head","edges":[{from,to,n,usdc,
+n_x402,usdc_x402}],"sellers":{wallet:[hosts]}}. Standard library only. MIT.
 
     python3 chain_flows.py --hours 24 --out data-action/flows-2026-09-10.json
 """
@@ -28,6 +37,7 @@ from datetime import date
 RPC = "https://mainnet.base.org"
 USDC = "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913"
 TRANSFER = "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef"
+AUTHORIZATION_USED = "0x98de503528ee59b575ef0c0a2576a82497bfc029a5685b209e9ec333479b10a5"   # EIP-3009, read off a real settlement
 CHUNK_BLOCKS = 2000          # ~1.1 h of Base
 CHUNK_WALLETS = 60
 
@@ -75,6 +85,44 @@ def wallets_from_snapshot(snap):
     return hosts_of
 
 
+def authorized_txs(since, head, get_logs=None):
+    """The transactions in [since, head] in which USDC used an EIP-3009 authorization:
+    a facilitator settled a signed payment. Chunks halve when the RPC refuses a payload."""
+    get_logs = get_logs or (lambda b, e, topics: rpc("eth_getLogs", [{"fromBlock": hex(b), "toBlock": hex(e),
+                                                                       "address": USDC, "topics": topics}]))
+    txs, b, step = set(), since, CHUNK_BLOCKS
+    while b < head:
+        e = min(b + step, head)
+        try:
+            logs = get_logs(b, e, [AUTHORIZATION_USED])
+        except Exception:
+            if step <= 125:
+                raise
+            step //= 2
+            continue
+        txs.update(l["transactionHash"] for l in logs)
+        b = e + 1
+    return txs
+
+
+def tally(logs, authorized, seen, edges, usdc, n_x402, usdc_x402):
+    """Fold Transfer logs into the edge counters, once per (tx, log), splitting out the
+    transfers whose transaction used an authorization."""
+    for l in logs:
+        key = (l["transactionHash"], l["logIndex"])
+        if key in seen:
+            continue
+        seen.add(key)
+        frm = "0x" + l["topics"][1][26:]
+        to = "0x" + l["topics"][2][26:]
+        amount = int(l["data"], 16) / 1e6
+        edges[(frm, to)] += 1
+        usdc[(frm, to)] += amount
+        if l["transactionHash"] in authorized:
+            n_x402[(frm, to)] += 1
+            usdc_x402[(frm, to)] += amount
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--sellers", default="data-action/x402-sellers.json", help="the raw registry (items)")
@@ -93,8 +141,10 @@ def main():
     since = head - span
     print("Base head %d · %d seller wallets · %d blocks (%.0f h)" % (head, len(wallets), span, a.hours), file=sys.stderr)
 
-    edges = collections.Counter()
-    usdc = collections.Counter()
+    authorized = authorized_txs(since, head)
+    print("  %d transactions settled a signed authorization in the window" % len(authorized), file=sys.stderr)
+
+    edges, usdc, n_x402, usdc_x402 = (collections.Counter() for _ in range(4))
     seen_tx = set()
     n_calls = 0
     for wi in range(0, len(wallets), CHUNK_WALLETS):
@@ -105,25 +155,21 @@ def main():
             e = min(b + CHUNK_BLOCKS, head)
             logs = rpc("eth_getLogs", [{"fromBlock": hex(b), "toBlock": hex(e), "address": USDC, "topics": topics}])
             n_calls += 1
-            for l in logs:
-                key = (l["transactionHash"], l["logIndex"])
-                if key in seen_tx:
-                    continue
-                seen_tx.add(key)
-                frm = "0x" + l["topics"][1][26:]
-                to = "0x" + l["topics"][2][26:]
-                edges[(frm, to)] += 1
-                usdc[(frm, to)] += int(l["data"], 16) / 1e6
+            tally(logs, authorized, seen_tx, edges, usdc, n_x402, usdc_x402)
             b = e + 1
         print("  wallets %d-%d done · %d payments so far · %d rpc calls" % (wi, wi + len(group), sum(edges.values()), n_calls), file=sys.stderr)
 
     out = {"date": date.today().isoformat(), "hours": a.hours, "since_block": since, "head": head,
-           "edges": [{"from": f, "to": t, "n": n, "usdc": round(usdc[(f, t)], 4)} for (f, t), n in sorted(edges.items(), key=lambda kv: -kv[1])],
+           "x402_means": "the transfer's transaction used an EIP-3009 authorization: a facilitator settled a signed payment",
+           "edges": [{"from": f, "to": t, "n": n, "usdc": round(usdc[(f, t)], 4),
+                      "n_x402": n_x402[(f, t)], "usdc_x402": round(usdc_x402[(f, t)], 4)}
+                     for (f, t), n in sorted(edges.items(), key=lambda kv: -kv[1])],
            "sellers": {w: sorted(h) for w, h in hosts_of.items()}}
     json.dump(out, open(a.out, "w"), indent=1)
     payers = {f for f, _ in edges}
-    print("payments %d · usdc %.2f · buyer wallets %d · seller wallets paid %d" % (
-        sum(edges.values()), sum(usdc.values()), len(payers), len({t for _, t in edges})))
+    print("payments %d · usdc %.2f · buyer wallets %d · seller wallets paid %d · x402-settled: %d payments, usdc %.2f" % (
+        sum(edges.values()), sum(usdc.values()), len(payers), len({t for _, t in edges}),
+        sum(n_x402.values()), sum(usdc_x402.values())))
     print("wrote", a.out)
 
 
