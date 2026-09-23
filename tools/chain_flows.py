@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# Copied from the Aušrinė lab (commit 14d153d). Edit it there, not here.
 """chain_flows.py — who paid whom: x402 payments read straight off Base.
 
 The registry says how many calls a seller got. The chain says who paid.
@@ -50,20 +51,42 @@ def topic_addr(w):
     return "0x" + "0" * 24 + w[2:].lower()
 
 
-def main():
-    ap = argparse.ArgumentParser()
-    ap.add_argument("--sellers", default="data-action/x402-sellers.json")
-    ap.add_argument("--hours", type=float, default=24)
-    ap.add_argument("--out", default="data-action/flows-" + date.today().isoformat() + ".json")
-    a = ap.parse_args()
-
-    items = json.load(open(a.sellers))
+def wallets_from_items(items):
+    """{base wallet: {hosts}} from the raw registry: only endpoints that name Base."""
     hosts_of = collections.defaultdict(set)
     for it in items:
         host = urllib.parse.urlparse(it.get("resource", "")).netloc.replace("www.", "")
         for acc in it.get("accepts", []):
             if acc.get("network") == "eip155:8453" and acc.get("payTo"):
                 hosts_of[acc["payTo"].lower()].add(host)
+    return hosts_of
+
+
+def wallets_from_snapshot(snap):
+    """{base wallet: {hosts}} from a radar snapshot (market-<date>.json), which keeps
+    every payTo per seller but not the chain of each. An EVM address is taken as
+    Base: the USDC contract filter makes a wallet that never took Base payments
+    cost one empty answer, nothing more."""
+    hosts_of = collections.defaultdict(set)
+    for host, s in snap["sellers"].items():
+        for w in s.get("wallets", []):
+            if isinstance(w, str) and len(w) == 42 and w.startswith("0x"):
+                hosts_of[w.lower()].add(host)
+    return hosts_of
+
+
+def main():
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--sellers", default="data-action/x402-sellers.json", help="the raw registry (items)")
+    ap.add_argument("--snapshot", help="a radar snapshot instead: market-<date>.json, wallets read from it")
+    ap.add_argument("--hours", type=float, default=24)
+    ap.add_argument("--out", default="data-action/flows-" + date.today().isoformat() + ".json")
+    a = ap.parse_args()
+
+    if a.snapshot:
+        hosts_of = wallets_from_snapshot(json.load(open(a.snapshot)))
+    else:
+        hosts_of = wallets_from_items(json.load(open(a.sellers)))
     wallets = sorted(hosts_of)
     head = int(rpc("eth_blockNumber", []), 16)
     span = int(a.hours * 3600 / 2)
