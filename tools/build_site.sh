@@ -7,7 +7,7 @@
 # rebuilds every seller page, and hands the result to GitHub Pages.
 set -eu
 SITE=https://ausrine-labs.github.io/x402-atlas
-rm -rf store _site && mkdir -p store _site
+rm -rf store flows _site && mkdir -p store flows _site
 
 # 1. yesterday's window, from the live site; from this repo's radar/ only if the site has none
 python3 tools/snapshot_handoff.py fetch "$SITE/radar/" --store store || {
@@ -32,14 +32,30 @@ if not glob.glob("store/market-*.json"):
     sys.exit("no usable snapshot at all: refusing to deploy an empty site")
 PY
 
-# 4. the site
+# 4. who paid whom, read straight off Base: yesterday's flows window back from the live
+#    site, today's pull against the wallets in the newest snapshot, then the whale rollup
+#    over the window. Best effort at every step: the pages are built either way.
+LATEST=$(ls store/market-*.json | sort | tail -1)
+DAY=$(basename "$LATEST" .json | sed 's/^market-//')
+python3 tools/flows_handoff.py fetch "$SITE/flows/" --store flows || echo "::warning::no published flows window yet; starting one today"
+python3 tools/chain_flows.py --snapshot "$LATEST" --hours 24 --out "flows/flows-$DAY.json" || echo "::warning::today's chain pull failed; the window keeps yesterday"
+if ls flows/flows-*.json >/dev/null 2>&1; then
+  python3 tools/whales.py report --flows flows/flows-*.json --snapshot "$LATEST" --top 20 --out "flows/whales-$DAY.json" \
+    > "flows/whales-$DAY.txt" || echo "::warning::the whale rollup failed"
+fi
+
+# 5. the site
 for p in index.html market.html data LICENSE README.md robots.txt *.txt; do [ -e "$p" ] && cp -R "$p" _site/; done
 python3 tools/snapshot_handoff.py publish --store store --out _site/radar
 python3 tools/seller_pages.py --out _site --store store
+if ls flows/flows-*.json >/dev/null 2>&1; then
+  python3 tools/flows_handoff.py publish --store flows --out _site/flows || echo "::warning::nothing fit to publish under flows/"
+  [ -f "flows/whales-$DAY.txt" ] && cp "flows/whales-$DAY.txt" _site/flows/whales-latest.txt
+fi
 touch _site/.nojekyll
 du -sh _site | cut -f1
 
-# 5. tell search engines which pages changed today (IndexNow: a key file on our own site,
+# 6. tell search engines which pages changed today (IndexNow: a key file on our own site,
 #    no account). Best effort: a failure here never fails the build.
 python3 - <<'PY' || true
 import json, re, urllib.request
