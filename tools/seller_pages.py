@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Copied from the Aušrinė lab (commit 8a95a07). Edit it there, not here.
+# Copied from the Aušrinė lab (commit 5b984e4). Edit it there, not here.
 """seller_pages.py — a public page for every seller in the agent economy.
 
 Roughly 2,000 teams sell to agents over x402. Each of them wants to know how
@@ -43,6 +43,8 @@ CAVEATS = [
     "not an agent.",
     "“Money” is paid calls times list price. It is an estimate, not settled revenue, and it "
     "misleads for sellers whose price varies per call.",
+    "Where a seller lists several prices, the page shows the range. A single over/under verdict "
+    "against the going rate is given only when it holds for every endpoint the seller lists.",
     "Movement is the change in a rolling 30-day total between stored days, not a daily count.",
     "Self-dealing is not filtered. A seller can pay its own endpoint, and those calls count here like any "
     "others. A high rank is a count of paid calls, not a judgement that a service is good, safe or real.",
@@ -235,8 +237,8 @@ def build(out, store=None, site=None, claims=None):
             change = 100.0 * (hist[-1][1] - hist[0][1]) / hist[0][1]
         riv_all = sorted(((sc, A[h2]["calls"], h2) for sc, h2 in rivals_of[host]), reverse=True)
         riv = riv_all[:8]
-        med = sorted(A[h2]["price_med"] for _o, _c, h2 in riv_all if A[h2]["price_med"])
-        going = med[len(med) // 2] if med else None
+        priced = [A[h2]["price_med"] for _o, _c, h2 in riv_all if A[h2]["price_med"]]
+        going = radar.median(priced)
 
         title = "%s — how this x402 seller is doing · x402 Atlas" % host
         desc = "%s: rank %d of %d x402 sellers by paid calls, %s paid calls in 30 days. As of %s." % (
@@ -264,10 +266,13 @@ def build(out, store=None, site=None, claims=None):
                  '<div class="tile"><b>#%d</b><span>of %s sellers, by paid calls</span></div>'
                  '<div class="tile"><b>%s</b><span>paid calls, last 30 days</span></div>'
                  '<div class="tile"><b>%s</b><span>payers (see notes)</span></div>'
-                 '<div class="tile"><b>%s</b><span>median price per call</span></div>'
+                 '<div class="tile"><b>%s</b><span>%s</span></div>'
                  '<div class="tile"><b>%s</b><span>est. money at list price · rank #%d</span></div>%s</div>'
                  % (rank_c[host], "{:,}".format(n), "{:,}".format(me["calls"]), "{:,}".format(me["payers"]),
-                    price(me["price_med"]), money(me["take"]), rank_t[host], chg))
+                    esc(radar.price_label(me)) if me["price_max"] else "—",
+                    "price per call" if me["price_min"] == me["price_max"]
+                    else "price per call, across %d endpoints" % me["endpoints"],
+                    money(me["take"]), rank_t[host], chg))
         p.append("<h2>The replay</h2>" + spark(hist))
         if riv:
             p.append('<h2>Selling something like this</h2><p class="muted">Matched automatically from each '
@@ -277,13 +282,20 @@ def build(out, store=None, site=None, claims=None):
             for _o, c, h2 in riv:
                 p.append('<tr><td class="h"><a href="%s/s/%s/">%s</a></td><td class="n">%s</td><td class="n">%s</td>'
                          "<td>%s</td></tr>" % (SITE, esc(slug(h2)), esc(h2), "{:,}".format(c),
-                                               price(A[h2]["price_med"]), esc(A[h2]["sells"][:110])))
+                                               esc(radar.price_label(A[h2])) if A[h2]["price_max"] else "—",
+                                               esc(A[h2]["sells"][:110])))
             p.append("</table></div>")
-            if going and me["price_med"]:
-                v = "under" if me["price_med"] < going else "over" if me["price_med"] > going else "at"
-                p.append('<p class="muted">Going rate, the median of all %d matched sellers: %s a call. '
-                         "This seller charges %s, which is <b>%s</b> it.</p>"
-                         % (len(riv_all), price(going), price(me["price_med"]), v))
+            v = radar.price_verdict(me, going)
+            if v == "mixed":
+                p.append('<p class="muted">Going rate, the median of the %d matched sellers with a listed price '
+                         "(of %d matched): %s a call. This seller’s endpoints run %s, and the going rate falls "
+                         "inside that range — so no single over/under verdict is fair. Compare per endpoint.</p>"
+                         % (len(priced), len(riv_all), price(going), esc(radar.price_label(me))))
+            elif v:
+                p.append('<p class="muted">Going rate, the median of the %d matched sellers with a listed price '
+                         "(of %d matched): %s a call. This seller charges %s, which is <b>%s</b> it%s.</p>"
+                         % (len(priced), len(riv_all), price(going), esc(radar.price_label(me)), v,
+                            "" if me["price_min"] == me["price_max"] else " on every endpoint"))
         if not mine:
             p.append('<div class="claim"><h3>Is this your service?</h3><p>Claim this page: add your own words, '
                      "your logo and links, a “claimed by owner” mark, and get the full competitive report — you "

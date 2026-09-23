@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Copied from the Aušrinė lab (commit 8a95a07). Edit it there, not here.
+# Copied from the Aušrinė lab (commit 5b984e4). Edit it there, not here.
 """radar.py — Infoharmoni Radar: how the agent market moved, and how you did in it.
 
 The 2009 thesis, applied to the new swarm: *replay beats snapshot.* Listening
@@ -193,14 +193,53 @@ def cmd_diff(a):
             print("    %-34s $%.3f → $%.3f" % (h[:34], was, now))
 
 
-def who_data(target):
+def median(values):
+    """The conventional median: the middle value, or the mean of the two middles."""
+    v = sorted(values)
+    n = len(v)
+    if not n:
+        return None
+    return v[n // 2] if n % 2 else (v[n // 2 - 1] + v[n // 2]) / 2.0
+
+
+def price_label(s):
+    """A seller's price as words: one figure, or the range across its endpoints."""
+    lo, hi = s["price_min"], s["price_max"]
+    if not hi:
+        return "unpriced"
+    return "$%g" % lo if lo == hi else "$%g–$%g" % (lo, hi)
+
+
+def price_verdict(s, going):
+    """Over, under or at the going rate — but only when that is true of every endpoint
+    the seller lists. A seller whose prices straddle the going rate gets "mixed" and no
+    single verdict: one blended median called a $0.001 endpoint expensive because a $0.35
+    sibling existed (api.anchor-x402.com, 2026-09-23), and did the same to ~380 others."""
+    if not going or not s["price_max"]:
+        return None
+    if s["price_max"] < going:
+        return "under"
+    if s["price_min"] > going:
+        return "over"
+    if s["price_min"] == s["price_max"] == going:
+        return "at"
+    return "mixed"
+
+
+def who_data(target, loaded=None):
     """One seller's report card as data. Raises LookupError when the name is
     unknown, or Ambiguous when several sellers match. The CLI and the paid
-    endpoint both read this, so they can never drift apart."""
-    snaps = snapshots()
-    if not snaps:
-        raise LookupError("no snapshots yet — run `radar.py snapshot` first")
-    new = load_snapshot(snaps[-1])
+    endpoint both read this, so they can never drift apart.
+
+    `loaded`: an already-parsed list of snapshots, oldest to newest. The paid
+    endpoint passes the exact set it validated, so the report sold is built
+    from the bytes that were checked and from nothing else."""
+    if loaded is None:
+        snaps = snapshots()
+        if not snaps:
+            raise LookupError("no snapshots yet — run `radar.py snapshot` first")
+        loaded = [load_snapshot(f) for f in snaps[-8:]]
+    new = loaded[-1]
     A = new["sellers"]
     key = target.lower().replace("www.", "")
     host = next((h for h in A if h.lower() == key), None) \
@@ -219,8 +258,7 @@ def who_data(target):
     total_calls = sum(s["calls"] for s in A.values())
 
     hist = []
-    for f in snaps[-8:]:
-        snap = load_snapshot(f)
+    for snap in loaded[-8:]:
         s = snap["sellers"].get(host)
         if s:
             hist.append({"date": snap["date"], "calls": s["calls"], "payers": s["payers"]})
@@ -232,31 +270,41 @@ def who_data(target):
             continue
         overlap = len(words & set(re.findall(r"[a-z]{4,}", s["sells"].lower())))
         if overlap >= 2:
-            rivals.append({"host": h, "calls": s["calls"], "price_med": s["price_med"],
+            rivals.append({"host": h, "calls": s["calls"], "price": price_label(s), "price_med": s["price_med"],
                            "sells": s["sells"][:80], "_overlap": overlap})
     rivals.sort(key=lambda r: (-r["_overlap"], -r["calls"]))
-    med = sorted(r["price_med"] for r in rivals if r["price_med"])       # every matched rival
-    going = med[len(med) // 2] if med else None
-    rivals_matched = len(rivals)
+    priced = [r["price_med"] for r in rivals if r["price_med"]]       # every matched rival with a listed price
+    going = median(priced)
+    rivals_matched, rivals_priced = len(rivals), len(priced)
     rivals = [{k: v for k, v in r.items() if k != "_overlap"} for r in rivals[:6]]
-    verdict = None
-    if going:
-        verdict = ("under" if me["price_med"] < going
-                   else "over" if me["price_med"] > going else "at")
+    verdict = price_verdict(me, going)
+    if verdict == "mixed":
+        verdict_note = ("endpoints priced %s and the going rate falls inside that range: no single "
+                        "verdict is fair, compare per endpoint" % price_label(me))
+    elif verdict:
+        verdict_note = "true of every endpoint this seller lists"
+    else:
+        verdict_note = None
     return {
         "host": host, "as_of": new["date"], "sells": me["sells"],
         "calls_30d": me["calls"], "payers_30d": me["payers"],
         "payers_note": "endpoint counts summed — a wallet paying two endpoints counts twice",
         "est_take_30d_list_price": me["take"],
         "take_note": "calls x list price; it undercounts sellers whose price varies",
+        "price": price_label(me),
         "price_min": me["price_min"], "price_med": me["price_med"], "price_max": me["price_max"],
+        "price_note": "list prices across this seller's endpoints; price_med is the median endpoint "
+                      "price, not what a call costs",
         "chains": me["chains"], "endpoints": me["endpoints"],
         "rank_by_calls": by_calls.index(host) + 1, "rank_by_money": by_take.index(host) + 1,
         "sellers_in_market": len(A), "market_calls_30d": total_calls,
         "share_of_paid_calls_pct": round(100.0 * me["calls"] / max(total_calls, 1), 4),
         "replay": hist, "rivals": rivals, "rivals_matched": rivals_matched,
-        "going_rate": going, "going_rate_note": "median price of all %d matched rivals" % rivals_matched,
-        "you_are": verdict,
+        "rivals_priced": rivals_priced, "going_rate": going,
+        "going_rate_note": "median price of the %d matched rivals with a listed price (of %d matched); "
+                           "a rival with several prices counts by its median endpoint price"
+                           % (rivals_priced, rivals_matched),
+        "you_are": verdict, "you_are_note": verdict_note,
     }
 
 
@@ -302,11 +350,14 @@ def cmd_who(a):
     if d["rivals"]:
         print("\n   SELLING SOMETHING LIKE YOURS")
         for r in d["rivals"]:
-            print("     %-30s %6d calls  $%-7.3f %s"
-                  % (r["host"][:30], r["calls"], r["price_med"], r["sells"][:40]))
-        if d["going_rate"]:
-            print("     you charge $%g, they charge $%g — you are %s the going rate"
-                  % (d["price_med"], d["going_rate"], d["you_are"]))
+            print("     %-30s %6d calls  %-14s %s"
+                  % (r["host"][:30], r["calls"], r["price"], r["sells"][:40]))
+        if d["you_are"] == "mixed":
+            print("     going rate $%g; your endpoints run %s — no single verdict, compare per endpoint"
+                  % (d["going_rate"], d["price"]))
+        elif d["you_are"]:
+            print("     you charge %s, they charge $%g — you are %s the going rate"
+                  % (d["price"], d["going_rate"], d["you_are"]))
     print("\n   market: %d sellers, %s paid calls in 30 days"
           % (d["sellers_in_market"], "{:,}".format(d["market_calls_30d"])))
 
@@ -347,11 +398,12 @@ def cmd_like(a):
           " · about $%s at list price"
           % ("{:,}".format(calls), 100.0 * calls / max(total_calls, 1), payers, "{:,.2f}".format(take)))
     if prices:
-        print("   going rate: $%g per call (median of %d priced sellers, $%g–$%g)"
-              % (prices[len(prices) // 2], len(prices), prices[0], prices[-1]))
-    print("\n   %-36s %7s %6s %8s  %s" % ("seller", "calls", "payers", "price", "sells"))
+        print("   going rate: $%g per call (median of %d priced sellers, $%g–$%g; a seller with several "
+              "prices counts by its median endpoint price)"
+              % (median(prices), len(prices), prices[0], prices[-1]))
+    print("\n   %-36s %7s %6s %-14s %s" % ("seller", "calls", "payers", "price", "sells"))
     for _n, c, h, s in hits[:a.top]:
-        print("   %-36s %7d %6d  $%-7.3f %s" % (h[:36], c, s["payers"], s["price_med"], s["sells"][:48]))
+        print("   %-36s %7d %6d  %-14s %s" % (h[:36], c, s["payers"], price_label(s), s["sells"][:48]))
     if len(hits) > a.top:
         print("   … and %d more" % (len(hits) - a.top))
 
