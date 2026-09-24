@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Copied from the Aušrinė lab (commit 3b1fa65). Edit it there, not here.
+# Copied from the Aušrinė lab (commit fccf5ed). Edit it there, not here.
 """seller_pages.py — a public page for every seller in the agent economy.
 
 Roughly 2,000 teams sell to agents over x402. Each of them wants to know how
@@ -35,6 +35,8 @@ ISSUES = "https://github.com/ausrine-labs/x402-atlas/issues/new"
 # travels with the checkout as ?reference_id=<host>.
 BUY_VERIFIED = "https://buy.polar.sh/polar_cl_o4rqOAkZsoIAzNV5EqYOA5rVkkazYEDlSTxce2Pk4YF"
 BUY_REPORT = "https://buy.polar.sh/polar_cl_dYToSjRR75cE30SY9diS4uYAbCXc4ZizzMSEt1NqNbe"
+BUY_BUYERS = "https://buy.polar.sh/polar_cl_ENl6aFmH7kBGSBRzQzM7E6FPGvP5xJKdMTgmf4eATNJ"
+BUY_OPERATOR = "https://buy.polar.sh/polar_cl_7dKf661vieRDhIcPLLthLBUZ6SCqerEfXGXb03lQoT6"
 
 CAVEATS = [
     "Source: the public x402 discovery registry, photographed once a day. A seller missing from "
@@ -373,10 +375,15 @@ def build(out, store=None, site=None, claims=None, whales=None):
                          % (len(priced), len(riv_all), price(going), esc(radar.price_label(me)), v,
                             "" if me["price_min"] == me["price_max"] else " on every endpoint"))
         if not mine:
+            group = (chain or {}).get("operators", {}).get(host)
             p.append('<div class="claim"><h3>Is this your service?</h3><p>Claim this page: add your own words, '
                      "your logo and links, a “claimed by owner” mark, and get the full competitive report — you "
-                     'against every rival above, day by day.</p><a class="btn" href="%s/claim.html?host=%s">Claim %s</a></div>'
-                     % (SITE, esc(host), esc(host)))
+                     "against every rival above, day by day. Or see <b>who is buying in your category</b>: the "
+                     "wallets paying sellers like you, read off the chain, yours beside your rivals’.%s</p>"
+                     '<a class="btn" href="%s/claim.html?host=%s">Claim %s</a></div>'
+                     % ((" Your wallet is paid through <b>%d hosts</b>: put one name on the group as a "
+                         "<b>claimed operator</b>." % group["hosts"]) if group else "",
+                        SITE, esc(host), esc(host)))
         p.append('<h2>For agents</h2><p class="muted">The same report card as JSON, with rivals and the full replay, '
                  "over x402: <code>GET %s/who/%s</code> <b>Test network only, not yet for sale.</b> It takes play "
                  "money on Base Sepolia while it is being reviewed.</p>" % (API, esc(host)))
@@ -440,10 +447,22 @@ What you can buy is your own voice on your page, and a deeper look at your corne
 <li>You against every rival, day by day</li><li>Where your price sits against the going rate</li>
 <li>Who entered and who left your corner</li><li>The caveats, stated plainly</li>
 <li>A private page and PDF, within 5 business days</li></ul>
-<a class="btn buy" href="%s">Get my report</a></div></div>
-<h2>What “claimed by owner” means, and does not</h2><p class="muted">It means the owner proved control of
-the service’s host. <b>It is not an endorsement, a safety check, or a judgement that the service is good or
-real.</b> We do not sell rank, and we do not vouch for anyone.</p>
+<a class="btn buy" href="%s">Get my report</a></div>
+<div class="offer"><h3>Who is buying in your category</h3><div class="p">$149<span class="muted"> once</span></div><ul>
+<li>Every wallet paying sellers like you, read straight off Base</li><li>Payments, USDC, whom else they pay</li>
+<li>Agents at work set apart from one-off buyers</li><li>Your buyers beside your rivals’</li>
+<li>A private page and CSV, within 5 business days</li></ul>
+<a class="btn buy" href="%s">See who is buying</a></div>
+<div class="offer"><h3>Claimed operator</h3><div class="p">$299<span class="muted"> once</span></div><ul>
+<li>One name across every host paid into your wallet</li><li>An operator page, with the wallet evidence</li>
+<li>A <b>Claimed by operator</b> mark on each host’s page</li><li>Your hosts’ buyers read together</li>
+<li>Corrections handled first</li></ul>
+<a class="btn buy" href="%s">Name my group</a></div></div>
+<h2>What “claimed by owner” and “claimed by operator” mean, and do not</h2><p class="muted">They mean the owner
+proved control of the service’s host, or of the hosts the registry lists under one wallet. <b>Either mark is
+not an endorsement, a safety check, or a judgement that a service is good or real.</b> We do not sell rank, and we do
+not vouch for anyone. The buyers report is business analytics about your own market: x402 payments a facilitator
+settled, Base only, over the window; a wallet is not a person.</p>
 <h2>How claiming works</h2><p class="muted">After checkout we send you one line of text. Put it in a file at
 <code>/.well-known/x402-atlas.txt</code> on your service’s host. That proves the service is yours. A person does
 this by hand for now: allow up to 5 business days. If you have paid and heard nothing in 2 business days,
@@ -456,7 +475,7 @@ not yet for sale</b>.</p></main>
 if(h){document.getElementById('h').textContent=h+' already has a page here.';
 document.getElementById('which').innerHTML='Claiming: <a href="s/'+encodeURIComponent(h.replace(/:/g,'-'))+'/">'+h+'</a>';
 document.querySelectorAll('a.buy').forEach(a=>a.href+='?reference_id='+encodeURIComponent(h));}</script>"""
-                 % (esc(BUY_VERIFIED), esc(BUY_REPORT), esc(ISSUES), SITE, API))
+                 % (esc(BUY_VERIFIED), esc(BUY_REPORT), esc(BUY_BUYERS), esc(BUY_OPERATOR), esc(ISSUES), SITE, API))
     claim.append(FOOT % {"issue": esc(ISSUES), "as_of": esc(as_of), "n": "{:,}".format(n)})
     with open(os.path.join(out, "claim.html"), "w") as f:
         f.write("".join(claim))
