@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Copied from the Aušrinė lab (commit 14d153d). Edit it there, not here.
+# Copied from the Aušrinė lab (commit 6a84aee). Edit it there, not here.
 """radar.py — Infoharmoni Radar: how the agent market moved, and how you did in it.
 
 The 2009 thesis, applied to the new swarm: *replay beats snapshot.* Listening
@@ -92,8 +92,10 @@ def condense(items):
         q = it.get("quality") or {}
         s = sellers.setdefault(host, {"host": host, "endpoints": 0, "calls": 0, "payers": 0,
                                       "take": 0.0, "prices": [], "chains": set(), "wallets": set(),
-                                      "best": None, "desc": ""})
+                                      "best": None, "desc": "", "top": []})
         s["endpoints"] += 1
+        s["top"].append((q.get("l30DaysTotalCalls", 0) or 0, q.get("l30DaysUniquePayers", 0) or 0, price,
+                         net_name(a.get("network")), (urllib.parse.urlparse(url).path or "/")[:80]))
         s["calls"] += q.get("l30DaysTotalCalls", 0) or 0
         s["payers"] += q.get("l30DaysUniquePayers", 0) or 0
         s["take"] += (q.get("l30DaysTotalCalls", 0) or 0) * price
@@ -112,7 +114,10 @@ def condense(items):
                   "wallets": sorted(s["wallets"]),        # every one: the chain pull reads these
                   "price_min": pr[0] if pr else 0, "price_med": pr[len(pr) // 2] if pr else 0,
                   "price_max": pr[-1] if pr else 0,
-                  "sells": s["best"][1] if s["best"] else "", "url": s["best"][2] if s["best"] else ""}
+                  "sells": s["best"][1] if s["best"] else "", "url": s["best"][2] if s["best"] else "",
+                  # the busiest dozen endpoints, so a page can show what is actually bought, at what price
+                  "top_endpoints": [{"path": e[4], "calls": e[0], "payers": e[1], "price": e[2], "network": e[3]}
+                                    for e in sorted(s["top"], key=lambda e: (-e[0], e[4]))[:12]]}
     return out
 
 
