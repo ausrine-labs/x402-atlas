@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Copied from the Aušrinė lab (commit 76e0e62). Edit it there, not here.
+# Copied from the Aušrinė lab (commit 6a84aee). Edit it there, not here.
 """seller_pages.py — a public page for every seller in the agent economy.
 
 Roughly 2,000 teams sell to agents over x402. Each of them wants to know how
@@ -33,6 +33,7 @@ import front_door  # noqa: E402
 SITE = "https://ausrine-labs.github.io/x402-atlas"
 API = "https://ausrine-who.onrender.com"
 ISSUES = "https://github.com/ausrine-labs/x402-atlas/issues/new"
+CORRECT = ISSUES + "?template=correct.yml"            # the form: page, what is wrong, what is right
 # Polar checkout links (tools/polar_offers.py makes them). The page being claimed
 # travels with the checkout as ?reference_id=<host>.
 BUY_VERIFIED = "https://buy.polar.sh/polar_cl_o4rqOAkZsoIAzNV5EqYOA5rVkkazYEDlSTxce2Pk4YF"
@@ -283,6 +284,25 @@ def paid_section(host, me, chain):
     return "".join(p)
 
 
+def endpoints_section(me):
+    """What is actually bought, at what price: the seller's busiest endpoints, from the
+    registry's own per-endpoint counts. Absent for snapshots made before this was kept."""
+    eps = me.get("top_endpoints") or []
+    if not eps:
+        return ""
+    p = ['<h2>Endpoints</h2><p class="muted">The busiest of this seller’s %d endpoint%s in the registry, by paid calls '
+         "over 30 days; price and chain per endpoint.</p>" % (me["endpoints"], "s" if me["endpoints"] != 1 else "")]
+    p.append('<div class="tw"><table><tr><th>endpoint</th><th class="n">paid calls</th><th class="n">payers</th>'
+             '<th class="n">price</th><th>chain</th></tr>')
+    for e in eps:
+        p.append('<tr><td class="h"><code>%s</code></td><td class="n">%s</td><td class="n">%s</td><td class="n">%s</td><td>%s</td></tr>'
+                 % (esc(e["path"]), "{:,}".format(e["calls"]), "{:,}".format(e["payers"]), price(e["price"]), esc(e["network"])))
+    p.append("</table></div>")
+    if me["endpoints"] > len(eps):
+        p.append('<p class="muted">%d more endpoints not shown.</p>' % (me["endpoints"] - len(eps)))
+    return "".join(p)
+
+
 def build(out, store=None, site=None, claims=None, whales=None, operators=None):
     global SITE
     if site:
@@ -364,6 +384,7 @@ def build(out, store=None, site=None, claims=None, whales=None, operators=None):
                     "price per call" if me["price_min"] == me["price_max"]
                     else "price per call, across %d endpoints" % me["endpoints"],
                     money(me["take"]), rank_t[host], chg))
+        p.append(endpoints_section(me))
         p.append(paid_section(host, me, chain))
         p.append("<h2>The replay</h2>" + spark(hist))
         if riv:
@@ -398,12 +419,12 @@ def build(out, store=None, site=None, claims=None, whales=None, operators=None):
                      % ((" Your wallet is paid through <b>%d hosts</b>: put one name on the group as a "
                          "<b>claimed operator</b>." % group["hosts"]) if group else "",
                         SITE, esc(host), esc(host)))
-        p.append('<h2>For agents</h2><p class="muted">The same report card as JSON, with rivals and the full replay, '
-                 "over x402: <code>GET %s/who/%s</code> <b>Test network only, not yet for sale.</b> It takes play "
-                 "money on Base Sepolia while it is being reviewed.</p>" % (API, esc(host)))
+        p.append('<h2>For agents</h2><p class="muted">The same report card as JSON — rivals, the full replay, and who '
+                 "actually paid this seller — over x402 on Base: <code>GET %s/who/%s</code>, a cent a call, paid in USDC "
+                 "by the agent itself. A refusal is never charged.</p>" % (API, esc(host)))
         p.append('<h2>How to read these numbers</h2><ul class="cav">%s</ul></main>'
                  % "".join("<li>%s</li>" % esc(c) for c in CAVEATS))
-        p.append(FOOT % {"issue": esc("%s?title=%s" % (ISSUES, "Correction:+" + host)), "as_of": esc(as_of),
+        p.append(FOOT % {"issue": esc("%s&title=%s" % (CORRECT, "Correction:+" + host)), "as_of": esc(as_of),
                          "n": "{:,}".format(n)})
         d = os.path.join(sdir, sl)
         os.makedirs(d, exist_ok=True)
@@ -483,8 +504,8 @@ this by hand for now: allow up to 5 business days. If you have paid and heard no
 <a href="%s?title=I+paid+and+heard+nothing">tell us here</a> and you go to the front. Refunds on request.
 This is business analytics about your own service, not financial advice.</p>
 <h2>Not a seller?</h2><p class="muted">Everyone can <a href="%s/s/">browse all sellers</a> for free. An agent
-endpoint for the same report cards exists at <code>%s/who/&lt;host&gt;</code>; it is on the <b>test network and
-not yet for sale</b>.</p></main>
+gets the same report card, with who actually paid, over x402 at <code>%s/who/&lt;host&gt;</code> — a cent a call on
+Base, paid by the agent itself.</p></main>
 <script>const h=(new URLSearchParams(location.search).get('host')||'').toLowerCase().replace(/[^a-z0-9._:-]/g,'').slice(0,253);
 if(h){document.getElementById('h').textContent=h+' already has a page here.';
 document.getElementById('which').innerHTML='Claiming: <a href="s/'+encodeURIComponent(h.replace(/:/g,'-'))+'/">'+h+'</a>';
