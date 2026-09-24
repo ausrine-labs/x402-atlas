@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Copied from the Aušrinė lab (commit c4f348a). Edit it there, not here.
+# Copied from the Aušrinė lab (commit 3b1fa65). Edit it there, not here.
 """seller_pages.py — a public page for every seller in the agent economy.
 
 Roughly 2,000 teams sell to agents over x402. Each of them wants to know how
@@ -99,6 +99,11 @@ def money(x):
 
 def price(x):
     return "$%g" % x if x else "—"
+
+
+def span(hours):
+    """The pulled window as words: "24 h" for a day, "8 days" for the rolling window."""
+    return "%.0f h" % hours if hours < 48 else "%d days" % round(hours / 24.0)
 
 
 STOP = set("""with from your this that have will into over more than when what which their them they then
@@ -244,8 +249,8 @@ def paid_section(host, me, chain):
         return "".join(p)
     if not s or not s["on_chain_payments_x402"]:
         other = s["on_chain_usdc"] if s else 0
-        p.append('<p class="muted">In the last %.0f h on Base, no x402 payment reached this seller’s wallet%s.%s</p>'
-                 % (hours, "s" if len(me["wallets"]) != 1 else "",
+        p.append('<p class="muted">In the last %s on Base, no x402 payment reached this seller’s wallet%s.%s</p>'
+                 % (span(hours), "s" if len(me["wallets"]) != 1 else "",
                     (" %s reached it by ordinary transfer, which is not a call being bought." % money(other)) if other else ""))
         p.append(operator_line(host, chain))
         return "".join(p)
@@ -256,8 +261,8 @@ def paid_section(host, me, chain):
         spread = "all of them from one wallet"
     else:
         spread = "from %s wallets; the busiest three sent %d%%" % ("{:,}".format(m), top3)
-    p.append("<p>%sIn the last %.0f h on Base, <b>%s x402 payments</b> (%s) reached this seller’s wallet%s, %s.%s</p>"
-             % (tag, hours, "{:,}".format(n), money(s["on_chain_usdc_x402"]), "s" if len(s["wallets"]) != 1 else "", spread,
+    p.append("<p>%sIn the last %s on Base, <b>%s x402 payments</b> (%s) reached this seller’s wallet%s, %s.%s</p>"
+             % (tag, span(hours), "{:,}".format(n), money(s["on_chain_usdc_x402"]), "s" if len(s["wallets"]) != 1 else "", spread,
                 (" Another %s reached the same wallet%s by ordinary transfer, which is not a call being bought."
                  % (money(s["on_chain_usdc"] - s["on_chain_usdc_x402"]), "s" if len(s["wallets"]) != 1 else ""))
                 if s["on_chain_usdc"] - s["on_chain_usdc_x402"] >= 1 else ""))
