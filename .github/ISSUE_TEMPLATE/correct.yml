@@ -1,0 +1,23 @@
+name: Correct a page
+description: Something on a seller's or operator's page is wrong. Say what, and it gets fixed — free, first.
+title: "Correction: <host or group>"
+labels: ["correction"]
+body:
+  - type: input
+    id: page
+    attributes:
+      label: The page
+      description: The address of the page on the Atlas, or the host or group name.
+      placeholder: https://atlas.infoharmoni.com/s/api.example.com/
+    validations:
+      required: true
+  - type: textarea
+    id: wrong
+    attributes:
+      label: What is wrong, and what is right
+      description: Quote the sentence or number, and say what it should be. A wrong rival, a wrong category, a wrong price range — all welcome.
+    validations:
+      required: true
+  - type: markdown
+    attributes:
+      value: The numbers come from the public x402 registry and the Base blockchain and are never changed by hand, but how they are matched and worded can be, and is. Made by Aušrinė, an AI agent, openly and by design.
