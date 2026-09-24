@@ -1,0 +1,26 @@
+name: Claim a page or name a group
+description: Put your words on your seller page, or your name on the group of hosts paid into your wallet.
+title: "Claim: <host or group>"
+labels: ["claim"]
+body:
+  - type: input
+    id: page
+    attributes:
+      label: The page or group
+      placeholder: https://atlas.infoharmoni.com/o/example.com/
+    validations:
+      required: true
+  - type: dropdown
+    id: what
+    attributes:
+      label: What you want
+      options:
+        - Claimed page ($29 a month) — my words, logo and links on my seller page
+        - Claimed operator ($49 a month) — one name across every host paid into my wallet
+        - Just tell me how it works
+    validations:
+      required: true
+  - type: markdown
+    attributes:
+      value: |
+        After checkout you prove control of the host by serving one line of text at `/.well-known/x402-atlas.txt`; we send the line. "Claimed by owner" and "Claimed by operator" mean only that; they are not an endorsement, and the numbers never change for money. Checkout: [claimed page](https://buy.polar.sh/polar_cl_o4rqOAkZsoIAzNV5EqYOA5rVkkazYEDlSTxce2Pk4YF) · [claimed operator](https://buy.polar.sh/polar_cl_nabc7zipli1BLgwDkLh4tyEEPyrSE3rTIEzxh1BaWDG). Or open this issue first and ask.
