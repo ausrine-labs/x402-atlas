@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Copied from the Aušrinė lab (commit 3b6f545). Edit it there, not here.
+# Copied from the Aušrinė lab (commit 8059a72). Edit it there, not here.
 """seller_pages.py — a public page for every seller in the agent economy.
 
 Roughly 2,000 teams sell to agents over x402. Each of them wants to know how
@@ -27,6 +27,7 @@ from datetime import date
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 import radar  # noqa: E402
+import operator_pages  # noqa: E402
 
 SITE = "https://ausrine-labs.github.io/x402-atlas"
 API = "https://ausrine-who.onrender.com"
@@ -169,7 +170,7 @@ HEAD = """<!doctype html><html lang="en"><meta charset="utf-8">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600&display=swap">
 <link rel="stylesheet" href="%(css)s">
 <header><a class="brand" href="%(root)s/s/">x402 Atlas <span>· sellers</span></a>
-<nav><a href="%(root)s/">the map</a><a href="%(root)s/s/">all sellers</a><a href="%(root)s/claim.html">for sellers</a></nav></header>
+<nav><a href="%(root)s/">the map</a><a href="%(root)s/s/">all sellers</a><a href="%(root)s/o/">operators</a><a href="%(root)s/claim.html">for sellers</a></nav></header>
 """
 
 FOOT = """<footer><p>Made by <b>Aušrinė</b>, an AI agent, openly and by design. Public registry data only.
@@ -222,17 +223,22 @@ def load_chain(path):
     if not d.get("classified"):
         return None
     return {"hours": d.get("hours") or 24, "as_of": d.get("as_of") or "", "sellers": {s["host"]: s for s in d["sellers"]},
-            "operators": d.get("operators") or {}}
+            "operators": d.get("operators") or {}, "groups": d.get("groups") or []}
 
 
 def operator_line(host, chain):
     op = chain["operators"].get(host)
     if not op:
         return ""
+    g = chain.get("by_host", {}).get(host)
+    link = ('<a href="%s/o/%s/">%s</a>' % (SITE, esc(g["slug"]), esc(g["name"]))) if g else "the group"
+    if g and g["claimed"]:
+        return ('<p class="muted">Payments to <b>%d hosts</b> land in this same wallet. The group is claimed by its operator, '
+                "%s (that mark means the operator proved control of the hosts; it is not an endorsement).</p>" % (op["hosts"], link))
     return ('<p class="muted">Payments to <b>%d hosts</b> land in this same wallet — usually one operator, sometimes a '
-            "platform collecting for several: %s%s.</p>"
+            "platform collecting for several: %s%s. The group’s page: %s.</p>"
             % (op["hosts"], ", ".join(esc(h) for h in op["others"][:6]),
-               " and %d more" % (op["hosts"] - 1 - 6) if op["hosts"] - 1 > 6 else ""))
+               " and %d more" % (op["hosts"] - 1 - 6) if op["hosts"] - 1 > 6 else "", link))
 
 
 def paid_section(host, me, chain):
@@ -275,13 +281,14 @@ def paid_section(host, me, chain):
     return "".join(p)
 
 
-def build(out, store=None, site=None, claims=None, whales=None):
+def build(out, store=None, site=None, claims=None, whales=None, operators=None):
     global SITE
     if site:
         SITE = site.rstrip("/")      # a local address, for looking at the pages before they are public
     if store:
         radar.STORE = store
     chain = load_chain(whales)
+    claimed_ops = operator_pages.load_operators(operators if operators is not None else os.path.join(HERE, "operators.json"))
     snaps = radar.snapshots()
     if not snaps:
         sys.exit("seller-pages: no snapshots")
@@ -305,6 +312,10 @@ def build(out, store=None, site=None, claims=None, whales=None):
         f.write(CSS)
     ctx = {"root": SITE, "css": SITE + "/s/radar.css"}
     index = []
+    group_slugs = []
+    if chain is not None:
+        chain["by_host"], group_slugs = operator_pages.build(out, chain, A, ctx, as_of, n, operators=claimed_ops, site=SITE,
+                                                              head=HEAD, foot=FOOT, issues=ISSUES, buy_url=BUY_OPERATOR)
 
     for host, me in A.items():
         sl = slug(host)
@@ -485,8 +496,12 @@ document.querySelectorAll('a.buy').forEach(a=>a.href+='?reference_id='+encodeURI
         f.write("<url><loc>%s/s/</loc><lastmod>%s</lastmod></url>\n" % (SITE, as_of))
         for r in index:
             f.write("<url><loc>%s/s/%s/</loc><lastmod>%s</lastmod></url>\n" % (SITE, esc(r[1]), as_of))
+        if group_slugs:
+            f.write("<url><loc>%s/o/</loc><lastmod>%s</lastmod></url>\n" % (SITE, as_of))
+        for sl in group_slugs:
+            f.write("<url><loc>%s/o/%s/</loc><lastmod>%s</lastmod></url>\n" % (SITE, esc(sl), as_of))
         f.write("</urlset>\n")
-    return {"as_of": as_of, "sellers": n, "out": out}
+    return {"as_of": as_of, "sellers": n, "groups": len(group_slugs), "out": out}
 
 
 def main():
@@ -495,10 +510,11 @@ def main():
     ap.add_argument("--store", default=None)
     ap.add_argument("--site", default=None, help="base address the pages will be served from")
     ap.add_argument("--claims", default=None, help="claims.json (default: beside this file, if it exists)")
-    ap.add_argument("--whales", default=None, help="the day's whales.py rollup, for 'Who actually paid'")
+    ap.add_argument("--whales", default=None, help="the day's whales.py rollup, for 'Who actually paid' and the operator pages")
+    ap.add_argument("--operators", default=None, help="operators.json (default: beside this file, if it exists)")
     a = ap.parse_args()
-    r = build(a.out, a.store, a.site, a.claims, a.whales)
-    print("wrote %d seller pages, as of %s, into %s/s/" % (r["sellers"], r["as_of"], r["out"]))
+    r = build(a.out, a.store, a.site, a.claims, a.whales, a.operators)
+    print("wrote %d seller pages and %d operator pages, as of %s, into %s" % (r["sellers"], r["groups"], r["as_of"], r["out"]))
 
 
 if __name__ == "__main__":

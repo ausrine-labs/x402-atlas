@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Copied from the Aušrinė lab (commit c4f348a). Edit it there, not here.
+# Copied from the Aušrinė lab (commit 8059a72). Edit it there, not here.
 """whales.py — the agent whales: which wallets pay a lot, for what, and which
 sellers are actually paid on-chain.
 
@@ -203,8 +203,12 @@ def rollup(edges, sellers, chain_of, hours, snap):
         "hours": hours,
         "classified": classified,
         # every host whose wallet the registry lists under other hosts too, paid or not
-        "operators": {h: {"hosts": len(o["hosts"]), "others": [x for x in o["hosts"] if x != h][:12]}
+        "operators": {h: {"group": o["id"], "hosts": len(o["hosts"]), "others": [x for x in o["hosts"] if x != h][:12]}
                       for h, o in ops.items() if len(o["hosts"]) > 1},
+        # the groups themselves, whole: the operator pages are built from these
+        "groups": sorted(({"id": o["id"], "hosts": o["hosts"], "wallets": o["wallets"]}
+                          for o in {o["id"]: o for o in ops.values() if len(o["hosts"]) > 1}.values()),
+                         key=lambda g: (-len(g["hosts"]), g["hosts"][0])),
         "totals": {"payments": sum(e["n"] for e in edges), "usdc": round(sum(e["usdc"] for e in edges), 2),
                    "payments_x402": sum(e.get("n_x402", 0) for e in edges),
                    "usdc_x402": round(sum(e.get("usdc_x402", 0.0) for e in edges), 2),
