@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Copied from the Aušrinė lab (commit 04306cc). Edit it there, not here.
+# Copied from the Aušrinė lab (commit 079001a). Edit it there, not here.
 """atlas_mcp_test.py — the Atlas MCP server, spoken to over real JSON-RPC on
 stdio as an agent client would, against a store we built and therefore know.
 No network: ATLAS_STORE points at the fixture, so the server never fetches.
@@ -79,9 +79,9 @@ def fixture():
 STORE = fixture()
 
 
-def talk(messages):
+def talk(messages, store=None):
     payload = "".join(json.dumps(m) + "\n" for m in messages)
-    env = dict(os.environ, ATLAS_STORE=STORE, ATLAS_SITE="https://atlas.test")
+    env = dict(os.environ, ATLAS_STORE=store or STORE, ATLAS_SITE="https://atlas.test")
     p = subprocess.run([sys.executable, SERVER], input=payload, capture_output=True, text=True, timeout=60, env=env)
     out = []
     for line in p.stdout.splitlines():
@@ -90,9 +90,9 @@ def talk(messages):
     return out, p.stderr
 
 
-def call(tool, args):
+def call(tool, args, store=None):
     res, err = talk([{"jsonrpc": "2.0", "id": 1, "method": "initialize", "params": {}},
-                     {"jsonrpc": "2.0", "id": 2, "method": "tools/call", "params": {"name": tool, "arguments": args}}])
+                     {"jsonrpc": "2.0", "id": 2, "method": "tools/call", "params": {"name": tool, "arguments": args}}], store)
     r = next(x for x in res if x.get("id") == 2)
     text = r["result"]["content"][0]["text"]
     if r["result"].get("isError"):
@@ -154,7 +154,7 @@ class Search(unittest.TestCase):
         d = call("search", {"query": "example", "limit": 2})
         self.assertEqual(len(d["sellers"]), 2)
         self.assertEqual(d["matched"], 4)
-        self.assertEqual(d["operators"][0]["operator"], "quiet.example")
+        self.assertEqual(d["operators"][0]["operator"], "busy.example")
 
     def test_nothing(self):
         d = call("search", {"query": "zzzz"})
@@ -199,12 +199,12 @@ class Seller(unittest.TestCase):
 class Operator(unittest.TestCase):
     def test_by_host(self):
         d = call("operator", {"name": "busy.example"})
-        self.assertEqual(d["operator"], "quiet.example")
+        self.assertEqual(d["operator"], "busy.example")                        # it took all ten payments
         self.assertEqual(d["hosts"], 2)
         self.assertEqual(d["x402_payments_newest_day"], 10)
         self.assertEqual(d["hosts_paid_newest_day"], 1)
         self.assertEqual(d["hosts_list"][0]["host"], "busy.example")
-        self.assertEqual(d["page"], "https://atlas.test/o/quiet.example/")
+        self.assertEqual(d["page"], "https://atlas.test/o/busy.example/")
         self.assertNotIn("verif", json.dumps(d).lower())
 
     def test_group_of_one_and_unknown(self):
@@ -214,6 +214,54 @@ class Operator(unittest.TestCase):
         d = call("operator", {"name": "nowhere.example"})
         self.assertFalse(d["found"])
         self.assertIn("not a host or operator", d["say"])
+
+
+def naming_fixture():
+    """Three groups: one host took most of the payments, payments spread, nothing paid."""
+    d = tempfile.mkdtemp()
+    hosts = ["a.lone.example", "b.lone.example", "earner.example", "c.even.example", "d.even.example", "odd.example",
+             "e.idle.example", "f.idle.example", "quiet.other"]
+    sellers = {h: {"calls": 10, "payers": 1, "sells": "things", "price_min": 0.01, "price_med": 0.01, "price_max": 0.01,
+                   "take": 0.1, "chains": ["Base"], "endpoints": 1, "url": "https://%s/" % h, "wallets": []} for h in hosts}
+    json.dump({"date": "2026-01-02", "endpoints": 9, "taken": 1.0, "sellers": sellers},
+              open(os.path.join(d, "market-2026-01-02.json"), "w"))
+
+    def paid(h, n):
+        return {"host": h, "chain": "Base", "wallets": [], "category": "other", "on_chain_usdc": n / 100.0,
+                "on_chain_payments": n, "on_chain_usdc_x402": n / 100.0, "on_chain_payments_x402": n,
+                "x402_payer_wallets": 1, "x402_top_payers": [], "concentration": "spread"}
+    whales = {"hours": 24, "classified": True, "as_of": "2026-01-03", "dates": ["2026-01-02"], "operators": {},
+              "groups": [{"id": 0, "hosts": ["a.lone.example", "b.lone.example", "earner.example"], "wallets": 1},
+                         {"id": 1, "hosts": ["c.even.example", "d.even.example", "odd.example"], "wallets": 2},
+                         {"id": 2, "hosts": ["e.idle.example", "f.idle.example", "quiet.other"], "wallets": 1}],
+              "totals": {}, "agents": [], "buyers": [],
+              "sellers": [paid("earner.example", 90), paid("a.lone.example", 10),
+                          paid("c.even.example", 40), paid("d.even.example", 30), paid("odd.example", 30)],
+              "notes": []}
+    json.dump(whales, open(os.path.join(d, "whales-2026-01-02.json"), "w"))
+    return d
+
+
+class Naming(unittest.TestCase):
+    """The group's name, and so its page, follows the host that actually earned."""
+    @classmethod
+    def setUpClass(cls):
+        cls.store = naming_fixture()
+
+    def test_one_host_took_most_so_the_group_bears_its_name(self):
+        d = call("operator", {"name": "a.lone.example"}, self.store)
+        self.assertEqual(d["operator"], "earner.example")
+        self.assertEqual(d["page"], "https://atlas.test/o/earner.example/")
+
+    def test_spread_payments_keep_the_domain_name(self):
+        d = call("operator", {"name": "odd.example"}, self.store)
+        self.assertEqual(d["operator"], "even.example")
+        self.assertEqual(d["page"], "https://atlas.test/o/even.example/")
+
+    def test_no_payments_keep_the_domain_name(self):
+        d = call("operator", {"name": "quiet.other"}, self.store)
+        self.assertEqual(d["operator"], "idle.example")
+        self.assertEqual(d["x402_payments_newest_day"], 0)
 
 
 class Agents(unittest.TestCase):

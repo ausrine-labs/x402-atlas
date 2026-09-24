@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Copied from the Aušrinė lab (commit 04306cc). Edit it there, not here.
+# Copied from the Aušrinė lab (commit 079001a). Edit it there, not here.
 """atlas_mcp.py — the x402 Atlas as an MCP server, so an agent can ask the
 public record from inside its own tools.
 
@@ -143,9 +143,12 @@ def data():
     if chain:
         chain["_by_host"] = {s["host"]: s for s in chain["sellers"]}
         groups = chain.get("groups") or []
+        seen = set()
         for g in groups:
-            g["name"] = group_name(g["hosts"])
-            g["slug"] = slug(g["name"])
+            g["name"] = group_name(g["hosts"], chain)
+            base = slug(g["name"])                    # the page's slug, as operator_pages.build makes it
+            g["slug"] = base if base not in seen else "%s-%s" % (base, g["id"])
+            seen.add(g["slug"])
             xs = [chain["_by_host"].get(h) for h in g["hosts"]]
             g["payments_x402"] = sum((s or {}).get("on_chain_payments_x402", 0) for s in xs)
             g["usdc_x402"] = round(sum((s or {}).get("on_chain_usdc_x402", 0.0) for s in xs), 2)

@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# Copied from the Aušrinė lab (commit 079001a). Edit it there, not here.
 """network.py — the agent ecosystem tonight, as a movable 3D network.
 
 Infoharmoni's real subject was never a hub with a crowd around it; it was
@@ -183,7 +184,7 @@ def find_communities(nodes, links, posts, users, skip=()):
 
 
 PAGE = r"""<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>AI Agent Economy</title>
+<title>__TITLE__</title>__HEADX__
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Syne:wght@600;700;800&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,400&display=swap">
 <style>
 :root{--bg:#05060d;--ink:#f2f3f8;--muted:#9aa1b8;--line:#ffffff22;--pink:#ff4fa3;--gold:#ffd166;--grey:#7f8fa6}
@@ -237,7 +238,7 @@ html,body{margin:0;height:100%;background:var(--bg);color:var(--ink);font-family
 #qsort label:has(input:checked){color:var(--ink);border-color:#ffffff66;background:#ffffff10}
 #qsort input{position:absolute;opacity:0;width:0;height:0}
 #qres{max-height:300px;overflow:auto}
-#qres .row a.sell{color:#ffb340}#qres .row a.buy{color:#6ea8ff}
+#qres .row a.sell{color:var(--sell,#ffb340)}#qres .row a.buy{color:var(--buy,#6ea8ff)}
 #side .t{margin-top:10px}#side .t:first-child{margin-top:0}
 #mode{display:flex;gap:6px;flex-wrap:wrap}#mode label{display:flex;gap:4px;align-items:center;cursor:pointer}
 #roomkey{display:none;flex-wrap:wrap;gap:4px 10px;margin-top:6px;font-size:12px;color:var(--muted)}#roomkey i{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:4px}
@@ -253,13 +254,13 @@ html,body{margin:0;height:100%;background:var(--bg);color:var(--ink);font-family
 #ctl #pause,#ctl #home{width:auto;padding:6px 10px}
 #side{top:56px}
 @media (max-width:600px){#bar .hint{flex-basis:100%;margin-left:0;text-align:left}#tip{max-width:80vw}}
-</style>
-<canvas id="c"></canvas>
+__CSS__</style>
+__TOP__<div id="stage"><canvas id="c"></canvas>
 <div id="hd"><h1>AI Agent Economy</h1><p>__DATE__ · __SOURCE__</p><p class="k">__KEY__</p></div>
 <div id="tip"></div>
 <div id="key"><div class="t">how to read this</div>
-<div class="kr"><span class="sw" style="background:#ffb340"></span><b>amber = a seller.</b> A service agents pay per call.</div>
-<div class="kr"><span class="sw" style="background:#6ea8ff"></span><b>blue = a buyer.</b> A wallet that paid one.</div>
+<div class="kr"><span class="sw" id="swS" style="background:#ffb340"></span><b id="kwS">amber = a seller.</b> A service agents pay per call.</div>
+<div class="kr"><span class="sw" id="swB" style="background:#6ea8ff"></span><b id="kwB">blue = a buyer.</b> A wallet that paid one.</div>
 <div class="kr"><svg width="56" height="18" viewBox="0 0 56 18"><circle cx="6" cy="9" r="2.5" fill="#9aa1b8"/><circle cx="20" cy="9" r="5" fill="#9aa1b8"/><circle cx="40" cy="9" r="8.5" fill="#9aa1b8"/></svg><span id="sizeWhat"><b>size = payments in 24 h</b> — for a seller, payments it received; for a buyer, payments it made.</span></div>
 <div class="kr"><svg width="56" height="18" viewBox="0 0 56 18"><line x1="2" y1="6" x2="54" y2="6" stroke="#8fa6c8" stroke-width="1"/><line x1="2" y1="13" x2="54" y2="13" stroke="#8fa6c8" stroke-width="3"/></svg><span><b>a line = money moved</b> between those two wallets; thicker = more payments.</span></div>
 <div class="kr" id="sizeBy"><b>size by</b> <label><input type="radio" name="sz" value="pays" checked> payments</label> <label><input type="radio" name="sz" value="usd"> dollars</label></div>
@@ -281,16 +282,20 @@ html,body{margin:0;height:100%;background:var(--bg);color:var(--ink);font-family
 <label><input type="checkbox" id="fd"><span class="dot" style="background:#3a3f55"></span>show the unconnected</label>
 <span class="hint">click any dot for its card · scroll zooms where you point · drag turns · shift-drag pans · double-click or F fits · Esc closes</span>
 </div>
+</div>__BOTTOM__
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script>
 const G=__DATA__;
-const COL={human:0x7f8fa6,agent:(G.panels?0x6ea8ff:0xff4fa3),buyer:(G.panels?0xffb340:0xffd166),us:0xffffff,repo:0x8ab4ff};
+const PAL=G.palette||(G.panels?{seller:['#ffb340','amber'],buyer:['#6ea8ff','blue']}:null);
+const hx=c=>parseInt(c.slice(1),16);
+const COL={human:0x7f8fa6,agent:(PAL?hx(PAL.buyer[0]):0xff4fa3),buyer:(PAL?hx(PAL.seller[0]):0xffd166),us:0xffffff,repo:0x8ab4ff};
 const ROOMCOL={null:0x9aa1b8}, ROOMNAME={}; Object.entries(G.rooms||{}).forEach(([k,v])=>{ROOMCOL[k]=parseInt(v.color.slice(1),16); ROOMNAME[k]=v.name;});
 const CPAL=[0xff8c42,0x5ad1ff,0xb98cff,0x7bffb0,0xffd166,0xff4fa3,0x4fd8ff,0xffa8f0,0xa0ff6e,0xffc58a,0x8ab4ff,0xff7f7f];
 const C=G.communities; const commCol=i=>i<0?0x3a3f55:CPAL[i%CPAL.length];
 function roomCol(n){if(!n.r.length)return 0x4a5068; if(n.r.length===1)return ROOMCOL[n.r[0]]; const c=new THREE.Color(0); n.r.forEach(r=>c.add(new THREE.Color(ROOMCOL[r]).multiplyScalar(1/n.r.length))); return c.getHex();}
 const KIND={human:'human',agent:'AI agent',buyer:'AI agent with a wallet',us:'this shop (AI agent)',repo:'repository'};
 const prof=n=>n.url||('https://x.com/'+encodeURIComponent(n.u));
+const AT=G.panels?'':'@';
 const esc=s=>String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;');
 const N=G.nodes, L=G.links, idx={}; N.forEach((n,i)=>idx[n.u]=i);
 const conn=N.map(n=>n.d>0);
@@ -379,7 +384,7 @@ document.getElementById('tog').onclick=()=>{const s=document.getElementById('sid
 document.getElementById('pause').onclick=()=>{paused=!paused; pause.textContent=paused?'play':'pause';};
 document.getElementById('zin').onclick=()=>{dist=Math.max(60,dist*0.8);};
 document.getElementById('zout').onclick=()=>{dist=Math.min(1600,dist*1.25);};
-function resize(){const w=innerWidth,h=innerHeight; ren.setSize(w,h,false); cam.aspect=w/h; cam.updateProjectionMatrix();} addEventListener('resize',resize); resize();
+function resize(){const w=cv.clientWidth||innerWidth,h=cv.clientHeight||innerHeight; ren.setSize(w,h,false); cam.aspect=w/h; cam.updateProjectionMatrix();} addEventListener('resize',resize); resize();
 cv.addEventListener('pointerdown',e=>{drag={x:e.clientX,y:e.clientY,moved:false,pan:e.button===2||e.shiftKey}; cv.setPointerCapture(e.pointerId);});
 cv.addEventListener('contextmenu',e=>e.preventDefault());
 let hoverT=0;
@@ -391,14 +396,14 @@ let tmid=null;
 cv.addEventListener('touchstart',e=>{if(e.touches.length===2){pinch=Math.hypot(e.touches[0].clientX-e.touches[1].clientX,e.touches[0].clientY-e.touches[1].clientY); tmid=[(e.touches[0].clientX+e.touches[1].clientX)/2,(e.touches[0].clientY+e.touches[1].clientY)/2];}},{passive:true});
 cv.addEventListener('touchmove',e=>{if(e.touches.length===2&&pinch){const d=Math.hypot(e.touches[0].clientX-e.touches[1].clientX,e.touches[0].clientY-e.touches[1].clientY); dist=Math.max(60,Math.min(1200,dist*pinch/d)); pinch=d; const m=[(e.touches[0].clientX+e.touches[1].clientX)/2,(e.touches[0].clientY+e.touches[1].clientY)/2]; if(tmid)pan(m[0]-tmid[0],m[1]-tmid[1]); tmid=m; drag=null;}},{passive:true});
 const ray=new THREE.Raycaster(); ray.params.Points={threshold:4}; const tip=document.getElementById('tip'); let sel=-1, pinned=-1;
-function pick(e,stick){const m=new THREE.Vector2((e.clientX/innerWidth)*2-1,-(e.clientY/innerHeight)*2+1); ray.setFromCamera(m,cam);
+function pick(e,stick){const R=cv.getBoundingClientRect(); const m=new THREE.Vector2(((e.clientX-R.left)/R.width)*2-1,-((e.clientY-R.top)/R.height)*2+1); ray.setFromCamera(m,cam);
   if(stick){const lh=ray.intersectObjects(labels.filter(x=>x.visible))[0]; if(lh){window.open(prof(N[lh.object.userData.i]),'_blank'); return;}}
   let hit=ray.intersectObjects(meshes.filter(x=>x.visible))[0];
   if(!hit){ // nothing exactly under the pointer: take the nearest visible dot within reach
     const px=e.clientX,py=e.clientY; let best=null,bd=stick?34:20;
     const v=new THREE.Vector3();
     meshes.forEach(m=>{if(!m.visible)return; v.copy(m.position).project(cam); if(v.z>1)return;
-      const sx=(v.x*0.5+0.5)*innerWidth, sy=(-v.y*0.5+0.5)*innerHeight; const d=Math.hypot(sx-px,sy-py);
+      const sx=R.left+(v.x*0.5+0.5)*R.width, sy=R.top+(-v.y*0.5+0.5)*R.height; const d=Math.hypot(sx-px,sy-py);
       if(d<bd){bd=d;best=m;}});
     if(best)hit={object:best,point:best.position.clone()};}
   if(!hit){if(stick||pinned<0){tip.style.display='none';sel=-1;pinned=-1;cv.style.cursor='grab';}return;}
@@ -406,13 +411,14 @@ function pick(e,stick){const m=new THREE.Vector2((e.clientX/innerWidth)*2-1,-(e.
   const said=L.filter(l=>l.a===n.u).map(l=>l.b), heard=L.filter(l=>l.b===n.u).map(l=>l.a);
   const onch=/basescan|solscan/.test(n.url||'');
   const what=({human:'a person',agent:onch?'a buyer — the wallet that paid':'an AI agent',buyer:onch?'a seller with a wallet':'an AI agent with a wallet',us:'this shop — an AI agent',repo:'a repository'})[n.k]+(n.chain?' · '+n.chain:'');
-  tip.innerHTML='<div style="font-size:11px;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);margin-bottom:2px">'+what+'</div><b>'+(n.k==='repo'?'':'@')+esc(n.u)+'</b>'+(n.n?' · '+esc(n.n):'')+'<br>'+(n.known&&!(n.url||'').includes('basescan')?n.f.toLocaleString()+(n.k==='repo'?' stars · ':(n.url&&n.url.includes('github')?' commits · ':' followers · ')):'')+
+  tip.innerHTML='<div style="font-size:11px;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);margin-bottom:2px">'+what+'</div><b>'+(n.k==='repo'?'':AT)+esc(n.u)+'</b>'+(n.n?' · '+esc(n.n):'')+'<br>'+(n.known&&!(n.url||'').includes('basescan')?n.f.toLocaleString()+(n.k==='repo'?' stars · ':(n.url&&n.url.includes('github')?' commits · ':' followers · ')):'')+
     (n.r.length?n.r.map(r=>ROOMNAME[r]).join(' + '):'')+(n.c>=0&&C[n.c].label&&!/^shared market/.test(C[n.c].label)?'<br><span style="color:var(--muted)">in: '+esc(C[n.c].label)+'</span>':'')+
-    (said.length?'<br>spoke to: '+said.slice(0,6).map(u=>'@'+esc(u)).join(', ')+(said.length>6?' +'+(said.length-6):''):'')+
-    (heard.length?'<br>named by: '+heard.slice(0,6).map(u=>'@'+esc(u)).join(', ')+(heard.length>6?' +'+(heard.length-6):''):'')+
+    (said.length?'<br>'+(G.panels?'paid':'spoke to')+': '+said.slice(0,6).map(u=>AT+esc(u)).join(', ')+(said.length>6?' +'+(said.length-6):''):'')+
+    (heard.length?'<br>'+(G.panels?'paid by':'named by')+': '+heard.slice(0,6).map(u=>AT+esc(u)).join(', ')+(heard.length>6?' +'+(heard.length-6):''):'')+
     (n.b?'<br><span style="color:var(--muted)">'+esc(n.b)+'</span>':'')+(n.wallet&&n.wallet.length?'<br><span style="font-family:ui-monospace,Menlo,monospace;font-size:11px;color:var(--muted)">'+esc(n.wallet[0])+'</span>':'')+(n.s?'<div class="q">“'+esc(n.s)+'”</div>':'')+
-    '<a href="'+esc(prof(n))+'" target="_blank" rel="noopener">open '+(n.k==='repo'?'':'@')+esc(n.u)+' →</a>';
+    '<a href="'+esc(prof(n))+'" target="_blank" rel="noopener">open '+(n.k==='repo'?'':AT)+esc(n.u)+' →</a>';
   tip.style.display='block'; tip.style.left=Math.min(e.clientX+12,innerWidth-tip.offsetWidth-8)+'px'; tip.style.top=Math.min(e.clientY+12,innerHeight-tip.offsetHeight-60)+'px';}
+addEventListener('scroll',()=>{tip.style.display='none'; sel=-1; pinned=-1;},{passive:true});   // the card is pinned to the window, the dots are not
 function filt(){const h=fh.checked,a=fa.checked,d=fd.checked;
   meshes.forEach((m,i)=>{const n=N[i]; const on=(n.k==='human'?h:(n.k==='agent'?a:true))&&(n.d>0||d); m.visible=on;});
   labels.forEach(sp=>sp.visible=meshes[sp.userData.i].visible);}
@@ -425,13 +431,15 @@ document.querySelectorAll('#sizeBy input').forEach(r=>r.onchange=()=>{sizeBy=r.v
 if(location.search.includes('still')){['bar','side','ctl','tog','key'].forEach(id=>{const e=document.getElementById(id); if(e)e.style.display='none';});}
 // the legend only names what is actually in this picture
 const present=new Set(N.map(n=>n.k));
-if(G.panels){const a=document.getElementById('dotA'),b=document.getElementById('dotB'); if(a)a.style.background='#6ea8ff'; if(b)b.style.background='#ffb340';}
+if(PAL){const a=document.getElementById('dotA'),b=document.getElementById('dotB'); if(a)a.style.background=PAL.buyer[0]; if(b)b.style.background=PAL.seller[0];
+  swS.style.background=PAL.seller[0]; swB.style.background=PAL.buyer[0]; kwS.textContent=PAL.seller[1]+' = a seller.'; kwB.textContent=PAL.buyer[1]+' = a buyer.';
+  document.documentElement.style.setProperty('--sell',PAL.seller[0]); document.documentElement.style.setProperty('--buy',PAL.buyer[0]);}
 if(!present.has('repo'))document.getElementById('lrepo').remove();
 if(!present.has('human'))document.querySelector('#bar label:has(#fh)').remove();
 if(!present.has('agent'))document.querySelector('#bar label:has(#fa)').remove();
 if(N.every(n=>n.d>0))document.querySelector('#bar label:has(#fd)').remove();
 {const onchain=N.some(n=>(n.url||'').includes('basescan'));
- const la=document.querySelector('#bar label:has(#fa)'); if(la&&onchain)la.lastChild.textContent='buyers — the agents that paid';
+ const la=document.querySelector('#bar label:has(#fa)'); if(la&&onchain)la.lastChild.textContent='buyers — the wallets that paid';
  const lb=[...document.querySelectorAll('#bar label')].find(e=>/wallets/.test(e.textContent)); if(lb&&onchain)lb.lastChild.textContent='sellers with a wallet';}
 // the list on the right: every AI agent seen tonight, biggest reach first, linked to X
 const list=document.getElementById('list');
@@ -472,6 +480,24 @@ function frame(t){ if(!reduced&&!paused){  if((t|0)%3===0) step(0.03); }
 """
 
 
+GRAPH_KEYS = ("rooms", "source", "key", "mode", "panels", "labels", "totals", "palette")
+
+
+def render(g, today, title="AI Agent Economy", head="", css="", top="", bottom=""):
+    """The page for one graph: g has nodes, links and communities, and may carry the
+    keys in GRAPH_KEYS. head goes into <head>; css is appended to the page's own; top
+    and bottom are markup placed above and below the stage (canvas and its controls).
+    With neither, the stage fills the window as it always has."""
+    data = {"nodes": g["nodes"], "links": g["links"], "communities": g["communities"]}
+    data.update({k: g[k] for k in GRAPH_KEYS if k in g})
+    blob = json.dumps(data).replace("</", "<\\/")      # a stranger's host name cannot close the script
+    page = (PAGE.replace("__TITLE__", title).replace("__HEADX__", head).replace("__CSS__", css)
+            .replace("__TOP__", top).replace("__BOTTOM__", bottom)
+            .replace("__DATE__", today).replace("__SOURCE__", g.get("source", ""))
+            .replace("__KEY__", g.get("key", "sphere = one account · size = reach (followers) · line = an @mention tonight")))
+    return page.replace("__DATA__", blob)       # last, so nothing inside the data is ever substituted
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--data", default="data")
@@ -483,14 +509,14 @@ def main():
     if a.graph:
         g = json.load(open(a.graph))
         nodes, links, communities = g["nodes"], g["links"], g["communities"]
-        extra = {k: g[k] for k in ("rooms", "source", "key", "mode", "panels", "labels", "totals") if k in g}
+        extra = {k: g[k] for k in GRAPH_KEYS if k in g}
         a.date = g.get("date", a.date)
     else:
         nodes, links, communities = build(a.data)
         extra = {"rooms": {k: {"name": v[0], "color": v[1]} for k, v in mandala.ROOMS.items()}, "source": "X · three rooms, recent search"}
     today = a.date
     json.dump({"date": today, "nodes": nodes, "links": links, "communities": communities}, open(a.out + ".json", "w"), indent=1)
-    page = PAGE.replace("__DATE__", today).replace("__DATA__", json.dumps({"nodes": nodes, "links": links, "communities": communities, **extra})).replace("__SOURCE__", extra.get("source", "")).replace("__KEY__", extra.get("key", "sphere = one account · size = reach (followers) · line = an @mention tonight"))
+    page = render({"nodes": nodes, "links": links, "communities": communities, **extra}, today)
     open(a.out + ".html", "w").write(page)
     connected = sum(1 for n in nodes if n["d"] > 0)
     print("nodes: %d (%d connected) · links: %d · communities: %d" % (len(nodes), connected, len(links), len(communities)))

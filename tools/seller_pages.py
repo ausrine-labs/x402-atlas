@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Copied from the Aušrinė lab (commit 540ea9d). Edit it there, not here.
+# Copied from the Aušrinė lab (commit 079001a). Edit it there, not here.
 """seller_pages.py — a public page for every seller in the agent economy.
 
 Roughly 2,000 teams sell to agents over x402. Each of them wants to know how
@@ -31,6 +31,7 @@ import market  # noqa: E402
 import operator_pages  # noqa: E402
 import buyer_pages  # noqa: E402
 import front_door  # noqa: E402
+import map_page  # noqa: E402
 
 SITE = "https://ausrine-labs.github.io/x402-atlas"
 API = "https://ausrine-who.onrender.com"
@@ -314,7 +315,7 @@ def endpoints_section(me):
     return "".join(p)
 
 
-def build(out, store=None, site=None, claims=None, whales=None, operators=None):
+def build(out, store=None, site=None, claims=None, whales=None, operators=None, flows=None):
     global SITE
     if site:
         SITE = site.rstrip("/")      # a local address, for looking at the pages before they are public
@@ -347,11 +348,14 @@ def build(out, store=None, site=None, claims=None, whales=None, operators=None):
     index = []
     group_slugs, groups_listing = [], []
     if chain is not None:
-        chain["by_host"], groups_listing = operator_pages.build(out, chain, A, ctx, as_of, n, operators=claimed_ops, site=SITE,
-                                                                 head=HEAD, foot=FOOT, issues=ISSUES, buy_url=BUY_OPERATOR)
-        group_slugs = [r[0] for r in groups_listing]
+        # buyers first, so the operator pages link a wallet to its page only when it exists
         chain["buyer_pages"], _buyers_listing = buyer_pages.build(out, chain, A, ctx, as_of, n, site=SITE, head=HEAD, foot=FOOT,
                                                                    issues=ISSUES)
+        chain["by_host"], groups_listing = operator_pages.build(out, chain, A, ctx, as_of, n, operators=claimed_ops, site=SITE,
+                                                                 head=HEAD, foot=FOOT, issues=ISSUES, buy_url=BUY_OPERATOR,
+                                                                 buyers=chain["buyer_pages"])
+        group_slugs = [r[0] for r in groups_listing]
+    drew_map = build_map(out, whales, chain, flows, A, as_of)
 
     for host, me in A.items():
         sl = slug(host)
@@ -542,8 +546,34 @@ document.querySelectorAll('a.buy').forEach(a=>a.href+='?reference_id='+encodeURI
             f.write("<url><loc>%s/o/</loc><lastmod>%s</lastmod></url>\n" % (SITE, as_of))
         for sl in group_slugs:
             f.write("<url><loc>%s/o/%s/</loc><lastmod>%s</lastmod></url>\n" % (SITE, esc(sl), as_of))
+        if drew_map:
+            f.write("<url><loc>%s/map/</loc><lastmod>%s</lastmod></url>\n" % (SITE, as_of))
         f.write("</urlset>\n")
-    return {"as_of": as_of, "sellers": n, "groups": len(group_slugs), "door": door, "out": out}
+    return {"as_of": as_of, "sellers": n, "groups": len(group_slugs), "door": door, "out": out, "map": drew_map}
+
+
+def build_map(out, whales, chain, flows, A, as_of):
+    """/map/ from the day's flows: the flows file for the rollup's own day, found beside the
+    rollup in the store (or given as --flows). Without one the map is left as it was."""
+    if chain is None:
+        if flows:
+            print("map: no rollup to go with %s; /map/ not rebuilt" % flows)
+        return None
+    # the rollup is named for the build day (as_of) and covers the day before (dates):
+    # the flows file it was made from is named for the covered day
+    day = ((chain.get("dates") or [""])[-1]) or chain.get("as_of")
+    path = flows or map_page.flows_beside(whales, day)
+    if not os.path.exists(path):
+        print("map: no flows-%s.json beside the rollup; /map/ not rebuilt" % day)
+        return None
+    try:
+        r = map_page.build(out, path, whales, A, SITE, as_of, head=HEAD, foot=FOOT, issues=ISSUES)
+    except (OSError, ValueError, KeyError, TypeError) as e:     # a bad day of flows costs the map, not the Atlas
+        print("map: %s would not draw (%s: %s); /map/ not rebuilt" % (path, type(e).__name__, e))
+        return None
+    print("map: %d x402 payments between %d wallets and %d sellers; drew %d of %d lines"
+          % (r["payments"], r["wallets"], r["sellers"], r["drawn"], r["edges"]))
+    return r
 
 
 def main():
@@ -554,8 +584,9 @@ def main():
     ap.add_argument("--claims", default=None, help="claims.json (default: beside this file, if it exists)")
     ap.add_argument("--whales", default=None, help="the day's whales.py rollup, for 'Who actually paid' and the operator pages")
     ap.add_argument("--operators", default=None, help="operators.json (default: beside this file, if it exists)")
+    ap.add_argument("--flows", default=None, help="the day's flows-<date>.json, for the map (default: beside the rollup)")
     a = ap.parse_args()
-    r = build(a.out, a.store, a.site, a.claims, a.whales, a.operators)
+    r = build(a.out, a.store, a.site, a.claims, a.whales, a.operators, a.flows)
     print("wrote %d seller pages and %d operator pages, as of %s, into %s" % (r["sellers"], r["groups"], r["as_of"], r["out"]))
 
 

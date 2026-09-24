@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
-# Copied from the Aušrinė lab (commit 540ea9d). Edit it there, not here.
+# Copied from the Aušrinė lab (commit 079001a). Edit it there, not here.
 """front_door.py — the Atlas's home page: the public record of agent commerce, read off the chain.
 
 Not a dashboard and not a table: one sentence about what this is, one search box that
-finds a seller or an operator by name or by what it sells, the day's numbers from the
+finds a seller or an operator by name or by what it sells (and a buyer by its wallet), the day's numbers from the
 chain, and the few lists a visitor came for — the busiest sellers by real payments, the
 largest groups, the agents at work, who appeared today. Every number links to the page
 it comes from. seller_pages.py calls build() and writes /index.html.
@@ -39,12 +39,14 @@ def slug(host):
 
 
 SEARCH_JS = """<script>
-const q=document.getElementById('q'),out=document.getElementById('hits');let S=null,O=null;
+const q=document.getElementById('q'),out=document.getElementById('hits');let S=null,O=null,B=null;
+const WALLET=/^0x[0-9a-f]{6,40}$/;
 const CATS=%(cats)s;
 document.querySelectorAll('.chip').forEach(c=>c.addEventListener('click',()=>{q.value=c.dataset.q;q.dispatchEvent(new Event('input'));q.focus();}));
 const e=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 async function load(){if(!S){const a=await fetch('%(root)s/s/index.json');S=(await a.json()).sellers;}
 if(!O){try{const b=await fetch('%(root)s/o/index.json');O=(await b.json()).groups;}catch(x){O=[];}}}
+async function loadB(){if(!B){try{const c=await fetch('%(root)s/b/index.json');B=(await c.json()).buyers;}catch(x){B=[];}}}
 q.addEventListener('input',async()=>{const v=q.value.trim().toLowerCase();if(!v){out.innerHTML='';return}
 await load();const w=v.split(/\\s+/).filter(Boolean);
 const hit=t=>w.every(x=>t.includes(x));
@@ -54,7 +56,9 @@ const byWord=S.filter(r=>hit((r[0]+' '+r[6]+' '+r[7]).toLowerCase()));
 const seen=new Set();const s=byWord.concat(byIntent).filter(r=>!seen.has(r[0])&&seen.add(r[0])).sort((a,b)=>(b[8]||0)-(a[8]||0)||b[2]-a[2]).slice(0,10);
 document.getElementById('intent').textContent=cats.length?'Sellers in: '+cats.join(', ')+' — by real payments yesterday':'';
 const o=O.filter(r=>hit((r.name+' '+r.slug).toLowerCase())).slice(0,5);
+let b=[];if(WALLET.test(v)){await loadB();b=B.filter(r=>String(r.wallet).toLowerCase().startsWith(v)).sort((x,y)=>y.x402-x.x402).slice(0,10);}
 let h='';
+if(b.length){h+='<h2>Buyers</h2>'+b.map(r=>'<p><a href="%(root)s/b/'+encodeURIComponent(String(r.wallet).toLowerCase())+'/"><code>'+e(r.wallet)+'</code></a> <span class="muted">'+Number(r.x402).toLocaleString()+' x402 payments · '+Number(r.sellers).toLocaleString()+(r.sellers==1?' seller paid':' sellers paid')+(r.agent?' · agent at work':'')+'</span></p>').join('');}
 if(s.length){h+='<h2>Sellers</h2>'+s.map(r=>'<p><a href="%(root)s/s/'+encodeURIComponent(r[1])+'/">'+e(r[0])+'</a> <span class="muted">'+e(r[6])+' · '+e(r[7])+(r[8]?' · '+Number(r[8]).toLocaleString()+' x402 payments yesterday':' · '+Number(r[2]).toLocaleString()+' paid calls, self-reported')+'</span></p>').join('');}
 if(o.length){h+='<h2>Operators</h2>'+o.map(r=>'<p><a href="%(root)s/o/'+encodeURIComponent(r.slug)+'/">'+e(r.name)+'</a> <span class="muted">'+r.hosts+' hosts · '+Number(r.x402).toLocaleString()+' x402 payments'+(r.claimed?' · claimed':'')+'</span></p>').join('');}
 if(!h)h='<p class="muted">Nothing by that name. <a href="%(root)s/s/">All sellers</a> · <a href="%(root)s/o/">all operators</a>.</p>';
