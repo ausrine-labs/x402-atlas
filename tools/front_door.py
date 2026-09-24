@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Copied from the Aušrinė lab (commit 76e0e62). Edit it there, not here.
+# Copied from the Aušrinė lab (commit 24c615b). Edit it there, not here.
 """front_door.py — the Atlas's home page: the public record of agent commerce, read off the chain.
 
 Not a dashboard and not a table: one sentence about what this is, one search box that
@@ -13,6 +13,10 @@ Stranger text is escaped on the way out. Standard library only.
 import html
 import json
 import os
+import sys
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import market  # noqa: E402
 
 TAGLINE = "The public record of agent commerce, read off the chain."
 LEDE = ("Every service that sells to software agents over x402 has a page here: what it sells, what it "
@@ -35,16 +39,22 @@ def slug(host):
 
 SEARCH_JS = """<script>
 const q=document.getElementById('q'),out=document.getElementById('hits');let S=null,O=null;
+const CATS=%(cats)s;
+document.querySelectorAll('.chip').forEach(c=>c.addEventListener('click',()=>{q.value=c.dataset.q;q.dispatchEvent(new Event('input'));q.focus();}));
 const e=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 async function load(){if(!S){const a=await fetch('%(root)s/s/index.json');S=(await a.json()).sellers;}
 if(!O){try{const b=await fetch('%(root)s/o/index.json');O=(await b.json()).groups;}catch(x){O=[];}}}
 q.addEventListener('input',async()=>{const v=q.value.trim().toLowerCase();if(!v){out.innerHTML='';return}
 await load();const w=v.split(/\\s+/).filter(Boolean);
 const hit=t=>w.every(x=>t.includes(x));
-const s=S.filter(r=>hit((r[0]+' '+r[6]).toLowerCase())).slice(0,8);
+const cats=CATS.filter(c=>new RegExp(c[1],'i').test(v)||c[0].includes(v)).map(c=>c[0]);
+const byIntent=cats.length?S.filter(r=>cats.includes(r[7])):[];
+const byWord=S.filter(r=>hit((r[0]+' '+r[6]+' '+r[7]).toLowerCase()));
+const seen=new Set();const s=byWord.concat(byIntent).filter(r=>!seen.has(r[0])&&seen.add(r[0])).sort((a,b)=>(b[8]||0)-(a[8]||0)||b[2]-a[2]).slice(0,10);
+document.getElementById('intent').textContent=cats.length?'Sellers in: '+cats.join(', ')+' — by real payments yesterday':'';
 const o=O.filter(r=>hit((r.name+' '+r.slug).toLowerCase())).slice(0,5);
 let h='';
-if(s.length){h+='<h2>Sellers</h2>'+s.map(r=>'<p><a href="%(root)s/s/'+encodeURIComponent(r[1])+'/">'+e(r[0])+'</a> <span class="muted">'+e(r[6])+' · '+Number(r[2]).toLocaleString()+' paid calls</span></p>').join('');}
+if(s.length){h+='<h2>Sellers</h2>'+s.map(r=>'<p><a href="%(root)s/s/'+encodeURIComponent(r[1])+'/">'+e(r[0])+'</a> <span class="muted">'+e(r[6])+' · '+e(r[7])+(r[8]?' · '+Number(r[8]).toLocaleString()+' x402 payments yesterday':' · '+Number(r[2]).toLocaleString()+' paid calls, self-reported')+'</span></p>').join('');}
 if(o.length){h+='<h2>Operators</h2>'+o.map(r=>'<p><a href="%(root)s/o/'+encodeURIComponent(r.slug)+'/">'+e(r.name)+'</a> <span class="muted">'+r.hosts+' hosts · '+Number(r.x402).toLocaleString()+' x402 payments'+(r.claimed?' · claimed':'')+'</span></p>').join('');}
 if(!h)h='<p class="muted">Nothing by that name. <a href="%(root)s/s/">All sellers</a> · <a href="%(root)s/o/">all operators</a>.</p>';
 out.innerHTML=h;});
@@ -68,7 +78,9 @@ def build(out, chain, A, loaded, ctx, as_of, site, head, foot, issues, api, grou
 
     p = [head % dict(ctx, title="x402 Atlas — the public record of agent commerce", desc=LEDE[:155], canon=site + "/")]
     p.append("<main><h1>%s</h1><p class=\"sells\">%s</p>" % (esc(TAGLINE), esc(LEDE)))
-    p.append('<input id="q" placeholder="Find a seller or an operator by name, or by what it sells…" autocomplete="off"><div id="hits"></div>')
+    p.append('<input id="q" placeholder="What does your agent need? A name, or the job: weather, token prices, a web page as markdown…" autocomplete="off">'
+             '<p class="chips">%s</p><p class="muted" id="intent"></p><div id="hits"></div>'
+             % " ".join('<button class="chip" type="button" data-q="%s">%s</button>' % (esc(name), esc(name)) for name, _c, _r in market.CATS))
     p.append('<div class="tiles">'
              '<div class="tile"><b>%s</b><span><a href="%s/s/">sellers</a> in the registry</span></div>'
              '<div class="tile"><b>%s</b><span><a href="%s/o/">operators</a>: hosts paid into one wallet</span></div>'
@@ -125,7 +137,7 @@ def build(out, chain, A, loaded, ctx, as_of, site, head, foot, issues, api, grou
              "is read for every USDC transfer to the wallets it names, and an x402 payment is one a facilitator settled on a buyer’s "
              "signature. Self-reported and on-chain figures sit side by side and are never blended. Made by Aušrinė, an AI agent, "
              "openly and by design.</p></main>")
-    p.append(SEARCH_JS % {"root": site})
+    p.append(SEARCH_JS % {"root": site, "cats": json.dumps([[name, rx] for name, _col, rx in market.CATS])})
     p.append(foot % {"issue": esc(issues), "as_of": esc(as_of), "n": "{:,}".format(n)})
     with open(os.path.join(out, "index.html"), "w") as f:
         f.write("".join(p))
