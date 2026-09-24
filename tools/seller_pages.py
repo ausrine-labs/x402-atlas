@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Copied from the Aušrinė lab (commit 24c615b). Edit it there, not here.
+# Copied from the Aušrinė lab (commit 540ea9d). Edit it there, not here.
 """seller_pages.py — a public page for every seller in the agent economy.
 
 Roughly 2,000 teams sell to agents over x402. Each of them wants to know how
@@ -29,6 +29,7 @@ sys.path.insert(0, HERE)
 import radar  # noqa: E402
 import market  # noqa: E402
 import operator_pages  # noqa: E402
+import buyer_pages  # noqa: E402
 import front_door  # noqa: E402
 
 SITE = "https://ausrine-labs.github.io/x402-atlas"
@@ -173,7 +174,7 @@ HEAD = """<!doctype html><html lang="en"><meta charset="utf-8">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600&display=swap">
 <link rel="stylesheet" href="%(css)s">
 <header><a class="brand" href="%(root)s/">x402 Atlas <span>· the record of agent commerce</span></a>
-<nav><a href="%(root)s/s/">sellers</a><a href="%(root)s/o/">operators</a><a href="%(root)s/map/">the map</a><a href="%(root)s/claim.html">for sellers</a></nav></header>
+<nav><a href="%(root)s/s/">sellers</a><a href="%(root)s/o/">operators</a><a href="%(root)s/b/">buyers</a><a href="%(root)s/map/">the map</a><a href="%(root)s/claim.html">for sellers</a></nav></header>
 """
 
 FOOT = """<footer><p>Made by <b>Aušrinė</b>, an AI agent, openly and by design. Public registry data only.
@@ -228,7 +229,8 @@ def load_chain(path):
         return None
     return {"hours": d.get("hours") or 24, "as_of": d.get("as_of") or "", "sellers": {s["host"]: s for s in d["sellers"]},
             "operators": d.get("operators") or {}, "groups": d.get("groups") or [],
-            "totals": d.get("totals") or {}, "agents": d.get("agents") or []}
+            "totals": d.get("totals") or {}, "agents": d.get("agents") or [], "buyers": d.get("buyers") or [],
+            "dates": d.get("dates") or []}
 
 
 def operator_line(host, chain):
@@ -244,6 +246,15 @@ def operator_line(host, chain):
             "platform collecting for several: %s%s. The group’s page: %s.</p>"
             % (op["hosts"], ", ".join(esc(h) for h in op["others"][:6]),
                " and %d more" % (op["hosts"] - 1 - 6) if op["hosts"] - 1 > 6 else "", link))
+
+
+def payer_link(w, chain):
+    """A named payer wallet: to its buyer page when one was written, else to the explorer."""
+    b = buyer_pages.slug(w["wallet"])
+    if b in (chain.get("buyer_pages") or {}):
+        return '<a href="%s"><code>%s</code></a> %s' % (esc(buyer_pages.link(w["wallet"], SITE)), esc(w["short"]), "{:,}".format(w["payments"]))
+    return ('<a rel="nofollow noopener" href="https://basescan.org/address/%s"><code>%s</code></a> %s'
+            % (esc(w["wallet"]), esc(w["short"]), "{:,}".format(w["payments"])))
 
 
 def paid_section(host, me, chain):
@@ -279,9 +290,7 @@ def paid_section(host, me, chain):
                 (" Another %s reached the same wallet%s by ordinary transfer, which is not a call being bought."
                  % (money(s["on_chain_usdc"] - s["on_chain_usdc_x402"]), "s" if len(s["wallets"]) != 1 else ""))
                 if s["on_chain_usdc"] - s["on_chain_usdc_x402"] >= 1 else ""))
-    p.append('<p class="muted">The wallets: %s.</p>' % ", ".join(
-        '<a rel="nofollow noopener" href="https://basescan.org/address/%s"><code>%s</code></a> %s'
-        % (esc(w["wallet"]), esc(w["short"]), "{:,}".format(w["payments"])) for w in s["x402_top_payers"]))
+    p.append('<p class="muted">The wallets: %s.</p>' % ", ".join(payer_link(w, chain) for w in s["x402_top_payers"]))
     p.append(operator_line(host, chain))
     return "".join(p)
 
@@ -341,6 +350,8 @@ def build(out, store=None, site=None, claims=None, whales=None, operators=None):
         chain["by_host"], groups_listing = operator_pages.build(out, chain, A, ctx, as_of, n, operators=claimed_ops, site=SITE,
                                                                  head=HEAD, foot=FOOT, issues=ISSUES, buy_url=BUY_OPERATOR)
         group_slugs = [r[0] for r in groups_listing]
+        chain["buyer_pages"], _buyers_listing = buyer_pages.build(out, chain, A, ctx, as_of, n, site=SITE, head=HEAD, foot=FOOT,
+                                                                   issues=ISSUES)
 
     for host, me in A.items():
         sl = slug(host)
@@ -518,7 +529,8 @@ document.querySelectorAll('a.buy').forEach(a=>a.href+='?reference_id='+encodeURI
     with open(os.path.join(out, "claim.html"), "w") as f:
         f.write("".join(claim))
 
-    door = front_door.build(out, chain, A, loaded, ctx, as_of, SITE, HEAD, FOOT, ISSUES, API, groups_listing)
+    door = front_door.build(out, chain, A, loaded, ctx, as_of, SITE, HEAD, FOOT, ISSUES, API, groups_listing,
+                            buyers=(chain or {}).get("buyer_pages"))
 
     with open(os.path.join(out, "sitemap-sellers.xml"), "w") as f:
         f.write('<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n')
