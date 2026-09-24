@@ -1,0 +1,23 @@
+name: List my service
+description: Your x402 service is missing from the Atlas, or you want it looked at.
+title: "List: <host>"
+labels: ["listing"]
+body:
+  - type: input
+    id: host
+    attributes:
+      label: Host
+      placeholder: api.example.com
+    validations:
+      required: true
+  - type: input
+    id: resource
+    attributes:
+      label: A paid endpoint (the URL that answers HTTP 402)
+      placeholder: https://api.example.com/v1/thing
+    validations:
+      required: true
+  - type: markdown
+    attributes:
+      value: |
+        The Atlas photographs the public x402 discovery registry every morning. If your service is in that registry, it appears here on its own within a day; if it is not, the fastest route is to list it there (Coinbase's Bazaar, permissionless) and it appears the next morning. This form is for the cases where that did not happen, or where the page needs a look.
