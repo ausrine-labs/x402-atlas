@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Copied from the Aušrinė lab (commit fccf5ed). Edit it there, not here.
+# Copied from the Aušrinė lab (commit 3b6f545). Edit it there, not here.
 """seller_pages.py — a public page for every seller in the agent economy.
 
 Roughly 2,000 teams sell to agents over x402. Each of them wants to know how
@@ -36,7 +36,7 @@ ISSUES = "https://github.com/ausrine-labs/x402-atlas/issues/new"
 BUY_VERIFIED = "https://buy.polar.sh/polar_cl_o4rqOAkZsoIAzNV5EqYOA5rVkkazYEDlSTxce2Pk4YF"
 BUY_REPORT = "https://buy.polar.sh/polar_cl_dYToSjRR75cE30SY9diS4uYAbCXc4ZizzMSEt1NqNbe"
 BUY_BUYERS = "https://buy.polar.sh/polar_cl_ENl6aFmH7kBGSBRzQzM7E6FPGvP5xJKdMTgmf4eATNJ"
-BUY_OPERATOR = "https://buy.polar.sh/polar_cl_7dKf661vieRDhIcPLLthLBUZ6SCqerEfXGXb03lQoT6"
+BUY_OPERATOR = "https://buy.polar.sh/polar_cl_nabc7zipli1BLgwDkLh4tyEEPyrSE3rTIEzxh1BaWDG"
 
 CAVEATS = [
     "Source: the public x402 discovery registry, photographed once a day. A seller missing from "
@@ -453,10 +453,10 @@ What you can buy is your own voice on your page, and a deeper look at your corne
 <li>Agents at work set apart from one-off buyers</li><li>Your buyers beside your rivals’</li>
 <li>A private page and CSV, within 5 business days</li></ul>
 <a class="btn buy" href="%s">See who is buying</a></div>
-<div class="offer"><h3>Claimed operator</h3><div class="p">$299<span class="muted"> once</span></div><ul>
+<div class="offer"><h3>Claimed operator</h3><div class="p">$49<span class="muted"> / month</span></div><ul>
 <li>One name across every host paid into your wallet</li><li>An operator page, with the wallet evidence</li>
-<li>A <b>Claimed by operator</b> mark on each host’s page</li><li>Your hosts’ buyers read together</li>
-<li>Corrections handled first</li></ul>
+<li>A <b>Claimed by operator</b> mark on each host’s page</li><li>Your hosts’ buyers, concentration and money read together, every day</li>
+<li>A monthly note on what changed across your group</li><li>Corrections handled first</li><li>Cancel any time</li></ul>
 <a class="btn buy" href="%s">Name my group</a></div></div>
 <h2>What “claimed by owner” and “claimed by operator” mean, and do not</h2><p class="muted">They mean the owner
 proved control of the service’s host, or of the hosts the registry lists under one wallet. <b>Either mark is
