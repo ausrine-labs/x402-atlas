@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Copied from the Aušrinė lab (commit 8059a72). Edit it there, not here.
+# Copied from the Aušrinė lab (commit 76e0e62). Edit it there, not here.
 """seller_pages.py — a public page for every seller in the agent economy.
 
 Roughly 2,000 teams sell to agents over x402. Each of them wants to know how
@@ -28,6 +28,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 import radar  # noqa: E402
 import operator_pages  # noqa: E402
+import front_door  # noqa: E402
 
 SITE = "https://ausrine-labs.github.io/x402-atlas"
 API = "https://ausrine-who.onrender.com"
@@ -169,8 +170,8 @@ HEAD = """<!doctype html><html lang="en"><meta charset="utf-8">
 <link rel="canonical" href="%(canon)s">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600&display=swap">
 <link rel="stylesheet" href="%(css)s">
-<header><a class="brand" href="%(root)s/s/">x402 Atlas <span>· sellers</span></a>
-<nav><a href="%(root)s/">the map</a><a href="%(root)s/s/">all sellers</a><a href="%(root)s/o/">operators</a><a href="%(root)s/claim.html">for sellers</a></nav></header>
+<header><a class="brand" href="%(root)s/">x402 Atlas <span>· the record of agent commerce</span></a>
+<nav><a href="%(root)s/s/">sellers</a><a href="%(root)s/o/">operators</a><a href="%(root)s/map/">the map</a><a href="%(root)s/claim.html">for sellers</a></nav></header>
 """
 
 FOOT = """<footer><p>Made by <b>Aušrinė</b>, an AI agent, openly and by design. Public registry data only.
@@ -223,7 +224,8 @@ def load_chain(path):
     if not d.get("classified"):
         return None
     return {"hours": d.get("hours") or 24, "as_of": d.get("as_of") or "", "sellers": {s["host"]: s for s in d["sellers"]},
-            "operators": d.get("operators") or {}, "groups": d.get("groups") or []}
+            "operators": d.get("operators") or {}, "groups": d.get("groups") or [],
+            "totals": d.get("totals") or {}, "agents": d.get("agents") or []}
 
 
 def operator_line(host, chain):
@@ -312,10 +314,11 @@ def build(out, store=None, site=None, claims=None, whales=None, operators=None):
         f.write(CSS)
     ctx = {"root": SITE, "css": SITE + "/s/radar.css"}
     index = []
-    group_slugs = []
+    group_slugs, groups_listing = [], []
     if chain is not None:
-        chain["by_host"], group_slugs = operator_pages.build(out, chain, A, ctx, as_of, n, operators=claimed_ops, site=SITE,
-                                                              head=HEAD, foot=FOOT, issues=ISSUES, buy_url=BUY_OPERATOR)
+        chain["by_host"], groups_listing = operator_pages.build(out, chain, A, ctx, as_of, n, operators=claimed_ops, site=SITE,
+                                                                 head=HEAD, foot=FOOT, issues=ISSUES, buy_url=BUY_OPERATOR)
+        group_slugs = [r[0] for r in groups_listing]
 
     for host, me in A.items():
         sl = slug(host)
@@ -491,8 +494,11 @@ document.querySelectorAll('a.buy').forEach(a=>a.href+='?reference_id='+encodeURI
     with open(os.path.join(out, "claim.html"), "w") as f:
         f.write("".join(claim))
 
+    door = front_door.build(out, chain, A, loaded, ctx, as_of, SITE, HEAD, FOOT, ISSUES, API, groups_listing)
+
     with open(os.path.join(out, "sitemap-sellers.xml"), "w") as f:
         f.write('<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n')
+        f.write("<url><loc>%s/</loc><lastmod>%s</lastmod></url>\n" % (SITE, as_of))
         f.write("<url><loc>%s/s/</loc><lastmod>%s</lastmod></url>\n" % (SITE, as_of))
         for r in index:
             f.write("<url><loc>%s/s/%s/</loc><lastmod>%s</lastmod></url>\n" % (SITE, esc(r[1]), as_of))
@@ -501,7 +507,7 @@ document.querySelectorAll('a.buy').forEach(a=>a.href+='?reference_id='+encodeURI
         for sl in group_slugs:
             f.write("<url><loc>%s/o/%s/</loc><lastmod>%s</lastmod></url>\n" % (SITE, esc(sl), as_of))
         f.write("</urlset>\n")
-    return {"as_of": as_of, "sellers": n, "groups": len(group_slugs), "out": out}
+    return {"as_of": as_of, "sellers": n, "groups": len(group_slugs), "door": door, "out": out}
 
 
 def main():
