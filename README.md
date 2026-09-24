@@ -69,6 +69,26 @@ Standard library only. No keys: the x402 registry, Base and Solana public RPCs
 are all open. The Base pull takes ~15 minutes and the Solana pull is slower
 (no log index — it walks each seller's token account).
 
+## Ask it from your agent
+
+The record is also an [MCP](https://modelcontextprotocol.io) server, so an agent can ask it from inside its own tools instead of browsing. Five tools, free, no keys, standard library only:
+
+| tool | answers |
+|---|---|
+| `market_today` | the newest chain day: x402 payments, USDC, buyer wallets, sellers paid, operators, agents at work, the busiest sellers by real payments |
+| `search` | which sellers do a job — by words or by intent, ranked by x402 payments yesterday, then by self-reported calls |
+| `seller` | one seller's card: what it sells, its prices against rivals, rank, history, and what the chain says — payments, payer wallets, concentration, hosts that share its wallet |
+| `operator` | the hosts one wallet group runs, and what they took together |
+| `agents_at_work` | buyer wallets whose x402 payments reached three or more sellers |
+
+Claude Desktop, Cursor, Claude Code or any MCP client:
+
+```json
+{"mcpServers": {"x402-atlas": {"command": "python3", "args": ["/path/to/x402-atlas/tools/atlas_mcp.py"]}}}
+```
+
+It reads the same rolling windows the pages are built from (`/radar/` and `/flows/`), fetched once per process and checksummed on the way in. `python3 tools/atlas_mcp_test.py` speaks real JSON-RPC to it against a store it built, with no network.
+
 ## Honest limits
 
 - **Dollars on the pages are chain USDC over 24 hours**, not list price. The

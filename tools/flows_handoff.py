@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Copied from the Aušrinė lab (commit 14d153d). Edit it there, not here.
+# Copied from the Aušrinė lab (commit 04306cc). Edit it there, not here.
 """flows_handoff.py — the rolling public window of on-chain pulls, and how a
 machine with no disk gets it back.
 
@@ -115,11 +115,28 @@ def publish(store, out, keep=KEEP, now=None):
     return manifest
 
 
+def _allowed(url):
+    u = urllib.parse.urlparse(url)
+    return u.scheme == "https" or (u.scheme == "http" and u.hostname in ("127.0.0.1", "localhost"))
+
+
+class _NoRedirect(urllib.request.HTTPRedirectHandler):
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        raise HandoffError("refusing a redirect from %s to %s" % (req.full_url, newurl))
+
+
+_OPENER = urllib.request.build_opener(_NoRedirect)
+
+
 def http_get(url, limit):
-    if urllib.parse.urlparse(url).scheme != "https":
-        raise HandoffError("only https: %s" % url)
-    with urllib.request.urlopen(urllib.request.Request(url, headers={"User-Agent": "ausrine-flows-handoff/1.0"}),
-                                timeout=60) as r:
+    """Fetch from the trusted publisher only: https, no redirects, a size cap — the
+    same rule snapshot_handoff keeps. A redirect could land on plain http or on a
+    host we never chose, and the checksum in a manifest fetched that way vouches
+    for nothing."""
+    if not _allowed(url):
+        raise HandoffError("refusing %s: https only (plain http is for localhost tests)" % url)
+    req = urllib.request.Request(url, headers={"User-Agent": "ausrine-flows-handoff/1.0"})
+    with _OPENER.open(req, timeout=60) as r:
         data = r.read(limit + 1)
     if len(data) > limit:
         raise HandoffError("%s is larger than %d bytes" % (url, limit))
