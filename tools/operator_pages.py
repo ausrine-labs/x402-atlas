@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Copied from the Aušrinė lab (commit 6a84aee). Edit it there, not here.
+# Copied from the Aušrinė lab (commit 079001a). Edit it there, not here.
 """operator_pages.py — a page for every wallet group: the hosts paid into one wallet.
 
 The registry counts hosts; the chain shows which of them are paid into the same
@@ -20,6 +20,10 @@ import html
 import json
 import os
 import re
+import sys
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import buyer_pages  # noqa: E402
 
 MARK = "Claimed by operator"
 DISCLAIMER = ("“Claimed by operator” means the operator proved control of the hosts the registry lists under "
@@ -27,6 +31,8 @@ DISCLAIMER = ("“Claimed by operator” means the operator proved control of th
               "is good or real. The numbers on these pages are never for sale.")
 UNCLAIMED = ("Hosts paid into one wallet are usually one operator, sometimes a platform collecting for several. "
              "Nobody has put a name on this group yet.")
+NAMED_FOR = ("Named for the host that took %d%% of this group’s x402 payments in the window; "
+             "the registry lists %d hosts under the same wallet.")
 PLATFORM_SUFFIXES = ("workers.dev", "vercel.app", "run.app", "onrender.com", "fly.dev", "up.railway.app",
                      "netlify.app", "github.io", "herokuapp.com", "pages.dev", "zeabur.app", "ts.net")
 
@@ -51,10 +57,32 @@ def registrable(host):
     return ".".join(parts[-2:]) if len(parts) >= 2 else h
 
 
-def group_name(hosts):
-    """A group is named by the domain most of its hosts share; a tie goes to the first."""
+def naming(hosts, chain=None):
+    """(name, share): a group is named by the domain most of its hosts share, a tie to the
+    first, and share None -- unless one host took at least half the group's x402 payments on
+    the rollup's day and that host's domain is a different one: then by that host's domain,
+    with share its whole percent of them. Without a chain, always by the usual domain."""
     c = collections.Counter(registrable(h) for h in hosts)
-    return c.most_common(1)[0][0]
+    usual = c.most_common(1)[0][0]
+    if chain:
+        S = chain.get("sellers") or {}
+        if isinstance(S, list):                  # the rollup as published; load_chain keys it by host
+            S = {s.get("host"): s for s in S}
+        n = [((S.get(h) or {}).get("on_chain_payments_x402") or 0) for h in hosts]
+        total = sum(n)
+        if total > 0:
+            top = max(n)
+            earner = registrable(hosts[n.index(top)])
+            # only when the earner is another domain than the group's usual one: a busy
+            # subdomain of the same company keeps the company's name, and its page address
+            if 2 * top >= total and earner != usual:
+                return earner, 100 * top // total
+    return usual, None
+
+
+def group_name(hosts, chain=None):
+    """What a group is called: its dominant host by x402 payments, else its commonest domain."""
+    return naming(hosts, chain)[0]
 
 
 def load_operators(path):
@@ -109,20 +137,30 @@ def group_facts(g, chain, A):
             "calls30": calls30, "top_payers": payers.most_common(5), "rows": rows}
 
 
-def build(out, chain, A, ctx, as_of, n_sellers, operators=None, site="", head="", foot="", issues="", buy_url=""):
+def wallet_link(w, n, buyers, site=""):
+    """A payer wallet: to its buyer page when one was written, else to the explorer."""
+    if buyer_pages.slug(w) in (buyers or {}):
+        return '<a href="%s"><code>%s…%s</code></a> %s' % (esc(buyer_pages.link(w, site)), esc(w[:6]), esc(w[-4:]), "{:,}".format(n))
+    return ('<a rel="nofollow noopener" href="https://basescan.org/address/%s"><code>%s…%s</code></a> %s'
+            % (esc(w), esc(w[:6]), esc(w[-4:]), "{:,}".format(n)))
+
+
+def build(out, chain, A, ctx, as_of, n_sellers, operators=None, site="", head="", foot="", issues="", buy_url="", buyers=None):
     """Write /o/<group>/index.html for every group and /o/ for the list. Returns
-    {host: {"slug", "name", "claimed"}} for the seller pages to link to."""
+    {host: {"slug", "name", "claimed"}} for the seller pages to link to. buyers holds the
+    slugs of the buyer pages already written (buyer_pages.build), so a wallet links there."""
     operators = operators or {}
     groups = chain.get("groups") or []
     odir = os.path.join(out, "o")
     os.makedirs(odir, exist_ok=True)
     by_host, listing, seen = {}, [], {}
     for g in groups:
-        base = slug(group_name(g["hosts"]))
-        sl = base if base not in seen else "%s-%d" % (base, g["id"])
+        auto, share = naming(g["hosts"], chain)
+        base = slug(auto)
+        sl = base if base not in seen else "%s-%s" % (base, g["id"])
         seen[sl] = True
         mine = next(((nm, o) for nm, o in operators.items() if any(h in g["hosts"] for h in o["hosts"])), None)
-        name = mine[0] if mine else group_name(g["hosts"])
+        name = mine[0] if mine else auto
         f = group_facts(g, chain, A)
         for h in g["hosts"]:
             by_host[h] = {"slug": sl, "name": name, "claimed": bool(mine)}
@@ -131,6 +169,8 @@ def build(out, chain, A, ctx, as_of, n_sellers, operators=None, site="", head=""
             f["hosts"], "{:,}".format(f["x402"]), money(f["usdc"]), as_of)
         p = [head % dict(ctx, title=esc(title), desc=esc(desc), canon=esc("%s/o/%s/" % (site, sl)))]
         p.append("<main><h1>%s</h1>" % esc(name))
+        if share is not None and not mine:
+            p.append('<p class="muted">%s</p>' % esc(NAMED_FOR % (share, f["hosts"])))
         if mine:
             p.append('<p><span class="tag mark">%s</span><span class="tag">%d hosts · %d wallet%s</span><span class="tag">as of %s</span></p>'
                      % (esc(MARK), f["hosts"], f["wallets"], "s" if f["wallets"] != 1 else "", esc(as_of)))
@@ -161,8 +201,7 @@ def build(out, chain, A, ctx, as_of, n_sellers, operators=None, site="", head=""
             p.append('<p class="muted">Across the group, %s x402 payments in the last %s; payer wallets summed per host: %d. '
                      "The busiest wallets, among each host’s busiest three: %s.</p>"
                      % ("{:,}".format(f["x402"]), esc(span_words(chain["hours"])), f["payer_wallets_summed"],
-                        ", ".join('<a rel="nofollow noopener" href="https://basescan.org/address/%s"><code>%s…%s</code></a> %s'
-                                  % (esc(w), esc(w[:6]), esc(w[-4:]), "{:,}".format(c)) for w, c in f["top_payers"]) or "—"))
+                        ", ".join(wallet_link(w, c, buyers, site) for w, c in f["top_payers"]) or "—"))
         else:
             p.append('<p class="muted">No x402 payment reached any host of this group on Base in the last %s.</p>' % esc(span_words(chain["hours"])))
         p.append('<h2>The hosts</h2><div class="tw"><table><tr><th>host</th><th class="n">x402 payments</th>'
