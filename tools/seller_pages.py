@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Copied from the Aušrinė lab (commit 6a84aee). Edit it there, not here.
+# Copied from the Aušrinė lab (commit 24c615b). Edit it there, not here.
 """seller_pages.py — a public page for every seller in the agent economy.
 
 Roughly 2,000 teams sell to agents over x402. Each of them wants to know how
@@ -27,6 +27,7 @@ from datetime import date
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 import radar  # noqa: E402
+import market  # noqa: E402
 import operator_pages  # noqa: E402
 import front_door  # noqa: E402
 
@@ -207,6 +208,7 @@ td.n,th.n{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
 .owner{margin-top:8px}.logo{max-width:96px;max-height:96px;border-radius:12px;display:block;margin-bottom:8px}
 .olink{display:inline-block;margin-right:14px}.tag{display:inline-block;border:1px solid var(--line);border-radius:999px;padding:2px 10px;font-size:12px;color:var(--muted);margin-right:6px}
 ul.cav{color:var(--muted);font-size:13px;padding-left:18px}code{background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:1px 6px;font-size:13px;overflow-wrap:anywhere}
+.chips{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 6px}.chip{background:var(--panel);border:1px solid var(--line);color:var(--muted);border-radius:999px;padding:4px 12px;font:13px "DM Sans";cursor:pointer}.chip:hover{color:var(--gold);border-color:#ffd16688}
 input#q{width:100%;background:var(--panel);border:1px solid var(--line);color:var(--ink);border-radius:10px;padding:12px 14px;font:16px "DM Sans";margin:14px 0}
 .offers{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:14px;margin-top:18px}
 .offer{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:18px}.offer h3{margin:0;font:800 20px "Syne",sans-serif}
@@ -431,7 +433,8 @@ def build(out, store=None, site=None, claims=None, whales=None, operators=None):
         with open(os.path.join(d, "index.html"), "w") as f:
             f.write("".join(p))
         index.append([host, sl, me["calls"], me["payers"], round(me["take"], 2), me["price_med"],
-                      me["sells"][:90]])
+                      me["sells"][:90], market.cat(me["sells"] + " " + host)[0],
+                      ((chain or {}).get("sellers", {}).get(host) or {}).get("on_chain_payments_x402") or 0])
 
     index.sort(key=lambda r: -r[2])
     with open(os.path.join(sdir, "index.json"), "w") as f:
