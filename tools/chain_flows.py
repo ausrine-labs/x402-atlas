@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Copied from the Aušrinė lab (commit 19e73aa). Edit it there, not here.
+# Copied from the Aušrinė lab (commit 3b1fa65). Edit it there, not here.
 """chain_flows.py — who paid whom: x402 payments read straight off Base.
 
 The registry says how many calls a seller got. The chain says who paid.
@@ -105,6 +105,41 @@ def authorized_txs(since, head, get_logs=None):
     return txs
 
 
+def block_ts(n):
+    return int(rpc("eth_getBlockByNumber", [hex(n), False])["timestamp"], 16)
+
+
+def block_at(ts, head, get_ts=block_ts):
+    """The first block whose timestamp is at or after `ts`; head + 1 when that block
+    is not made yet. Base makes a block every two seconds, so an estimate from the
+    head lands within a few thousand blocks and a binary search finishes it —
+    about twenty lookups. Whole UTC days pulled this way tile exactly, so a re-run
+    for the same day writes the same file and two days never overlap."""
+    head_ts = get_ts(head)
+    if ts > head_ts:
+        return head + 1
+    est = head - int((head_ts - ts) / 2)
+    lo, hi = max(0, est - 4000), min(head, est + 4000)
+    while lo > 0 and get_ts(lo) >= ts:
+        lo = max(0, lo - 40000)
+    while hi < head and get_ts(hi) < ts:
+        hi = min(head, hi + 40000)
+    while lo < hi:
+        mid = (lo + hi) // 2
+        if get_ts(mid) < ts:
+            lo = mid + 1
+        else:
+            hi = mid
+    return lo
+
+
+def day_bounds(day):
+    """Unix seconds at the start of `day` (UTC) and of the day after."""
+    from datetime import datetime, timedelta, timezone
+    d0 = datetime.strptime(day, "%Y-%m-%d").replace(tzinfo=timezone.utc)
+    return int(d0.timestamp()), int((d0 + timedelta(days=1)).timestamp())
+
+
 def tally(logs, authorized, seen, edges, usdc, n_x402, usdc_x402):
     """Fold Transfer logs into the edge counters, once per (tx, log), splitting out the
     transfers whose transaction used an authorization."""
@@ -127,9 +162,11 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--sellers", default="data-action/x402-sellers.json", help="the raw registry (items)")
     ap.add_argument("--snapshot", help="a radar snapshot instead: market-<date>.json, wallets read from it")
-    ap.add_argument("--hours", type=float, default=24)
-    ap.add_argument("--out", default="data-action/flows-" + date.today().isoformat() + ".json")
+    ap.add_argument("--hours", type=float, default=24, help="the last N hours before the head (the old way)")
+    ap.add_argument("--day", help="one whole UTC calendar day, YYYY-MM-DD, by block timestamp: files tile exactly")
+    ap.add_argument("--out", default=None, help="default: data-action/flows-<day>.json")
     a = ap.parse_args()
+    out_path = a.out or "data-action/flows-%s.json" % (a.day or date.today().isoformat())
 
     if a.snapshot:
         hosts_of = wallets_from_snapshot(json.load(open(a.snapshot)))
@@ -137,11 +174,17 @@ def main():
         hosts_of = wallets_from_items(json.load(open(a.sellers)))
     wallets = sorted(hosts_of)
     head = int(rpc("eth_blockNumber", []), 16)
-    span = int(a.hours * 3600 / 2)
-    since = head - span
-    print("Base head %d · %d seller wallets · %d blocks (%.0f h)" % (head, len(wallets), span, a.hours), file=sys.stderr)
+    if a.day:
+        start, end = day_bounds(a.day)
+        since, until, hours = block_at(start, head), block_at(end, head) - 1, 24.0
+        if until >= head:
+            sys.exit("chain-flows: %s is not over yet on Base (head %d is inside it)" % (a.day, head))
+    else:
+        since, until, hours = head - int(a.hours * 3600 / 2), head, a.hours
+    print("Base head %d · %d seller wallets · blocks %d..%d (%.0f h%s)"
+          % (head, len(wallets), since, until, hours, ", the whole of " + a.day + " UTC" if a.day else ""), file=sys.stderr)
 
-    authorized = authorized_txs(since, head)
+    authorized = authorized_txs(since, until)
     print("  %d transactions settled a signed authorization in the window" % len(authorized), file=sys.stderr)
 
     edges, usdc, n_x402, usdc_x402 = (collections.Counter() for _ in range(4))
@@ -151,26 +194,26 @@ def main():
         group = wallets[wi:wi + CHUNK_WALLETS]
         topics = [TRANSFER, None, [topic_addr(w) for w in group]]
         b = since
-        while b < head:
-            e = min(b + CHUNK_BLOCKS, head)
+        while b < until:
+            e = min(b + CHUNK_BLOCKS, until)
             logs = rpc("eth_getLogs", [{"fromBlock": hex(b), "toBlock": hex(e), "address": USDC, "topics": topics}])
             n_calls += 1
             tally(logs, authorized, seen_tx, edges, usdc, n_x402, usdc_x402)
             b = e + 1
         print("  wallets %d-%d done · %d payments so far · %d rpc calls" % (wi, wi + len(group), sum(edges.values()), n_calls), file=sys.stderr)
 
-    out = {"date": date.today().isoformat(), "hours": a.hours, "since_block": since, "head": head,
+    out = {"date": a.day or date.today().isoformat(), "day": a.day, "hours": hours, "since_block": since, "head": until,
            "x402_means": "the transfer's transaction used an EIP-3009 authorization: a facilitator settled a signed payment",
            "edges": [{"from": f, "to": t, "n": n, "usdc": round(usdc[(f, t)], 4),
                       "n_x402": n_x402[(f, t)], "usdc_x402": round(usdc_x402[(f, t)], 4)}
                      for (f, t), n in sorted(edges.items(), key=lambda kv: -kv[1])],
            "sellers": {w: sorted(h) for w, h in hosts_of.items()}}
-    json.dump(out, open(a.out, "w"), indent=1)
+    json.dump(out, open(out_path, "w"), indent=1)
     payers = {f for f, _ in edges}
     print("payments %d · usdc %.2f · buyer wallets %d · seller wallets paid %d · x402-settled: %d payments, usdc %.2f" % (
         sum(edges.values()), sum(usdc.values()), len(payers), len({t for _, t in edges}),
         sum(n_x402.values()), sum(usdc_x402.values())))
-    print("wrote", a.out)
+    print("wrote", out_path)
 
 
 if __name__ == "__main__":
