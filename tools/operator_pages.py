@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Copied from the Aušrinė lab (commit 8059a72). Edit it there, not here.
+# Copied from the Aušrinė lab (commit 76e0e62). Edit it there, not here.
 """operator_pages.py — a page for every wallet group: the hosts paid into one wallet.
 
 The registry counts hosts; the chain shows which of them are paid into the same
@@ -211,7 +211,10 @@ def build(out, chain, A, ctx, as_of, n_sellers, operators=None, site="", head=""
     page.append("</main>" + foot % {"issue": esc(issues), "as_of": esc(as_of), "n": "{:,}".format(n_sellers)})
     with open(os.path.join(odir, "index.html"), "w") as fh:
         fh.write("".join(page))
-    return by_host, [r[0] for r in listing]
+    with open(os.path.join(odir, "index.json"), "w") as fh:        # the front door's search reads this
+        json.dump({"as_of": as_of, "groups": [{"slug": r[0], "name": r[1], "hosts": r[2], "x402": r[3], "claimed": r[5]}
+                                              for r in listing]}, fh, separators=(",", ":"))
+    return by_host, listing
 
 
 def span_words(hours):

@@ -46,7 +46,8 @@ if ls flows/flows-*.json >/dev/null 2>&1; then
 fi
 
 # 5. the site
-for p in index.html market.html data LICENSE README.md robots.txt *.txt; do [ -e "$p" ] && cp -R "$p" _site/; done
+for p in data LICENSE README.md robots.txt *.txt; do [ -e "$p" ] && cp -R "$p" _site/; done
+mkdir -p _site/map && cp index.html _site/map/index.html      # the 3D map moves to /map/; seller_pages.py writes the front door at /
 python3 tools/snapshot_handoff.py publish --store store --out _site/radar
 if [ -f "flows/whales-$DAY.json" ]; then
   python3 tools/seller_pages.py --out _site --store store --whales "flows/whales-$DAY.json"
