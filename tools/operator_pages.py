@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Copied from the Aušrinė lab (commit 76e0e62). Edit it there, not here.
+# Copied from the Aušrinė lab (commit 6a84aee). Edit it there, not here.
 """operator_pages.py — a page for every wallet group: the hosts paid into one wallet.
 
 The registry counts hosts; the chain shows which of them are paid into the same
@@ -185,7 +185,7 @@ def build(out, chain, A, ctx, as_of, n_sellers, operators=None, site="", head=""
             esc("x402 payments are transfers a facilitator settled on a buyer’s signature, on Base, over the window. Money that reached "
                 "the same wallet by ordinary transfer is shown apart and is not a call."),
             esc("Payer wallets are summed per host: a wallet paying two hosts counts twice. A wallet is not a person.")))
-        p.append(foot % {"issue": esc("%s?title=%s" % (issues, "Correction:+group+" + sl)), "as_of": esc(as_of),
+        p.append(foot % {"issue": esc("%s?template=correct.yml&title=%s" % (issues, "Correction:+group+" + sl)), "as_of": esc(as_of),
                          "n": "{:,}".format(n_sellers)})
         d = os.path.join(odir, sl)
         os.makedirs(d, exist_ok=True)
