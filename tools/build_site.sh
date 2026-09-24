@@ -47,7 +47,11 @@ fi
 # 5. the site
 for p in index.html market.html data LICENSE README.md robots.txt *.txt; do [ -e "$p" ] && cp -R "$p" _site/; done
 python3 tools/snapshot_handoff.py publish --store store --out _site/radar
-python3 tools/seller_pages.py --out _site --store store
+if [ -f "flows/whales-$DAY.json" ]; then
+  python3 tools/seller_pages.py --out _site --store store --whales "flows/whales-$DAY.json"
+else
+  python3 tools/seller_pages.py --out _site --store store
+fi
 if ls flows/flows-*.json >/dev/null 2>&1; then
   python3 tools/flows_handoff.py publish --store flows --out _site/flows || echo "::warning::nothing fit to publish under flows/"
   [ -f "flows/whales-$DAY.txt" ] && cp "flows/whales-$DAY.txt" _site/flows/whales-latest.txt

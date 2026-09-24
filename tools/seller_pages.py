@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Copied from the Aušrinė lab (commit 5b984e4). Edit it there, not here.
+# Copied from the Aušrinė lab (commit c4f348a). Edit it there, not here.
 """seller_pages.py — a public page for every seller in the agent economy.
 
 Roughly 2,000 teams sell to agents over x402. Each of them wants to know how
@@ -48,6 +48,12 @@ CAVEATS = [
     "Movement is the change in a rolling 30-day total between stored days, not a daily count.",
     "Self-dealing is not filtered. A seller can pay its own endpoint, and those calls count here like any "
     "others. A high rank is a count of paid calls, not a judgement that a service is good, safe or real.",
+    "“Who actually paid” is read straight off Base: x402 payments are the transfers a facilitator settled on "
+    "a buyer’s signature, in the last day only. A wallet is not a person, and one operator can hold many. "
+    "“One payer” means every x402 payment came from one wallet; “concentrated” means ten or more payments "
+    "with the busiest three wallets sending 80% or more. Both are facts about the payers, not verdicts on "
+    "the seller. Hosts paid into one wallet are grouped: usually one operator, sometimes a platform "
+    "collecting for several.",
 ]
 
 
@@ -199,12 +205,76 @@ footer{margin-top:50px;padding-bottom:40px;border-top:1px solid var(--line);padd
 """
 
 
-def build(out, store=None, site=None, claims=None):
+def load_chain(path):
+    """The day's whale rollup (whales.py --out), keyed by host, or None. What the chain says
+    about who actually paid each seller; every number in it is read straight off Base."""
+    if not path or not os.path.exists(path):
+        return None
+    with open(path) as f:
+        d = json.load(f)
+    if not d.get("classified"):
+        return None
+    return {"hours": d.get("hours") or 24, "as_of": d.get("as_of") or "", "sellers": {s["host"]: s for s in d["sellers"]},
+            "operators": d.get("operators") or {}}
+
+
+def operator_line(host, chain):
+    op = chain["operators"].get(host)
+    if not op:
+        return ""
+    return ('<p class="muted">Payments to <b>%d hosts</b> land in this same wallet — usually one operator, sometimes a '
+            "platform collecting for several: %s%s.</p>"
+            % (op["hosts"], ", ".join(esc(h) for h in op["others"][:6]),
+               " and %d more" % (op["hosts"] - 1 - 6) if op["hosts"] - 1 > 6 else ""))
+
+
+def paid_section(host, me, chain):
+    """'Who actually paid': the seller's x402 payments in the window, from how many wallets,
+    how concentrated, the wallets named — and the operator its wallet belongs to. Facts with
+    their evidence; the word for concentration is defined on the page."""
+    if chain is None:
+        return ""
+    p = ["<h2>Who actually paid</h2>"]
+    s = chain["sellers"].get(host)
+    hours = chain["hours"]
+    if "Base" not in me["chains"]:
+        p.append('<p class="muted">This seller takes payment on %s. The daily pull reads Base only, so the chain '
+                 "has nothing to say here yet.</p>" % esc(", ".join(me["chains"]) or "another chain"))
+        p.append(operator_line(host, chain))
+        return "".join(p)
+    if not s or not s["on_chain_payments_x402"]:
+        other = s["on_chain_usdc"] if s else 0
+        p.append('<p class="muted">In the last %.0f h on Base, no x402 payment reached this seller’s wallet%s.%s</p>'
+                 % (hours, "s" if len(me["wallets"]) != 1 else "",
+                    (" %s reached it by ordinary transfer, which is not a call being bought." % money(other)) if other else ""))
+        p.append(operator_line(host, chain))
+        return "".join(p)
+    n, m, top3 = s["on_chain_payments_x402"], s["x402_payer_wallets"], s["x402_top3_share"]
+    word = s["concentration"]
+    tag = '<span class="tag">%s</span> ' % esc(word) if word in ("one payer", "concentrated") else ""
+    if m == 1:
+        spread = "all of them from one wallet"
+    else:
+        spread = "from %s wallets; the busiest three sent %d%%" % ("{:,}".format(m), top3)
+    p.append("<p>%sIn the last %.0f h on Base, <b>%s x402 payments</b> (%s) reached this seller’s wallet%s, %s.%s</p>"
+             % (tag, hours, "{:,}".format(n), money(s["on_chain_usdc_x402"]), "s" if len(s["wallets"]) != 1 else "", spread,
+                (" Another %s reached the same wallet%s by ordinary transfer, which is not a call being bought."
+                 % (money(s["on_chain_usdc"] - s["on_chain_usdc_x402"]), "s" if len(s["wallets"]) != 1 else ""))
+                if s["on_chain_usdc"] - s["on_chain_usdc_x402"] >= 1 else ""))
+    p.append('<p class="muted">The wallets: %s.</p>' % ", ".join(
+        '<a rel="nofollow noopener" href="https://basescan.org/address/%s"><code>%s</code></a> %s'
+        % (esc(w["wallet"]), esc(w["short"]), "{:,}".format(w["payments"])) for w in s["x402_top_payers"]))
+    p.append(operator_line(host, chain))
+    return "".join(p)
+
+
+def build(out, store=None, site=None, claims=None, whales=None):
     global SITE
     if site:
         SITE = site.rstrip("/")      # a local address, for looking at the pages before they are public
     if store:
         radar.STORE = store
+    chain = load_chain(whales)
     snaps = radar.snapshots()
     if not snaps:
         sys.exit("seller-pages: no snapshots")
@@ -273,6 +343,7 @@ def build(out, store=None, site=None, claims=None):
                     "price per call" if me["price_min"] == me["price_max"]
                     else "price per call, across %d endpoints" % me["endpoints"],
                     money(me["take"]), rank_t[host], chg))
+        p.append(paid_section(host, me, chain))
         p.append("<h2>The replay</h2>" + spark(hist))
         if riv:
             p.append('<h2>Selling something like this</h2><p class="muted">Matched automatically from each '
@@ -400,8 +471,9 @@ def main():
     ap.add_argument("--store", default=None)
     ap.add_argument("--site", default=None, help="base address the pages will be served from")
     ap.add_argument("--claims", default=None, help="claims.json (default: beside this file, if it exists)")
+    ap.add_argument("--whales", default=None, help="the day's whales.py rollup, for 'Who actually paid'")
     a = ap.parse_args()
-    r = build(a.out, a.store, a.site, a.claims)
+    r = build(a.out, a.store, a.site, a.claims, a.whales)
     print("wrote %d seller pages, as of %s, into %s/s/" % (r["sellers"], r["as_of"], r["out"]))
 
 
