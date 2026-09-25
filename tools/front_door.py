@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Copied from the Aušrinė lab (commit 079001a). Edit it there, not here.
+# Copied from the Aušrinė lab (commit 9aa52cb). Edit it there, not here.
 """front_door.py — the Atlas's home page: the public record of agent commerce, read off the chain.
 
 Not a dashboard and not a table: one sentence about what this is, one search box that
@@ -66,7 +66,18 @@ out.innerHTML=h;});
 </script>"""
 
 
-def build(out, chain, A, loaded, ctx, as_of, site, head, foot, issues, api, groups_listing=None, buyers=None):
+def hero(map_, site):
+    """The day's network in a frame, under the lede: map_page's embed of the same day. A day
+    with no map drawn shows no frame at all."""
+    if not map_ or not map_.get("embed") or not os.path.exists(map_["embed"]):
+        return ""
+    return ('<section class="hero" aria-label="The map"><div class="frame"><iframe src="%s/map/embed.html" '
+            'title="The map: who paid whom on Base" loading="lazy"></iframe></div>'
+            '<p class="cap"><span>%s</span><a href="%s/map/">Open the full map →</a></p></section>'
+            % (site, esc(map_.get("lede") or ""), site))
+
+
+def build(out, chain, A, loaded, ctx, as_of, site, head, foot, issues, api, groups_listing=None, buyers=None, map_=None):
     n = len(A)
     born = []
     if len(loaded) > 1:
@@ -83,6 +94,7 @@ def build(out, chain, A, loaded, ctx, as_of, site, head, foot, issues, api, grou
 
     p = [head % dict(ctx, title="x402 Atlas — the public record of agent commerce", desc=LEDE[:155], canon=site + "/")]
     p.append("<main><h1>%s</h1><p class=\"sells\">%s</p>" % (esc(TAGLINE), esc(LEDE)))
+    p.append(hero(map_, site))
     p.append('<input id="q" placeholder="What does your agent need? A name, or the job: weather, token prices, a web page as markdown…" autocomplete="off">'
              '<p class="chips">%s</p><p class="muted" id="intent"></p><div id="hits"></div>'
              % " ".join('<button class="chip" type="button" data-q="%s">%s</button>' % (esc(name), esc(name)) for name, _c, _r in market.CATS))
