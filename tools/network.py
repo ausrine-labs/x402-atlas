@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Copied from the Aušrinė lab (commit c240cc7). Edit it there, not here.
+# Copied from the Aušrinė lab (commit 9aa52cb). Edit it there, not here.
 """network.py — the agent ecosystem tonight, as a movable 3D network.
 
 Infoharmoni's real subject was never a hub with a crowd around it; it was
@@ -185,14 +185,14 @@ def find_communities(nodes, links, posts, users, skip=()):
 
 PAGE = r"""<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>__TITLE__</title>__HEADX__
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Syne:wght@600;700;800&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,400&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Newsreader:opsz,wght@6..72,400;6..72,500;6..72,600&family=Source+Sans+3:ital,wght@0,400;0,600;1,400&display=swap">
 <style>
 :root{--bg:#05060d;--ink:#f2f3f8;--muted:#9aa1b8;--line:#ffffff22;--pink:#ff4fa3;--gold:#ffd166;--grey:#7f8fa6}
-html,body{margin:0;height:100%;background:var(--bg);color:var(--ink);font-family:"DM Sans","Helvetica Neue",Helvetica,Arial,sans-serif;overflow:hidden}
+html,body{margin:0;height:100%;background:var(--bg);color:var(--ink);font-family:"Source Sans 3","Helvetica Neue",Helvetica,Arial,sans-serif;overflow:hidden}
 #c{position:fixed;inset:0;display:block;touch-action:none;cursor:grab}
 #c:active{cursor:grabbing}
 #hd{position:fixed;left:22px;top:18px;pointer-events:none}
-#hd h1{margin:0;font-family:"Syne","DM Sans","Helvetica Neue",sans-serif;font-size:30px;font-weight:800;letter-spacing:.5px;text-wrap:balance}
+#hd h1{margin:0;font-family:"Newsreader",Georgia,serif;font-size:30px;font-weight:500;text-wrap:balance}
 #key{position:fixed;left:22px;bottom:46px;width:330px;background:#0b0e1cd9;border:1px solid var(--line);border-radius:12px;padding:11px 13px;font-size:12.5px;line-height:1.45;backdrop-filter:blur(6px);z-index:3}
 #key .t{font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:7px}
 #key .kr{display:flex;gap:9px;align-items:flex-start;margin-bottom:6px;color:#d7dbe6}
@@ -211,6 +211,7 @@ html,body{margin:0;height:100%;background:var(--bg);color:var(--ink);font-family
 #hd p{margin:4px 0 0;font-size:14px;color:var(--muted)}
 #hd p.k{font-size:12px;color:#ffffff88;margin-top:6px}
 #tip{position:fixed;background:#0b0e1cf5;border:1px solid var(--line);border-radius:10px;padding:10px 12px;font-size:13px;max-width:320px;display:none;line-height:1.4;z-index:2}
+#tip .kd{font-size:11px;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);margin-bottom:2px}
 #tip b{font-size:15px}#tip .q{color:var(--muted);margin-top:6px;font-style:italic}
 #tip a{display:inline-block;margin-top:8px;color:var(--gold);text-decoration:none;font-weight:600}
 #bar{position:fixed;left:0;right:0;bottom:0;display:flex;gap:16px;padding:10px 22px 40px;font-size:13px;color:var(--muted);flex-wrap:wrap;align-items:center;background:linear-gradient(#05060d00,#05060dee)}
@@ -287,6 +288,7 @@ __TOP__<div id="stage"><canvas id="c"></canvas>
 <script>
 const G=__DATA__;
 const PAL=G.palette||(G.panels?{seller:['#ffb340','amber'],buyer:['#6ea8ff','blue']}:null);
+const PAPER=G.theme==='paper', EMBED=!!G.embed, TGT=EMBED?'_top':'_blank';
 const hx=c=>parseInt(c.slice(1),16);
 const COL={human:0x7f8fa6,agent:(PAL?hx(PAL.buyer[0]):0xff4fa3),buyer:(PAL?hx(PAL.seller[0]):0xffd166),us:0xffffff,repo:0x8ab4ff};
 const ROOMCOL={null:0x9aa1b8}, ROOMNAME={}; Object.entries(G.rooms||{}).forEach(([k,v])=>{ROOMCOL[k]=parseInt(v.color.slice(1),16); ROOMNAME[k]=v.name;});
@@ -326,27 +328,29 @@ function step(t){
 for(let it=0;it<160;it++) step(0.5*(1-it/180));
 // ---- three.js scene
 const cv=document.getElementById('c'); const ren=new THREE.WebGLRenderer({canvas:cv,antialias:true,alpha:false});
-ren.setPixelRatio(Math.min(devicePixelRatio,2)); ren.setClearColor(0x05060d,1);
+ren.setPixelRatio(Math.min(devicePixelRatio,2)); ren.setClearColor(PAPER?0xffffff:0x05060d,1);
 const sc=new THREE.Scene(); const cam=new THREE.PerspectiveCamera(50,1,1,4000);
 const root=new THREE.Group(); sc.add(root);
-sc.add(new THREE.AmbientLight(0xffffff,0.55)); const pl=new THREE.PointLight(0xffffff,0.9); pl.position.set(200,300,400); sc.add(pl);
+sc.add(new THREE.AmbientLight(0xffffff,PAPER?0.62:0.55)); const pl=new THREE.PointLight(0xffffff,PAPER?0.4:0.9); pl.position.set(200,300,400); sc.add(pl);
 const geo=new THREE.SphereGeometry(1,14,10);
 let sizeBy='pays';
 function baseSize(n){const v=sizeBy==='usd'?(n.usd||0)*100:n.f;
   return (n.k==='human'?0.55:(n.k==='agent'&&G.panels?0.7:1))*(1.2+1.6*Math.log10(v+1)+0.25*Math.min(n.d,8));}
 const meshes=N.map((n,i)=>{const s=baseSize(n);
-  const m=new THREE.Mesh(geo,new THREE.MeshLambertMaterial({color:COL[n.k],emissive:COL[n.k],emissiveIntensity:n.k==='human'?0.1:(n.k==='agent'&&G.panels?0.3:0.6),transparent:true,opacity:n.k==='human'?(n.d?0.6:0.25):(n.k==='agent'&&G.panels?0.55:0.95)}));
+  const m=new THREE.Mesh(geo,new THREE.MeshLambertMaterial({color:COL[n.k],emissive:COL[n.k],emissiveIntensity:PAPER?0.08:(n.k==='human'?0.1:(n.k==='agent'&&G.panels?0.3:0.6)),transparent:true,opacity:PAPER?0.92:(n.k==='human'?(n.d?0.6:0.25):(n.k==='agent'&&G.panels?0.55:0.95))}));
   m.scale.setScalar(n.d?s:Math.min(s,2)); m.userData.i=i; m.userData.s=m.scale.x; root.add(m); return m;});
 const lgeo=new THREE.BufferGeometry(); const lpos=new Float32Array(LK.length*6); const lcol=new Float32Array(LK.length*6);
-L.forEach((l,i)=>{const c=new THREE.Color(G.panels?0x8fa6c8:(ROOMCOL[l.r]||0x9aa1b8)); const b=(G.panels?0.55:0.35)+0.2*Math.min(l.w,3);
+L.forEach((l,i)=>{const c=new THREE.Color(PAPER?0xffffff:(G.panels?0x8fa6c8:(ROOMCOL[l.r]||0x9aa1b8))); const b=PAPER?0.8-0.09*Math.min(Math.log2(1+l.w),4):(G.panels?0.55:0.35)+0.2*Math.min(l.w,3);
   for(let e=0;e<2;e++){lcol[i*6+e*3]=c.r*b;lcol[i*6+e*3+1]=c.g*b;lcol[i*6+e*3+2]=c.b*b;}});
 lgeo.setAttribute('position',new THREE.BufferAttribute(lpos,3)); lgeo.setAttribute('color',new THREE.BufferAttribute(lcol,3));
-const lines=new THREE.LineSegments(lgeo,new THREE.LineBasicMaterial({vertexColors:true,transparent:true,opacity:0.9})); root.add(lines);
+const lines=new THREE.LineSegments(lgeo,new THREE.LineBasicMaterial({vertexColors:true,transparent:true,opacity:PAPER?0.75:0.9})); root.add(lines);
 // labels for the ones worth naming: sprites drawn on canvas
-function label(txt,color){const c=document.createElement('canvas'); const x=c.getContext('2d'); const F='600 28px "DM Sans", Helvetica Neue, Helvetica, Arial'; x.font=F;
-  const w=x.measureText(txt).width+16; c.width=w; c.height=40; x.font=F; x.fillStyle=color; x.textBaseline='middle'; x.fillText(txt,8,20);
+function label(txt,color){const c=document.createElement('canvas'); const x=c.getContext('2d'); const F='600 28px "Source Sans 3", Helvetica Neue, Helvetica, Arial'; x.font=F;
+  const w=x.measureText(txt).width+16; c.width=w; c.height=40; x.font=F; x.textBaseline='middle';
+  if(PAPER){x.lineJoin='round'; x.lineWidth=7; x.strokeStyle='rgba(255,255,255,0.92)'; x.strokeText(txt,8,20); color='#26262b';}
+  x.fillStyle=color; x.fillText(txt,8,20);
   const t=new THREE.CanvasTexture(c); t.minFilter=THREE.LinearFilter; const sp=new THREE.Sprite(new THREE.SpriteMaterial({map:t,transparent:true,depthTest:false}));
-  sp.scale.set(w/40*7,7,1); return sp;}
+  if(PAPER){sp.renderOrder=10; sp.material.sizeAttenuation=false; sp.center.set(0,0.5); const k=19/(1.07*(cv.clientHeight||innerHeight)); sp.scale.set(w/40*k,k,1);} else sp.scale.set(w/40*7,7,1); return sp;}
 const labels=[]; const LB=G.labels; let labelSet=null;
 if(LB){const pool=N.map((n,i)=>[n,i]).filter(([n])=>LB.kinds.includes(n.k)).sort((a,b)=>(b[0].usd||b[0].f)-(a[0].usd||a[0].f)).slice(0,LB.top);
   labelSet=new Set(pool.map(([,i])=>i));}
@@ -355,14 +359,14 @@ N.forEach((n,i)=>{ if(labelSet){ if(labelSet.has(i)){const sp=label((n.k==='repo
   if((n.k==='buyer'&&n.f>=buyerCut)||n.k==='us'||(n.k==='agent'&&(n.f>3000||n.d>(big?3:1)))||n.d>=(big?12:4)||(n.k!=='repo'&&n.f>60000)||(n.k==='repo'&&(n.f>(big?8000:2000)||n.d>=(big?15:6)))){
   const sp=label('@'+n.u,'#'+COL[n.k].toString(16).padStart(6,'0')); sp.userData.i=i; root.add(sp); labels.push(sp);} });
 const cmax=Math.max(...C.map(c=>c.size));
-const clabels=C.map(c=>{const sp=label(c.label||(c.terms.length?c.terms.slice(0,2).join(' · '):'@'+c.hub),'#dfe4f0'); sp.material.opacity=0.95; sp.scale.multiplyScalar(1.1+1.5*Math.sqrt(c.size/cmax)); sp.visible=false; root.add(sp); return sp;});
+const clabels=C.map(c=>{const sp=label(c.label||(c.terms.length?c.terms.slice(0,2).join(' · '):'@'+c.hub),PAPER?'#55555e':'#dfe4f0'); sp.material.opacity=0.95; sp.scale.multiplyScalar(1.1+1.5*Math.sqrt(c.size/cmax)); sp.visible=false; root.add(sp); return sp;});
 const hulls=C.map((c,i)=>{const m=new THREE.Mesh(new THREE.SphereGeometry(1,24,16),new THREE.MeshBasicMaterial({color:commCol(i),transparent:true,opacity:0.07,depthWrite:false,side:THREE.BackSide})); root.add(m); return m;});
 let mode=(G.mode||'kind'), onComm=-1; document.querySelectorAll('#mode input').forEach(r=>r.checked=(r.value===mode));
 function recolour(){meshes.forEach((m,i)=>{const n=N[i]; const col=mode==='kind'?COL[n.k]:(mode==='room'?roomCol(n):commCol(n.c));
-  m.material.color.setHex(col); m.material.emissive.setHex(col); m.material.emissiveIntensity=(mode==='kind'&&n.k==='human')?0.1:0.45;
-  m.material.opacity=onComm>=0?(n.c===onComm?1:0.06):(n.k==='human'&&mode==='kind'?(n.d?0.6:0.25):(n.k==='agent'&&G.panels&&mode==='kind'?0.55:0.9));});
-  clabels.forEach((sp,i)=>{sp.visible=mode==='comm'||onComm===i||C[i].size>=5; sp.material.opacity=(mode==='comm'||onComm===i)?0.95:0.5;});
-  hulls.forEach((h,i)=>{h.material.opacity=onComm>=0?(onComm===i?0.18:0.02):(mode==='comm'?0.12:0.06);}); document.getElementById('roomkey').style.display=mode==='room'?'flex':'none';}
+  m.material.color.setHex(col); m.material.emissive.setHex(col); m.material.emissiveIntensity=PAPER?0.08:((mode==='kind'&&n.k==='human')?0.1:0.45);
+  m.material.opacity=onComm>=0?(n.c===onComm?1:(PAPER?0.12:0.06)):(PAPER?0.92:(n.k==='human'&&mode==='kind'?(n.d?0.6:0.25):(n.k==='agent'&&G.panels&&mode==='kind'?0.55:0.9)));});
+  clabels.forEach((sp,i)=>{sp.visible=mode==='comm'||onComm===i||(!PAPER&&C[i].size>=5); sp.material.opacity=(mode==='comm'||onComm===i)?0.95:0.5;});
+  hulls.forEach((h,i)=>{h.material.opacity=PAPER?(onComm===i?0.06:0):(onComm>=0?(onComm===i?0.18:0.02):(mode==='comm'?0.12:0.06)); h.visible=h.material.opacity>0;}); document.getElementById('roomkey').style.display=mode==='room'?'flex':'none';}
 document.querySelectorAll('#mode input').forEach(r=>r.onchange=()=>{mode=r.value; recolour();});
 document.getElementById('roomkey').innerHTML=Object.entries(G.rooms||{}).map(([k,v])=>'<span><i style="background:'+v.color+'"></i>'+esc(v.name)+'</span>').join('');
 const comms=document.getElementById('comms');
@@ -392,13 +396,14 @@ let hoverT=0;
 cv.addEventListener('pointermove',e=>{if(!drag){if(pinned<0)pick(e,false);return;} const dx=e.clientX-drag.x,dy=e.clientY-drag.y; if(Math.abs(dx)+Math.abs(dy)>3)drag.moved=true;
   if(drag.pan){pan(dx,dy);} else {ry+=dx*0.0042; rx=Math.max(-1.45,Math.min(1.45,rx+dy*0.0042));} drag.x=e.clientX;drag.y=e.clientY; auto=false; lastMove=performance.now();});
 cv.addEventListener('pointerup',e=>{if(drag&&!drag.moved)pick(e,true); drag=null;});
-cv.addEventListener('wheel',e=>{e.preventDefault(); dist=Math.max(60,Math.min(1200,dist*(1+e.deltaY*0.001)));},{passive:false});
+cv.addEventListener('pointercancel',()=>{drag=null;}); cv.addEventListener('lostpointercapture',()=>{drag=null;});
+cv.addEventListener('wheel',e=>{if(EMBED)return; e.preventDefault(); dist=Math.max(60,Math.min(1200,dist*(1+e.deltaY*0.001)));},{passive:false});
 let tmid=null;
 cv.addEventListener('touchstart',e=>{if(e.touches.length===2){pinch=Math.hypot(e.touches[0].clientX-e.touches[1].clientX,e.touches[0].clientY-e.touches[1].clientY); tmid=[(e.touches[0].clientX+e.touches[1].clientX)/2,(e.touches[0].clientY+e.touches[1].clientY)/2];}},{passive:true});
 cv.addEventListener('touchmove',e=>{if(e.touches.length===2&&pinch){const d=Math.hypot(e.touches[0].clientX-e.touches[1].clientX,e.touches[0].clientY-e.touches[1].clientY); dist=Math.max(60,Math.min(1200,dist*pinch/d)); pinch=d; const m=[(e.touches[0].clientX+e.touches[1].clientX)/2,(e.touches[0].clientY+e.touches[1].clientY)/2]; if(tmid)pan(m[0]-tmid[0],m[1]-tmid[1]); tmid=m; drag=null;}},{passive:true});
 const ray=new THREE.Raycaster(); ray.params.Points={threshold:4}; const tip=document.getElementById('tip'); let sel=-1, pinned=-1;
 function pick(e,stick){const R=cv.getBoundingClientRect(); const m=new THREE.Vector2(((e.clientX-R.left)/R.width)*2-1,-((e.clientY-R.top)/R.height)*2+1); ray.setFromCamera(m,cam);
-  if(stick){const lh=ray.intersectObjects(labels.filter(x=>x.visible))[0]; if(lh){window.open(prof(N[lh.object.userData.i]),'_blank'); return;}}
+  if(stick){const lh=ray.intersectObjects(labels.filter(x=>x.visible))[0]; if(lh){window.open(prof(N[lh.object.userData.i]),TGT); return;}}
   let hit=ray.intersectObjects(meshes.filter(x=>x.visible))[0];
   if(!hit){ // nothing exactly under the pointer: take the nearest visible dot within reach
     const px=e.clientX,py=e.clientY; let best=null,bd=stick?34:20;
@@ -412,12 +417,12 @@ function pick(e,stick){const R=cv.getBoundingClientRect(); const m=new THREE.Vec
   const said=L.filter(l=>l.a===n.u).map(l=>l.b), heard=L.filter(l=>l.b===n.u).map(l=>l.a);
   const onch=/basescan|solscan/.test(n.url||'');
   const what=({human:'a person',agent:onch?'a buyer — the wallet that paid':'an AI agent',buyer:onch?'a seller with a wallet':'an AI agent with a wallet',us:'this shop — an AI agent',repo:'a repository'})[n.k]+(n.chain?' · '+n.chain:'');
-  tip.innerHTML='<div style="font-size:11px;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);margin-bottom:2px">'+what+'</div><b>'+(n.k==='repo'?'':AT)+esc(n.u)+'</b>'+(n.n?' · '+esc(n.n):'')+'<br>'+(n.known&&!(n.url||'').includes('basescan')?n.f.toLocaleString()+(n.k==='repo'?' stars · ':(n.url&&n.url.includes('github')?' commits · ':' followers · ')):'')+
+  tip.innerHTML='<div class="kd">'+what+'</div><b>'+(n.k==='repo'?'':AT)+esc(n.u)+'</b>'+(n.n?' · '+esc(n.n):'')+'<br>'+(n.known&&!(n.url||'').includes('basescan')?n.f.toLocaleString()+(n.k==='repo'?' stars · ':(n.url&&n.url.includes('github')?' commits · ':' followers · ')):'')+
     (n.r.length?n.r.map(r=>ROOMNAME[r]).join(' + '):'')+(n.c>=0&&C[n.c].label&&!/^shared market/.test(C[n.c].label)?'<br><span style="color:var(--muted)">in: '+esc(C[n.c].label)+'</span>':'')+
     (said.length?'<br>'+(G.panels?'paid':'spoke to')+': '+said.slice(0,6).map(u=>AT+esc(u)).join(', ')+(said.length>6?' +'+(said.length-6):''):'')+
     (heard.length?'<br>'+(G.panels?'paid by':'named by')+': '+heard.slice(0,6).map(u=>AT+esc(u)).join(', ')+(heard.length>6?' +'+(heard.length-6):''):'')+
     (n.b?'<br><span style="color:var(--muted)">'+esc(n.b)+'</span>':'')+(n.wallet&&n.wallet.length?'<br><span style="font-family:ui-monospace,Menlo,monospace;font-size:11px;color:var(--muted)">'+esc(n.wallet[0])+'</span>':'')+(n.s?'<div class="q">“'+esc(n.s)+'”</div>':'')+
-    '<a href="'+esc(prof(n))+'" target="_blank" rel="noopener">open '+(n.k==='repo'?'':AT)+esc(n.u)+' →</a>';
+    '<a href="'+esc(prof(n))+'" target="'+TGT+'" rel="noopener">open '+(n.k==='repo'?'':AT)+esc(n.u)+' →</a>';
   tip.style.display='block'; tip.style.left=Math.min(e.clientX+12,innerWidth-tip.offsetWidth-8)+'px'; tip.style.top=Math.min(e.clientY+12,innerHeight-tip.offsetHeight-60)+'px';}
 addEventListener('scroll',()=>{tip.style.display='none'; sel=-1; pinned=-1;},{passive:true});   // the card is pinned to the window, the dots are not
 function filt(){const h=fh.checked,a=fa.checked,d=fd.checked;
@@ -474,6 +479,7 @@ if(G.panels&&G.panels.length){ document.getElementById('listT').remove(); list.r
 // ---- render loop: the swarm keeps breathing
 const reduced=matchMedia('(prefers-reduced-motion: reduce)').matches;
 function frame(t){ if(!reduced&&!paused){  if((t|0)%3===0) step(0.03); }
+  if(EMBED&&!reduced&&!drag&&pinned<0&&t-lastMove>3000) ry+=0.0016;
   sync(); cam.position.set(target.x+dist*Math.sin(ry)*Math.cos(rx),target.y+dist*Math.sin(rx),target.z+dist*Math.cos(ry)*Math.cos(rx)); cam.lookAt(target);
   const pulse=paused?1:1+0.06*Math.sin(t/900); if(!paused)meshes.forEach((m,i)=>{if(N[i].k!=='human')m.scale.setScalar(m.userData.s*pulse);});
   ren.render(sc,cam); requestAnimationFrame(frame);} requestAnimationFrame(frame);
@@ -481,7 +487,7 @@ function frame(t){ if(!reduced&&!paused){  if((t|0)%3===0) step(0.03); }
 """
 
 
-GRAPH_KEYS = ("rooms", "source", "key", "mode", "panels", "labels", "totals", "palette")
+GRAPH_KEYS = ("rooms", "source", "key", "mode", "panels", "labels", "totals", "palette", "theme", "embed")
 
 
 def render(g, today, title="AI Agent Economy", head="", css="", top="", bottom=""):
