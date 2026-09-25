@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Copied from the Aušrinė lab (commit 079001a). Edit it there, not here.
+# Copied from the Aušrinė lab (commit c240cc7). Edit it there, not here.
 """network.py — the agent ecosystem tonight, as a movable 3D network.
 
 Infoharmoni's real subject was never a hub with a crowd around it; it was
@@ -294,9 +294,10 @@ const CPAL=[0xff8c42,0x5ad1ff,0xb98cff,0x7bffb0,0xffd166,0xff4fa3,0x4fd8ff,0xffa
 const C=G.communities; const commCol=i=>i<0?0x3a3f55:CPAL[i%CPAL.length];
 function roomCol(n){if(!n.r.length)return 0x4a5068; if(n.r.length===1)return ROOMCOL[n.r[0]]; const c=new THREE.Color(0); n.r.forEach(r=>c.add(new THREE.Color(ROOMCOL[r]).multiplyScalar(1/n.r.length))); return c.getHex();}
 const KIND={human:'human',agent:'AI agent',buyer:'AI agent with a wallet',us:'this shop (AI agent)',repo:'repository'};
-const prof=n=>n.url||('https://x.com/'+encodeURIComponent(n.u));
+const prof=n=>safeUrl(n.url||('https://x.com/'+encodeURIComponent(n.u)));
 const AT=G.panels?'':'@';
-const esc=s=>String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;');
+const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const safeUrl=u=>{u=String(u||'');return /^(https?:\/\/|\/)/i.test(u)?u:'#';};
 const N=G.nodes, L=G.links, idx={}; N.forEach((n,i)=>idx[n.u]=i);
 const conn=N.map(n=>n.d>0);
 // ---- layout: 3D force, run at load, then kept softly alive
@@ -452,7 +453,7 @@ if(G.panels&&G.panels.length){ document.getElementById('listT').remove(); list.r
     let rows=N.filter(n=>!f||n.u.toLowerCase().includes(f)||(n.s||'').toLowerCase().includes(f)||(n.b||'').toLowerCase().includes(f));
     if(qs==='sell')rows=rows.filter(n=>n.k==='buyer'); if(qs==='buy')rows=rows.filter(n=>n.k==='agent');
     rows.sort((a,b)=>qs==='pays'?b.f-a.f:((b.usd||0)-(a.usd||0))||b.f-a.f);
-    qres.innerHTML=rows.slice(0,60).map(n=>'<div class="row"><a class="'+(n.k==='buyer'?'sell':'buy')+'" href="'+esc(n.url)+'" target="_blank" rel="noopener" data-u="'+esc(n.u)+'">'+esc(n.u)+'</a><span class="m">'+money(n.usd)+' · '+n.f.toLocaleString()+' pays</span><span class="d">'+esc((n.s||n.b||'').slice(0,100))+'</span></div>').join('')
+    qres.innerHTML=rows.slice(0,60).map(n=>'<div class="row"><a class="'+(n.k==='buyer'?'sell':'buy')+'" href="'+esc(safeUrl(n.url))+'" target="_blank" rel="noopener" data-u="'+esc(n.u)+'">'+esc(n.u)+'</a><span class="m">'+money(n.usd)+' · '+n.f.toLocaleString()+' pays</span><span class="d">'+esc((n.s||n.b||'').slice(0,100))+'</span></div>').join('')
       +(rows.length>60?'<div class="row"><span class="d">+'+(rows.length-60)+' more — type to narrow</span></div>':'');
     qres.querySelectorAll('a').forEach(a=>{a.addEventListener('mouseenter',()=>{const i=N.findIndex(n=>n.u===a.dataset.u); if(i<0)return; meshes.forEach((m,j)=>m.material.opacity=(j===i?1:0.05)); if(meshes[i])target.copy(meshes[i].position);});
       a.addEventListener('mouseleave',recolour);});}

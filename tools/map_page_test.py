@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Copied from the Aušrinė lab (commit 079001a). Edit it there, not here.
+# Copied from the Aušrinė lab (commit c240cc7). Edit it there, not here.
 """map_page_test.py — the live map, from a synthetic day of flows. No network.
 
     python3 map_page_test.py
@@ -161,6 +161,13 @@ class Map(unittest.TestCase):
     def test_every_line_drawn_when_under_the_cap(self):
         self.assertIn("Every line is drawn: 5 lines.", self.page)
         self.assertEqual(self.graph["drawn"]["left_out"], {"edges": 0, "wallets": 0, "sellers": 0})
+
+    def test_the_page_script_escapes_quotes_and_refuses_odd_links(self):
+        # a seller writes its own host and description; in an attribute a bare quote would end it
+        self.assertIn('''const esc=s=>String(s).replace(/[&<>"']/g''', self.page)
+        self.assertIn("const safeUrl=", self.page)
+        self.assertIn("const prof=n=>safeUrl(", self.page)
+        self.assertIn("href=\"'+esc(safeUrl(n.url))+'\"", self.page)
 
     def test_the_banned_word_is_absent(self):
         # a seller's own description and host use it; the map carries neither, only the link
