@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Copied from the Aušrinė lab (commit 540ea9d). Edit it there, not here.
+# Copied from the Aušrinė lab (commit 507dd4a). Edit it there, not here.
 """buyer_pages_test.py — a page for every buyer wallet, from a synthetic rollup. No network.
 
     python3 buyer_pages_test.py
@@ -178,6 +178,48 @@ class Pages(unittest.TestCase):
         self.assertIn('<a href="https://example.test/atlas/b/%s/"><code>0xAbCd…a1a1</code></a>' % self.agent, door)
         self.assertIn('<a href="https://example.test/atlas/b/">agents at work</a>: wallets paying 3+ sellers', door)
         self.assertIn('<a href="https://example.test/atlas/b/">Every buyer</a>', door)
+
+
+class WhatItBought(unittest.TestCase):
+    """'What it bought' reads the wallet's x402 payments only: one weather call outranks a hundred
+    plain transfers to an analytics seller, which are not purchases and are not listed."""
+
+    def test_categories_come_from_x402_payments(self):
+        W, WWX, WAN = "0x" + "e7" * 20, "0x" + "e8" * 20, "0x" + "e9" * 20
+        snap = {"wx.example": opt.row(5, "weather forecast for any city"),
+                "chart.example": opt.row(5, "onchain analytics for tokens")}
+        e = lambda f, t, n, usdc, nx, ux: {"from": f, "to": t, "n": n, "usdc": usdc, "n_x402": nx, "usdc_x402": ux}
+        r = whales.rollup([e(W, WWX, 1, 0.01, 1, 0.01), e(W, WAN, 100, 500.0, 0, 0.0)],
+                          {WWX: ["wx.example"], WAN: ["chart.example"]}, {W: "Base", WWX: "Base", WAN: "Base"}, 24, snap)
+        b = next(b for b in r["buyers"] if b["wallet"] == W)
+        self.assertEqual(b["categories"][0], "crypto & markets")          # the rollup's own list is weighted by all transfers
+        out = tempfile.mkdtemp()
+        bp.build(out, r, {h: {} for h in snap}, {}, "2026-01-02", 2, head="%(title)s", foot="")
+        html = open(os.path.join(out, "b", W, "index.html")).read()
+        line = re.search(r"<h2>What it bought</h2><p[^>]*>(.*?)</p>", html).group(1)
+        self.assertEqual(line, "By category, most payments first: world data.")
+        self.assertNotIn("crypto", line)
+
+
+    def test_an_x402_purchase_behind_eight_bigger_transfers_still_counts(self):
+        # the rollup keeps a wallet's eight sellers by USDC; a small x402 call can fall off that list
+        W, WWX = "0x" + "f1" * 20, "0x" + "f2" * 20
+        big = ["0x" + ("%02x" % (0x30 + i)) * 20 for i in range(9)]
+        snap = {"wx.example": opt.row(5, "weather forecast for any city")}
+        sellers = {WWX: ["wx.example"]}
+        snap.update({"shop%d.example" % i: opt.row(5, "onchain analytics for tokens") for i in range(9)})
+        sellers.update({w: ["shop%d.example" % i] for i, w in enumerate(big)})
+        e = lambda f, t, n, usdc, nx, ux: {"from": f, "to": t, "n": n, "usdc": usdc, "n_x402": nx, "usdc_x402": ux}
+        edges = [e(W, WWX, 1, 0.01, 1, 0.01)] + [e(W, w, 1, 1000.0, 0, 0.0) for w in big]
+        r = whales.rollup(edges, sellers, {w: "Base" for w in [W, WWX] + big}, 24, snap)
+        b = next(b for b in r["buyers"] if b["wallet"] == W)
+        self.assertNotIn("wx.example", [s["host"] for s in b["sellers"]])   # cut from the eight
+        self.assertEqual(b["categories_x402"], ["world data"])
+        out = tempfile.mkdtemp()
+        bp.build(out, r, {h: {} for h in snap}, {}, "2026-01-02", 2, head="%(title)s", foot="")
+        html = open(os.path.join(out, "b", W, "index.html")).read()
+        line = re.search(r"<h2>What it bought</h2><p[^>]*>(.*?)</p>", html).group(1)
+        self.assertEqual(line, "By category, most payments first: world data.")
 
 
 class NoBuyers(unittest.TestCase):
