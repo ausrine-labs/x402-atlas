@@ -41,7 +41,9 @@ python3 tools/flows_handoff.py fetch "$SITE/flows/" --store flows || echo "::war
 YESTERDAY=$(date -u -d "$DAY -1 day" +%F)          # the last whole UTC day; pulled by block timestamp, so days tile exactly
 python3 tools/chain_flows.py --snapshot "$LATEST" --day "$YESTERDAY" --out "flows/flows-$YESTERDAY.json" || echo "::warning::the chain pull for $YESTERDAY failed; the window keeps what it has"
 if ls flows/flows-*.json >/dev/null 2>&1; then
-  python3 tools/whales.py report --flows flows/flows-*.json --snapshot "$LATEST" --top 20 --out "flows/whales-$DAY.json" \
+  # one day only: every page says "yesterday", so the rollup is the newest whole day, never the window
+  NEWEST=$(ls flows/flows-*.json | sort | tail -1)
+  python3 tools/whales.py report --flows "$NEWEST" --snapshot "$LATEST" --top 20 --out "flows/whales-$DAY.json" \
     > "flows/whales-$DAY.txt" || echo "::warning::the whale rollup failed"
 fi
 
