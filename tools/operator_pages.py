@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Copied from the Aušrinė lab (commit 079001a). Edit it there, not here.
+# Copied from the Aušrinė lab (commit 507dd4a). Edit it there, not here.
 """operator_pages.py — a page for every wallet group: the hosts paid into one wallet.
 
 The registry counts hosts; the chain shows which of them are paid into the same
@@ -57,13 +57,22 @@ def registrable(host):
     return ".".join(parts[-2:]) if len(parts) >= 2 else h
 
 
+def usual(hosts):
+    """The domain most of a group's hosts share, a tie to the first. The page address is
+    made from this alone, so it holds still while the day's earnings move the name."""
+    return collections.Counter(registrable(h) for h in hosts).most_common(1)[0][0]
+
+
+def group_slug(hosts):
+    return slug(usual(hosts))
+
+
 def naming(hosts, chain=None):
     """(name, share): a group is named by the domain most of its hosts share, a tie to the
     first, and share None -- unless one host took at least half the group's x402 payments on
     the rollup's day and that host's domain is a different one: then by that host's domain,
     with share its whole percent of them. Without a chain, always by the usual domain."""
-    c = collections.Counter(registrable(h) for h in hosts)
-    usual = c.most_common(1)[0][0]
+    common = usual(hosts)
     if chain:
         S = chain.get("sellers") or {}
         if isinstance(S, list):                  # the rollup as published; load_chain keys it by host
@@ -74,10 +83,10 @@ def naming(hosts, chain=None):
             top = max(n)
             earner = registrable(hosts[n.index(top)])
             # only when the earner is another domain than the group's usual one: a busy
-            # subdomain of the same company keeps the company's name, and its page address
-            if 2 * top >= total and earner != usual:
+            # subdomain of the same company keeps the company's name
+            if 2 * top >= total and earner != common:
                 return earner, 100 * top // total
-    return usual, None
+    return common, None
 
 
 def group_name(hosts, chain=None):
@@ -146,7 +155,9 @@ def wallet_link(w, n, buyers, site=""):
 
 
 def build(out, chain, A, ctx, as_of, n_sellers, operators=None, site="", head="", foot="", issues="", buy_url="", buyers=None):
-    """Write /o/<group>/index.html for every group and /o/ for the list. Returns
+    """Write /o/<group>/index.html for every group and /o/ for the list. The address comes
+    from the group's usual domain (group_slug), never from the day's earner, so a link
+    made today still works tomorrow; the earner names only the page. Returns
     {host: {"slug", "name", "claimed"}} for the seller pages to link to. buyers holds the
     slugs of the buyer pages already written (buyer_pages.build), so a wallet links there."""
     operators = operators or {}
@@ -156,7 +167,7 @@ def build(out, chain, A, ctx, as_of, n_sellers, operators=None, site="", head=""
     by_host, listing, seen = {}, [], {}
     for g in groups:
         auto, share = naming(g["hosts"], chain)
-        base = slug(auto)
+        base = group_slug(g["hosts"])
         sl = base if base not in seen else "%s-%s" % (base, g["id"])
         seen[sl] = True
         mine = next(((nm, o) for nm, o in operators.items() if any(h in g["hosts"] for h in o["hosts"])), None)

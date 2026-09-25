@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Copied from the Aušrinė lab (commit 079001a). Edit it there, not here.
+# Copied from the Aušrinė lab (commit 507dd4a). Edit it there, not here.
 """atlas_mcp.py — the x402 Atlas as an MCP server, so an agent can ask the
 public record from inside its own tools.
 
@@ -44,7 +44,7 @@ import market  # noqa: E402
 import radar  # noqa: E402
 import flows_handoff  # noqa: E402
 import snapshot_handoff  # noqa: E402
-from operator_pages import group_name, slug  # noqa: E402
+from operator_pages import group_name, group_slug, slug  # noqa: E402
 
 VERSION = "0.1.0"
 PROTOCOL = "2024-11-05"
@@ -110,6 +110,16 @@ def _refresh():
     return problems
 
 
+def chain_day(d, name):
+    """The day a rollup covers: the last of its dates. Its file is named for the day it was
+    built, which from the daily build on is the day after; the name answers only when a
+    rollup carries no dates."""
+    dates = d.get("dates")
+    if isinstance(dates, list) and dates and isinstance(dates[-1], str) and re.match(r"^\d{4}-\d{2}-\d{2}$", dates[-1]):
+        return dates[-1]
+    return name[len("whales-"):-len(".json")]
+
+
 def newest_chain(store):
     names = sorted(f for f in os.listdir(store) if re.match(r"^whales-\d{4}-\d{2}-\d{2}\.json$", f))
     for name in reversed(names):
@@ -118,7 +128,7 @@ def newest_chain(store):
                 d = json.load(f)
             if d.get("classified") and isinstance(d.get("sellers"), list):
                 d["_file"] = name
-                d["_day"] = name[len("whales-"):-len(".json")]
+                d["_day"] = chain_day(d, name)
                 return d
         except (OSError, ValueError):
             continue
@@ -146,7 +156,7 @@ def data():
         seen = set()
         for g in groups:
             g["name"] = group_name(g["hosts"], chain)
-            base = slug(g["name"])                    # the page's slug, as operator_pages.build makes it
+            base = group_slug(g["hosts"])             # the page's slug, as operator_pages.build makes it
             g["slug"] = base if base not in seen else "%s-%s" % (base, g["id"])
             seen.add(g["slug"])
             xs = [chain["_by_host"].get(h) for h in g["hosts"]]
@@ -185,7 +195,7 @@ def t_market_today(_args):
     tot = chain.get("totals") or {}
     top = sorted(chain["sellers"], key=lambda s: -s.get("on_chain_payments_x402", 0))[:10]
     return {
-        "day": chain.get("_day"), "chain": "Base", "hours": chain.get("hours"),
+        "day": chain.get("_day"), "dates": chain.get("dates") or [], "chain": "Base", "hours": chain.get("hours"),
         "x402_payments": tot.get("payments_x402"), "x402_usdc": tot.get("usdc_x402"),
         "buyer_wallets_x402": tot.get("buyer_wallets_x402"), "sellers_paid": tot.get("sellers_paid"),
         "sellers_in_registry": len(loaded[-1]["sellers"]) if loaded else tot.get("sellers_known"),

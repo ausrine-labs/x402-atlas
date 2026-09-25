@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Copied from the Aušrinė lab (commit 079001a). Edit it there, not here.
+# Copied from the Aušrinė lab (commit 507dd4a). Edit it there, not here.
 """atlas_mcp_test.py — the Atlas MCP server, spoken to over real JSON-RPC on
 stdio as an agent client would, against a store we built and therefore know.
 No network: ATLAS_STORE points at the fixture, so the server never fetches.
@@ -204,7 +204,7 @@ class Operator(unittest.TestCase):
         self.assertEqual(d["x402_payments_newest_day"], 10)
         self.assertEqual(d["hosts_paid_newest_day"], 1)
         self.assertEqual(d["hosts_list"][0]["host"], "busy.example")
-        self.assertEqual(d["page"], "https://atlas.test/o/busy.example/")
+        self.assertEqual(d["page"], "https://atlas.test/o/quiet.example/")     # the address stays the usual domain, a tie to the first
         self.assertNotIn("verif", json.dumps(d).lower())
 
     def test_group_of_one_and_unknown(self):
@@ -243,7 +243,7 @@ def naming_fixture():
 
 
 class Naming(unittest.TestCase):
-    """The group's name, and so its page, follows the host that actually earned."""
+    """The group's name follows the host that actually earned; its page address does not."""
     @classmethod
     def setUpClass(cls):
         cls.store = naming_fixture()
@@ -251,7 +251,8 @@ class Naming(unittest.TestCase):
     def test_one_host_took_most_so_the_group_bears_its_name(self):
         d = call("operator", {"name": "a.lone.example"}, self.store)
         self.assertEqual(d["operator"], "earner.example")
-        self.assertEqual(d["page"], "https://atlas.test/o/earner.example/")
+        self.assertEqual(d["page"], "https://atlas.test/o/lone.example/")        # the stable address, not the earner's
+        self.assertEqual(call("operator", {"name": "lone.example"}, self.store)["operator"], "earner.example")
 
     def test_spread_payments_keep_the_domain_name(self):
         d = call("operator", {"name": "odd.example"}, self.store)
@@ -262,6 +263,36 @@ class Naming(unittest.TestCase):
         d = call("operator", {"name": "quiet.other"}, self.store)
         self.assertEqual(d["operator"], "idle.example")
         self.assertEqual(d["x402_payments_newest_day"], 0)
+
+
+class Day(unittest.TestCase):
+    """The rollup's day is the day it covers, the last of its dates, not the day it was built."""
+    def store(self, dates):
+        d = tempfile.mkdtemp()
+        src = fixture()
+        for f in os.listdir(src):
+            if f.startswith("market-"):
+                os.replace(os.path.join(src, f), os.path.join(d, f))
+        w = json.load(open(os.path.join(src, "whales-2026-01-02.json")))
+        if dates is None:
+            del w["dates"]
+        else:
+            w["dates"] = dates
+        json.dump(w, open(os.path.join(d, "whales-2026-01-03.json"), "w"))     # built on the 3rd
+        return d
+
+    def test_the_day_is_the_last_date_rolled_up(self):
+        st = self.store(["2026-01-02"])
+        d = call("market_today", {}, st)
+        self.assertEqual(d["day"], "2026-01-02")
+        self.assertEqual(d["dates"], ["2026-01-02"])
+        self.assertEqual(call("seller", {"name": "enrich.example"}, st)["on_chain"]["day"], "2026-01-02")
+        self.assertEqual(call("agents_at_work", {}, st)["day"], "2026-01-02")
+
+    def test_without_dates_the_file_name_still_answers(self):
+        d = call("market_today", {}, self.store(None))
+        self.assertEqual(d["day"], "2026-01-03")
+        self.assertEqual(d["dates"], [])
 
 
 class Agents(unittest.TestCase):

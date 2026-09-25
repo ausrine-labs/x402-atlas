@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Copied from the Aušrinė lab (commit 8a95a07). Edit it there, not here.
+# Copied from the Aušrinė lab (commit 507dd4a). Edit it there, not here.
 """snapshot_handoff.py — how a seller with no disk gets its market snapshots.
 
 Two halves of one hand-off. Standard library only.
@@ -78,6 +78,8 @@ def row_problem(host, row):
     if not isinstance(row["sells"], str) or not isinstance(row["chains"], list) \
             or not isinstance(row["wallets"], list) or not isinstance(row["url"], str):
         return "row for %s has the wrong shape" % host
+    if not all(isinstance(x, str) for x in row["chains"]) or not all(isinstance(x, str) for x in row["wallets"]):
+        return "row for %s has a chain or wallet that is not text" % host
     return None
 
 
@@ -98,7 +100,7 @@ def check_snapshot(raw_json, want_date, floor, today=None):
     want = parse_day(want_date)
     if want is None:
         return "its name is not a real date"
-    if want > (today or date.today()):
+    if want > (today or datetime.now(timezone.utc).date()):   # names are UTC days; a local clock can lag a day
         return "is dated %s, in the future" % want_date
     try:
         snap = json.loads(raw_json)

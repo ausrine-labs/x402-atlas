@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Copied from the Aušrinė lab (commit 079001a). Edit it there, not here.
+# Copied from the Aušrinė lab (commit 507dd4a). Edit it there, not here.
 """operator_pages_test.py — a page for every wallet group, from a synthetic rollup. No network.
 
     python3 operator_pages_test.py
@@ -164,11 +164,45 @@ class Earner(unittest.TestCase):
                  whales=rollup, operators="/nonexistent-operators.json")
 
     def test_named_for_the_earner_and_says_so(self):
-        html = open(os.path.join(self.out, "o", "earner.other", "index.html")).read()
+        html = open(os.path.join(self.out, "o", "aslan.example", "index.html")).read()   # the address stays the usual domain
         i = html.index("<h1>earner.other</h1>")
         self.assertIn("Named for the host that took", html[i:i + 400])
         self.assertIn("the registry lists 4 hosts under the same wallet.", html[i:i + 400])
         self.assertNotIn("Named for the host", open(os.path.join(self.out, "o", "ninety.workers.dev", "index.html")).read())
+
+
+class StableAddress(unittest.TestCase):
+    """The page address holds still while the day's earnings move the name: the same group with
+    payments [1, 1, 10] and [10, 10, 1] keeps one address; the h1 and the list follow the earner."""
+    def build(self, a, b, e):
+        out = tempfile.mkdtemp()
+        rollup = whales(tempfile.mkdtemp())
+        d = json.load(open(rollup))
+        g = next(g for g in d["groups"] if "alpha.aslan.example" in g["hosts"])
+        g["hosts"] = ["alpha.aslan.example", "beta.aslan.example", "earner.other"]
+        d["sellers"] = [dict(d["sellers"][0], host=h, on_chain_payments_x402=n)
+                        for h, n in (("alpha.aslan.example", a), ("beta.aslan.example", b), ("earner.other", e))]
+        json.dump(d, open(rollup, "w"))
+        sp.build(out, store(), site="https://example.test/atlas", claims="/nonexistent.json",
+                 whales=rollup, operators="/nonexistent-operators.json")
+        rows = json.load(open(os.path.join(out, "o", "index.json")))["groups"]
+        return out, next(r for r in rows if "earner" in r["name"] or r["slug"].startswith("aslan"))
+
+    def test_one_address_whoever_earned(self):
+        out1, r1 = self.build(1, 1, 10)
+        out2, r2 = self.build(10, 10, 1)
+        self.assertEqual(r1["slug"], "aslan.example")
+        self.assertEqual(r2["slug"], "aslan.example")
+        self.assertEqual(r1["name"], "earner.other")            # the display name follows the earner
+        self.assertEqual(r2["name"], "aslan.example")
+        h1 = open(os.path.join(out1, "o", "aslan.example", "index.html")).read()
+        self.assertIn("<h1>earner.other</h1>", h1)
+        self.assertIn("reference_id=o:aslan.example", h1)
+        self.assertFalse(os.path.exists(os.path.join(out1, "o", "earner.other")))
+        self.assertIn("<h1>aslan.example</h1>", open(os.path.join(out2, "o", "aslan.example", "index.html")).read())
+        # a host page links to the group by its stable address, under the earner's name
+        s1 = open(os.path.join(out1, "s", "alpha.aslan.example", "index.html")).read()
+        self.assertIn('href="https://example.test/atlas/o/aslan.example/">earner.other</a>', s1)
 
 
 class Spread(unittest.TestCase):

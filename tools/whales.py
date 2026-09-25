@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Copied from the Aušrinė lab (commit 8059a72). Edit it there, not here.
+# Copied from the Aušrinė lab (commit 507dd4a). Edit it there, not here.
 """whales.py — the agent whales: which wallets pay a lot, for what, and which
 sellers are actually paid on-chain.
 
@@ -131,7 +131,7 @@ def rollup(edges, sellers, chain_of, hours, snap):
         nx, ux = e.get("n_x402", 0), e.get("usdc_x402", 0.0)
         b = buyers.setdefault(f, {"wallet": f, "chain": chain_of.get(f, "Base"), "usdc": 0.0, "payments": 0,
                                   "usdc_x402": 0.0, "payments_x402": 0, "sellers": {}, "sellers_x402": set(),
-                                  "categories": collections.Counter()})
+                                  "categories": collections.Counter(), "categories_x402": collections.Counter()})
         b["usdc"] += e["usdc"]
         b["payments"] += e["n"]
         b["usdc_x402"] += ux
@@ -145,6 +145,8 @@ def rollup(edges, sellers, chain_of, hours, snap):
         s["payments_x402"] += nx
         s["usdc_x402"] += ux
         b["categories"][category] += e["n"]
+        if nx:
+            b["categories_x402"][category] += nx
         r = sold.setdefault(host, {"host": host, "wallets": set(), "chain": chain_of.get(t, "Base"), "usdc": 0.0,
                                    "payments": 0, "usdc_x402": 0.0, "payments_x402": 0, "buyers": set(),
                                    "payers_x402": collections.Counter(), "category": category, "sells": sells[:140]})
@@ -169,6 +171,8 @@ def rollup(edges, sellers, chain_of, hours, snap):
             "sellers_paid_x402": len(b["sellers_x402"]),
             "avg_payment_usdc": round(b["usdc"] / b["payments"], 4) if b["payments"] else 0,
             "categories": [c for c, _ in b["categories"].most_common()],
+            # counted over every seller, before the list below is cut to eight
+            "categories_x402": [c for c, _ in b["categories_x402"].most_common()],
             "sellers": [dict(s, usdc=round(s["usdc"], 2), usdc_x402=round(s["usdc_x402"], 2)) for s in ss[:8]],
         })
     out_buyers.sort(key=lambda b: (-b["usdc"], -b["payments"]))
