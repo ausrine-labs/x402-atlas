@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Copied from the Aušrinė lab (commit 079001a). Edit it there, not here.
+# Copied from the Aušrinė lab (commit 9aa52cb). Edit it there, not here.
 """map_page.py — the Atlas map, rebuilt each morning from the day's real flows.
 
 The map at /map/ was a copy of a page drawn once, on 2026-09-11. Every other
@@ -9,6 +9,7 @@ day as the rollup, and it writes:
 
     /map/index.html   the 3D network (network.py's renderer) under the Atlas header
     /map/graph.json   every x402-settled line of the day, open for anyone to read
+    /map/embed.html   the same picture, bare, for the frame on the home page
 
 Only x402-settled edges are drawn (n_x402 > 0): agent commerce, not gift cards
 or treasury moves. The busiest CAP edges by x402 payments are drawn so the page
@@ -36,25 +37,61 @@ import network  # noqa: E402
 import whales as whales_mod  # noqa: E402
 
 CAP = 400
-PALETTE = {"seller": ["#ffd166", "gold"], "buyer": ["#ff4fa3", "pink"]}
+# drawn on white: a deep ochre gold and a muted rose, far apart in hue and both dark enough to read
+PALETTE = {"seller": ["#a8780a", "gold"], "buyer": ["#c0457c", "pink"]}
+LABELS = {"page": 12, "embed": 8}          # only the largest sellers carry a name; the rest on hover or tap
 # which of whales.py's notes belong under the map: what a line is, and what a dot is not
 NOTE_STARTS = ("On-chain figures", "x402-settled means", "A wallet is not an agent",
                "Hosts paid into the same wallet", "Payments to a wallet shared")
 # The Atlas never uses this word, in any form, and a map quotes strangers: a description
 # that uses it is left off, and a host that contains it is shown by its shortened wallet.
 BANNED = re.compile(r"verif", re.I)
+LEGEND = ('<p class="legend"><span><i style="background:%s"></i>a seller</span><span><i style="background:%s"></i>a wallet that paid</span>'
+          '<span><s></s>a payment</span></p>' % (PALETTE["seller"][0], PALETTE["buyer"][0]))
 NO_NAMES = "A seller is shown as its host and a buyer as its shortened wallet. The map names no one."
 
-CSS = """html,body{height:auto;overflow:auto}
-.maphead h1{margin:18px 0 6px}.maphead .sells{margin:0 0 6px}.maphead p.muted{margin:0}
-#stage{position:relative;height:calc(100vh - 20px);min-height:520px;margin-top:14px;overflow:hidden;
-  border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
+# The renderer's own style is the dark field of the older pages; this lays the paper over it.
+PAPER = """:root{--bg:#fdfcf9;--ink:#16161a;--muted:#6b6b73;--line:#e3e0d8;--pink:#c0457c;--gold:#a8780a;--grey:#8a8a92}
+#key{background:#ffffffee;border:1px solid var(--line);border-radius:4px;box-shadow:0 1px 3px #0000000d;backdrop-filter:none;color:#3d3d45}
+#key .t,#side .t{font:600 13px "Source Sans 3",sans-serif;letter-spacing:0;text-transform:none;color:var(--ink)}
+#key .kr{color:#3d3d45}#key .kr b{color:var(--ink)}#key #sizeBy{border-top-color:var(--line)}
+#key #sizeBy label:has(input:checked){color:var(--ink)}#key #sizeBy label:has(input:checked)::before{color:#1d4f91}
+#tip{background:#fff;border:1px solid var(--line);border-radius:4px;box-shadow:0 4px 16px #0000001a;color:var(--ink)}
+#tip .kd{letter-spacing:0;text-transform:none;font-size:12.5px}#tip a{color:#1d4f91}#tip .q{color:var(--muted)}
+#bar{background:#fffffff2;border-top:1px solid var(--line);color:var(--muted)}
+#bar label,#mode label,#qsort label{border-color:var(--line);color:var(--muted)}
+#bar label:has(input:checked),#mode label:has(input:checked),#qsort label:has(input:checked){color:var(--ink);border-color:#9a968c;background:#f3f1ea}
+#side{background:#fffffff5;border:1px solid var(--line);border-radius:4px;backdrop-filter:none;color:var(--ink)}
+#side a,#side .row{border-top-color:var(--line)}#side .row a,#side a{color:var(--ink)}#side .row a:hover,#side a:hover{color:#1d4f91}
+#side .row .m{color:var(--muted)}#side input#q{background:#fff;border:1px solid #cfcbc0;color:var(--ink);border-radius:3px;margin:4px 0}
+#comms .c{border-top-color:var(--line)}#comms .c:hover,#comms .c.on{color:#1d4f91}
+.btn{background:#fff;border:1px solid #cfcbc0;color:var(--ink);border-radius:3px;backdrop-filter:none;font:14px "Source Sans 3",sans-serif}
+.btn:hover{border-color:var(--ink);background:#fff}
+.legend{display:flex;flex-wrap:wrap;gap:4px 18px;align-items:center;font-size:14px;color:#3d3d45;margin:10px 0 0;max-width:none}
+.legend i{display:inline-block;width:11px;height:11px;border-radius:50%;margin-right:6px;vertical-align:-1px}
+.legend s{display:inline-block;width:24px;height:0;border-top:1.5px solid #b5b3ad;margin-right:6px;vertical-align:4px;text-decoration:none}
+"""
+
+CSS = PAPER + """html,body{height:auto;overflow:auto;background:var(--bg)}
+.maphead h1{margin:34px 0 10px}.maphead .sells{margin:0 0 8px}.maphead p.muted{margin:0}
+#stage{position:relative;height:calc(100vh - 20px);min-height:520px;max-height:860px;margin-top:18px;overflow:hidden;background:#fff;
+  border-top:1px solid var(--ink);border-bottom:1px solid var(--line)}
 #stage #c,#stage #key,#stage #bar,#stage #side,#stage #tog,#stage #ctl{position:absolute}
 #stage #c{inset:0;width:100%;height:100%}
 #stage #hd,#stage #ft{display:none}
 #stage #key{bottom:58px}#stage #bar{padding-bottom:12px}#stage #ctl{bottom:64px}
 #stage .btn{margin-top:0;font-weight:400;display:inline-block}
 #stage #side{top:56px;max-height:calc(100% - 120px)}
+@media (max-width:600px){#stage{height:78vh;min-height:440px}#stage #bar{gap:6px 8px;padding:8px 12px 10px;font-size:12.5px}#stage #ctl{bottom:96px}}
+"""
+
+# The frame on the home page: the picture alone, turning slowly, a legend and nothing else.
+EMBED_CSS = PAPER + """html,body{background:#fff}
+#c{touch-action:pan-y;width:100%;height:100%}
+#hd,#ft,#bar,#side,#tog,#key{display:none!important}
+#ctl{bottom:12px;right:12px;flex-direction:row}#ctl #pause{display:none}
+#lg{position:fixed;left:12px;top:10px;z-index:3;pointer-events:none;margin:0;background:#ffffffd9;padding:3px 8px;border-radius:3px}
+#tip{max-width:260px}
 """
 
 
@@ -155,6 +192,7 @@ def dress(g, A, buyer_slugs, site, day):
             if BANNED.search(r["sub"]):
                 r["sub"] = re.sub(r"^SELLS: .*? · (\d+ customers)", r"SELLS: — · \1", r["sub"])
     g["palette"] = PALETTE
+    g["theme"] = "paper"
     g["source"] = "Base · x402-settled USDC payments · %s" % day
     g["key"] = ("Every dot is a wallet on Base. Gold is a seller, pink a wallet that paid; "
                 "a line is money, x402-settled, on %s." % day)
@@ -247,17 +285,23 @@ def build(out, flows_path, whales, A, site="", as_of="", head=None, foot=None, i
     head_extra = h[h.index("</title>") + len("</title>"):h.index("<header")]
     header = h[h.index("<header"):]
     top = (header + '<main class="maphead"><h1>The map</h1><p class="sells">%s</p>'
-           '<p class="muted">x402-settled payments on Base, %s. Tap a dot for its card; its page is one tap more. %s</p></main>'
-           % (esc(lede), esc(day), drawn_line))
+           '<p class="muted">x402-settled payments on Base, %s. Tap a dot for its card; its page is one tap more. %s</p>%s</main>'
+           % (esc(lede), esc(day), drawn_line, LEGEND))
     bottom = ('<main><h2>Read it with care</h2><ul class="cav">%s</ul></main>'
               % "".join("<li>%s</li>" % esc(c) for c in notes_of(rollup)))
     bottom += foot % {"issue": esc(issues), "as_of": esc(as_of), "n": "{:,}".format(len(A))}
-    page = network.render(drawn, day, title=esc("The map — who paid whom on Base, %s · x402 Atlas" % day),
+    page = network.render(dict(drawn, labels=dict(drawn.get("labels") or {"kinds": ["buyer"]}, top=LABELS["page"])), day,
+                          title=esc("The map — who paid whom on Base, %s · x402 Atlas" % day),
                           head=head_extra, css=CSS, top=top, bottom=bottom)
     with open(os.path.join(mdir, "index.html"), "w") as f:
         f.write(page)
-    return {"payments": t["payments"], "wallets": t["buyers"], "sellers": t["sellers"], **cut,
-            "out": os.path.join(mdir, "index.html")}
+    embed = network.render(dict(drawn, embed=True, labels=dict(drawn.get("labels") or {"kinds": ["buyer"]}, top=LABELS["embed"])),
+                           day, title=esc("The map, %s · x402 Atlas" % day),
+                           head='<meta name="robots" content="noindex">', css=EMBED_CSS, top=LEGEND.replace("<p ", '<p id="lg" ', 1))
+    with open(os.path.join(mdir, "embed.html"), "w") as f:
+        f.write(embed)
+    return {"payments": t["payments"], "wallets": t["buyers"], "sellers": t["sellers"], **cut, "lede": lede,
+            "out": os.path.join(mdir, "index.html"), "embed": os.path.join(mdir, "embed.html")}
 
 
 def main():
