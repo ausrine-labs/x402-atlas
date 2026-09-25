@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Copied from the Aušrinė lab (commit 04306cc). Edit it there, not here.
+# Copied from the Aušrinė lab (commit 507dd4a). Edit it there, not here.
 """flows_handoff.py — the rolling public window of on-chain pulls, and how a
 machine with no disk gets it back.
 
@@ -17,8 +17,11 @@ for market snapshots, here for the files chain_flows.py and whales.py write:
 publish writes the newest KEEP days of each kind, gzipped, and the manifest of
 their checksums LAST, so a reader never sees it name a file that is not there.
 fetch reads the manifest, downloads only what the store lacks, and checks each
-file's checksum, that it parses, and that its date matches its name, before
-keeping it. A file that fails is dropped and the rest still land.
+file's checksum, its unpacked size, that it parses, and that its date matches
+its name, before keeping it. A file that fails is dropped and the rest still
+land. Beside each kept file a .sha256 sidecar records the manifest's checksum
+and the plain file's own; a local file is trusted only while both still match,
+and a flows or whales file the manifest no longer lists leaves the store.
 Standard library only.
 """
 
@@ -38,6 +41,7 @@ from datetime import date, datetime, timezone
 KEEP = 8
 NAME = re.compile(r"^(flows|whales)-(\d{4}-\d{2}-\d{2})\.json(\.gz)?$")
 MAX_GZ = 8 * 1024 * 1024        # a day of flows is ~300 KB raw; 8 MB gzipped means something is wrong
+MAX_JSON = 64 * 1024 * 1024     # unpacked: a rollup is a few MB; past this it is a bomb, not a day
 
 
 class HandoffError(Exception):
@@ -57,7 +61,7 @@ def file_problem(raw, kind, day, today=None):
         want = date.fromisoformat(day)
     except ValueError:
         return "its name is not a real date"
-    if want > (today or date.today()):
+    if want > (today or datetime.now(timezone.utc).date()):   # names are UTC days; a local clock can lag a day
         return "is dated %s, in the future" % day
     try:
         obj = json.loads(raw)
@@ -154,6 +158,7 @@ def fetch(base_url, store, get=http_get):
     except Exception as e:
         raise HandoffError("no usable manifest at %s: %s" % (base, type(e).__name__))
     report = {"fetched": [], "had": [], "rejected": []}
+    good = set()
     for x in listed:
         m = NAME.match(x.get("name", ""))
         if not m or not m.group(3):
@@ -161,23 +166,52 @@ def fetch(base_url, store, get=http_get):
             continue
         kind, day, _ = m.groups()
         plain = "%s-%s.json" % (kind, day)
-        if os.path.exists(os.path.join(store, plain)):
+        local = os.path.join(store, plain)
+        if _still_good(local, x.get("sha256")):
+            good.add(plain)
             report["had"].append(plain)
             continue
         try:
             data = get(base + x["name"], MAX_GZ)
             if hashlib.sha256(data).hexdigest() != x.get("sha256"):
                 raise HandoffError("checksum does not match the manifest")
-            raw = gzip.decompress(data)
+            raw = gzip.GzipFile(fileobj=io.BytesIO(data)).read(MAX_JSON + 1)   # streamed: stops at the cap
+            if len(raw) > MAX_JSON:
+                raise HandoffError("unpacks to more than %d bytes" % MAX_JSON)
             why = file_problem(raw, kind, day)
             if why:
                 raise HandoffError(why)
         except Exception as e:
             report["rejected"].append({"name": x["name"], "why": str(e) or type(e).__name__})
             continue
-        _write_atomic(os.path.join(store, plain), raw)
+        _write_atomic(local, raw)
+        _write_atomic(local + ".sha256", ("%s %s" % (x["sha256"], hashlib.sha256(raw).hexdigest())).encode())
+        good.add(plain)
         report["fetched"].append(plain)
+    for f in os.listdir(store):                    # nothing the manifest does not vouch for stays
+        if NAME.match(f) and f.endswith(".json") and f not in good:
+            os.remove(os.path.join(store, f))
+    for f in os.listdir(store):                    # nor a sidecar without its file
+        if f.endswith(".json.sha256") and NAME.match(f[:-7]) and f[:-7] not in good:
+            os.remove(os.path.join(store, f))
     return report
+
+
+def _still_good(local, sha):
+    """A local file is kept only when its sidecar names the manifest's checksum and
+    the file still hashes to what was written."""
+    try:
+        with open(local + ".sha256") as f:
+            listed, own = f.read().split()
+        if not sha or listed != sha:
+            return False
+        h = hashlib.sha256()
+        with open(local, "rb") as f:
+            for block in iter(lambda: f.read(1 << 20), b""):
+                h.update(block)
+        return h.hexdigest() == own
+    except (OSError, ValueError):
+        return False
 
 
 def main():
