@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Copied from the Aušrinė lab (commit 540ea9d). Edit it there, not here.
+# Copied from the Aušrinė lab (commit 507dd4a). Edit it there, not here.
 """buyer_pages.py — a page for every buyer wallet: what one wallet paid for, and to whom.
 
 Sellers have pages, wallet groups have pages; the wallets that pay them did not.
@@ -14,6 +14,7 @@ A wallet, a host and an amount are public facts. A name is not, and none is give
 Host names come from the registry and are escaped on the way out. Standard library only.
 """
 
+import collections
 import html
 import json
 import os
@@ -61,6 +62,20 @@ def link(wallet, site=""):
     return "%s/b/%s/" % (site, slug(wallet))
 
 
+def bought(sellers, b=None):
+    """The categories a wallet bought, most x402 payments first. The rollup counts them over
+    every seller (categories_x402) before it cuts the seller list to eight; an older rollup
+    without that falls back to the seller rows with an x402 payment. Plain transfers are not
+    purchases, so the rollup's all-transfer categories are never used."""
+    if b is not None and isinstance(b.get("categories_x402"), list):
+        return list(b["categories_x402"])
+    n = collections.Counter()
+    for s in sellers:
+        if (s.get("payments_x402") or 0) > 0:
+            n[s.get("category") or "other"] += s["payments_x402"]
+    return [c for c, _ in n.most_common()]
+
+
 def build(out, chain, A, ctx, as_of, n_sellers, site="", head="", foot="", issues=""):
     """Write /b/<wallet>/index.html for every wallet with an x402 payment, /b/ for the list
     and /b/index.json for search. Returns ({wallet_slug: {"agent": bool}}, listing) so the
@@ -101,7 +116,7 @@ def build(out, chain, A, ctx, as_of, n_sellers, site="", head="", foot="", issue
                  % ("{:,}".format(b["payments_x402"]), esc(window), money(b.get("usdc_x402") or 0.0), money(other),
                     b.get("sellers_paid_x402") or 0,
                     (" (%d by any means)" % b["sellers_paid"]) if b.get("sellers_paid", 0) != b.get("sellers_paid_x402") else ""))
-        cats = b.get("categories") or []
+        cats = bought(sellers, b)
         p.append('<h2>What it bought</h2><p class="muted">By category, most payments first: %s.</p>'
                  % (esc(", ".join(cats)) if cats else "—"))
         p.append('<h2>The sellers it paid</h2><div class="tw"><table><tr><th>seller</th><th class="n">x402 payments</th>'
