@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Copied from the Aušrinė lab (commit 079001a). Edit it there, not here.
+# Copied from the Aušrinė lab (commit 9aa52cb). Edit it there, not here.
 """seller_pages.py — a public page for every seller in the agent economy.
 
 Roughly 2,000 teams sell to agents over x402. Each of them wants to know how
@@ -172,7 +172,8 @@ HEAD = """<!doctype html><html lang="en"><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>%(title)s</title><meta name="description" content="%(desc)s">
 <link rel="canonical" href="%(canon)s">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600&display=swap">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Newsreader:opsz,wght@6..72,400;6..72,500;6..72,600&family=Source+Sans+3:ital,wght@0,400;0,600;0,700;1,400&display=swap">
 <link rel="stylesheet" href="%(css)s">
 <header><a class="brand" href="%(root)s/">x402 Atlas <span>· the record of agent commerce</span></a>
 <nav><a href="%(root)s/s/">sellers</a><a href="%(root)s/o/">operators</a><a href="%(root)s/b/">buyers</a><a href="%(root)s/map/">the map</a><a href="%(root)s/claim.html">for sellers</a></nav></header>
@@ -183,39 +184,59 @@ Something wrong on this page? <a href="%(issue)s">Tell us</a> and it gets fixed.
 <p class="muted">As of %(as_of)s · %(n)s sellers · refreshed when the daily scan runs.</p></footer></html>
 """
 
-CSS = """:root{--bg:#05060d;--panel:#0b0e1c;--ink:#f2f3f8;--muted:#9aa1b8;--line:#ffffff1f;--pink:#ff4fa3;--gold:#ffd166;--up:#7be0a3;--down:#ff8a8a}
-*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.55 "DM Sans","Helvetica Neue",Arial,sans-serif}
-a{color:var(--gold);text-decoration:none}a:hover{text-decoration:underline}
-header,main,footer{max-width:980px;margin:0 auto;padding:0 16px}
-header{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;padding-top:18px;padding-bottom:10px}
-.brand{font:800 20px "Syne",sans-serif;color:var(--ink)}.brand span{color:var(--muted);font-weight:700}
-nav{display:flex;gap:16px;font-size:14px;flex-wrap:wrap}
-h1{font:800 clamp(26px,5vw,40px)/1.1 "Syne",sans-serif;margin:22px 0 6px;overflow-wrap:anywhere}
-h2{font:700 13px "DM Sans";letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin:34px 0 10px}
-.sells{font-size:18px;color:#d7dbe6;max-width:70ch;overflow-wrap:anywhere}.muted{color:var(--muted);font-size:14px}
-.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-top:20px}
-.tile{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px}
-.tile b{display:block;font:800 24px "Syne",sans-serif;font-variant-numeric:tabular-nums}.tile span{color:var(--muted);font-size:13px}
+CSS = """:root{--bg:#fdfcf9;--paper:#fff;--ink:#16161a;--soft:#3d3d45;--muted:#6b6b73;--line:#e3e0d8;--rule:#16161a;
+--accent:#1d4f91;--accent-soft:#eef3fa;--up:#1f7a4d;--down:#b3261e;--gold:#a8780a;--pink:#c0457c;
+--serif:"Newsreader","Source Serif 4",Georgia,"Times New Roman",serif;--sans:"Source Sans 3","Source Sans Pro","Helvetica Neue",Arial,sans-serif}
+*{box-sizing:border-box}html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--bg);color:var(--ink);font:17px/1.6 var(--sans);font-variant-numeric:tabular-nums;-webkit-font-smoothing:antialiased}
+a{color:var(--accent);text-decoration:none}a:hover{text-decoration:underline;text-underline-offset:2px}
+header,main,footer{max-width:1040px;margin:0 auto;padding:0 20px}
+header{display:flex;justify-content:space-between;align-items:baseline;flex-wrap:wrap;gap:6px 24px;padding-top:22px;padding-bottom:14px;border-bottom:1px solid var(--rule)}
+.brand{font:600 24px/1.2 var(--serif);color:var(--ink);letter-spacing:-.01em}.brand span{font:italic 400 17px var(--serif);color:var(--muted)}
+.brand:hover{text-decoration:none}
+nav{display:flex;gap:4px 20px;font-size:15px;flex-wrap:wrap}nav a{color:var(--soft)}nav a:hover{color:var(--accent)}
+h1{font:500 clamp(30px,5vw,46px)/1.12 var(--serif);letter-spacing:-.015em;margin:34px 0 10px;overflow-wrap:anywhere;max-width:26ch}
+h1 code{font-size:.8em}
+h2{font:600 23px/1.25 var(--serif);color:var(--ink);margin:48px 0 12px;padding-top:12px;border-top:1px solid var(--line)}
+h3{font:600 20px/1.3 var(--serif)}
+.sells{font:400 20px/1.5 var(--serif);color:var(--soft);max-width:66ch;overflow-wrap:anywhere}.muted{color:var(--muted);font-size:15px}
+p{max-width:72ch}
+.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:0;margin-top:28px;border-top:1px solid var(--rule);border-bottom:1px solid var(--line)}
+.tile{padding:16px 18px 16px 0;border-bottom:1px solid var(--line);margin-bottom:-1px}
+.tile b{display:block;font:500 30px/1.15 var(--serif);font-variant-numeric:lining-nums tabular-nums;letter-spacing:-.01em;margin-bottom:4px}.tile span{color:var(--muted);font-size:14px;line-height:1.4;display:block}
 .up{color:var(--up)}.down{color:var(--down)}
-.spark{width:100%;height:auto;background:var(--panel);border:1px solid var(--line);border-radius:12px}
-.spark polyline{fill:none;stroke:var(--pink);stroke-width:2.5;stroke-linejoin:round}.spark circle{fill:var(--gold)}
-.axis{display:flex;justify-content:space-between;color:var(--muted);font-size:12px;margin-top:4px}
-.tw{overflow-x:auto}table{width:100%;border-collapse:collapse;font-size:14px}
-th,td{text-align:left;padding:8px 10px;border-top:1px solid var(--line);vertical-align:top}th{color:var(--muted);font-weight:500}
-td.n,th.n{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}td.h{overflow-wrap:anywhere;min-width:140px}
-.claim{margin-top:34px;background:linear-gradient(135deg,#ff4fa31f,#ffd1661a);border:1px solid #ffd16655;border-radius:14px;padding:18px}
-.claim h3{margin:0 0 6px;font:800 20px "Syne",sans-serif}.btn{display:inline-block;margin-top:10px;background:var(--gold);color:#111;font-weight:600;padding:9px 16px;border-radius:999px}
-.btn:hover{text-decoration:none;filter:brightness(1.08)}
-.tag.mark{border-color:#ffd16688;color:var(--gold)}.disclaimer{max-width:70ch;margin-top:4px}
-.owner{margin-top:8px}.logo{max-width:96px;max-height:96px;border-radius:12px;display:block;margin-bottom:8px}
-.olink{display:inline-block;margin-right:14px}.tag{display:inline-block;border:1px solid var(--line);border-radius:999px;padding:2px 10px;font-size:12px;color:var(--muted);margin-right:6px}
-ul.cav{color:var(--muted);font-size:13px;padding-left:18px}code{background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:1px 6px;font-size:13px;overflow-wrap:anywhere}
-.chips{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 6px}.chip{background:var(--panel);border:1px solid var(--line);color:var(--muted);border-radius:999px;padding:4px 12px;font:13px "DM Sans";cursor:pointer}.chip:hover{color:var(--gold);border-color:#ffd16688}
-input#q{width:100%;background:var(--panel);border:1px solid var(--line);color:var(--ink);border-radius:10px;padding:12px 14px;font:16px "DM Sans";margin:14px 0}
-.offers{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:14px;margin-top:18px}
-.offer{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:18px}.offer h3{margin:0;font:800 20px "Syne",sans-serif}
-.offer .p{font:800 30px "Syne",sans-serif;color:var(--gold);margin:6px 0}.offer ul{padding-left:18px;color:#d7dbe6;font-size:14px}
-footer{margin-top:50px;padding-bottom:40px;border-top:1px solid var(--line);padding-top:16px;font-size:14px}
+.spark{width:100%;height:auto;background:var(--paper);border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
+.spark polyline{fill:none;stroke:var(--accent);stroke-width:2;stroke-linejoin:round}.spark circle{fill:var(--paper);stroke:var(--accent);stroke-width:1.5}
+.axis{display:flex;justify-content:space-between;color:var(--muted);font-size:13px;margin-top:4px}
+.tw{overflow-x:auto;-webkit-overflow-scrolling:touch;margin:0 -4px;padding:0 4px}
+table{width:100%;border-collapse:collapse;font-size:15px;line-height:1.45}
+th,td{text-align:left;padding:9px 12px 9px 0;border-bottom:1px solid var(--line);vertical-align:top}
+th{color:var(--muted);font-weight:600;font-size:13px;border-bottom:1px solid var(--rule);white-space:nowrap}
+td.n,th.n{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}th.n+th,td.n+td{padding-left:14px}
+td.h{overflow-wrap:anywhere;min-width:140px}tr:hover td{background:#f6f4ee}
+.claim{margin-top:48px;background:var(--paper);border-top:3px solid var(--ink);padding:18px 0 8px}
+.claim h3{margin:0 0 6px}.btn{display:inline-block;margin-top:10px;background:var(--ink);color:#fff;font-weight:600;font-size:15px;padding:9px 18px;border-radius:3px}
+.btn:hover{text-decoration:none;background:var(--accent)}
+.tag.mark{border-color:var(--accent);color:var(--accent)}.disclaimer{max-width:70ch;margin-top:4px}
+.owner{margin-top:8px}.logo{max-width:96px;max-height:96px;border-radius:4px;display:block;margin-bottom:8px}
+.olink{display:inline-block;margin-right:14px}.tag{display:inline-block;border:1px solid var(--line);border-radius:3px;padding:1px 8px;font-size:13px;color:var(--muted);margin:0 6px 6px 0;background:var(--paper)}
+ul.cav{color:var(--soft);font-size:15px;padding-left:20px;max-width:76ch}ul.cav li{margin-bottom:6px}
+code{font:13.5px/1.4 ui-monospace,"SF Mono",Menlo,Consolas,monospace;background:#f3f1ea;border-radius:3px;padding:1px 5px;overflow-wrap:anywhere;color:var(--ink)}
+a code{color:var(--accent)}
+.chips{display:flex;flex-wrap:wrap;gap:6px 8px;margin:0 0 6px;max-width:none}.chip{background:var(--paper);border:1px solid var(--line);color:var(--soft);border-radius:3px;padding:4px 11px;font:14px var(--sans);cursor:pointer}.chip:hover{color:var(--accent);border-color:var(--accent)}
+input#q{width:100%;background:var(--paper);border:1px solid #cfcbc0;color:var(--ink);border-radius:3px;padding:13px 15px;font:17px var(--sans);margin:18px 0 14px}
+input#q:focus{outline:2px solid var(--accent);outline-offset:1px;border-color:var(--accent)}
+.offers{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:0 28px;margin-top:22px}
+.offer{border-top:3px solid var(--ink);padding:16px 0 24px}.offer h3{margin:0}
+.offer .p{font:500 32px var(--serif);color:var(--ink);margin:6px 0}.offer ul{padding-left:18px;color:var(--soft);font-size:15px}
+.hero{margin:30px 0 8px}.hero .frame{position:relative;height:clamp(360px,62vh,500px);border-top:1px solid var(--rule);border-bottom:1px solid var(--line);background:var(--paper)}
+.hero iframe{display:block;width:100%;height:100%;border:0}
+.hero .cap{display:flex;justify-content:space-between;align-items:baseline;flex-wrap:wrap;gap:4px 18px;margin:8px 0 0;font-size:15px;color:var(--muted);max-width:none}
+.hero .cap a{font-weight:600;white-space:nowrap}
+footer{margin-top:64px;padding-bottom:48px;border-top:1px solid var(--rule);padding-top:18px;font-size:15px;color:var(--soft)}
+@media (max-width:600px){body{font-size:16px}header{padding-top:16px}.brand{font-size:21px}.brand span{display:block;font-size:15px}
+nav{gap:2px 16px;font-size:15px}h1{margin-top:24px}h2{margin-top:38px;font-size:21px}.sells{font-size:18px}
+.tiles{grid-template-columns:1fr 1fr}.tile{padding-right:12px}.tile b{font-size:25px}table{font-size:14px}th,td{padding-right:10px}}
 """
 
 
@@ -534,7 +555,7 @@ document.querySelectorAll('a.buy').forEach(a=>a.href+='?reference_id='+encodeURI
         f.write("".join(claim))
 
     door = front_door.build(out, chain, A, loaded, ctx, as_of, SITE, HEAD, FOOT, ISSUES, API, groups_listing,
-                            buyers=(chain or {}).get("buyer_pages"))
+                            buyers=(chain or {}).get("buyer_pages"), map_=drew_map)
 
     with open(os.path.join(out, "sitemap-sellers.xml"), "w") as f:
         f.write('<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n')
