@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Copied from the Aušrinė lab (commit c240cc7). Edit it there, not here.
+# Copied from the Aušrinė lab (commit 116e747). Edit it there, not here.
 """map_page_test.py — the live map, from a synthetic day of flows. No network.
 
     python3 map_page_test.py
@@ -12,6 +12,8 @@ Atlas page, no dot is labelled with a name, and the cap is said out loud.
 import json
 import os
 import re
+import shutil
+import subprocess
 import sys
 import tempfile
 import unittest
@@ -94,6 +96,7 @@ class Map(unittest.TestCase):
         cls.r = sp.build(cls.out, rdir, site=SITE, claims="/nonexistent.json", whales=cls.whales,
                          operators="/nonexistent-operators.json")
         cls.page = read(cls.out, "map", "index.html")
+        cls.embed = read(cls.out, "map", "embed.html")
         cls.graph = json.loads(read(cls.out, "map", "graph.json"))
         cls.nodes = {n["u"]: n for n in cls.graph["nodes"]}
 
@@ -169,9 +172,36 @@ class Map(unittest.TestCase):
         self.assertIn("const prof=n=>safeUrl(", self.page)
         self.assertIn("href=\"'+esc(safeUrl(n.url))+'\"", self.page)
 
+    def test_esc_and_safe_url_are_as_strict_as_ever(self):
+        for page in (self.page, self.embed):
+            self.assertIn('''const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));''', page)
+            self.assertIn('''const safeUrl=u=>{u=String(u||'');return /^(https?:\\/\\/|\\/)/i.test(u)?u:'#';};''', page)
+
+    @unittest.skipUnless(shutil.which("node"), "node is not installed")
+    def test_esc_escapes_quotes_when_run(self):
+        line = re.search(r"^const esc=.*$", self.page, re.M).group(0)
+        js = line + "\nprocess.stdout.write(esc(`a\"b'c<d>&e`));"
+        out = subprocess.run(["node", "-e", js], capture_output=True, text=True, check=True).stdout
+        self.assertEqual(out, "a&quot;b&#39;c&lt;d&gt;&amp;e")
+
+    def test_names_are_thinned_so_they_never_pile_up(self):
+        # fewer names in the small frame than on the full map, and in both a greedy pass that
+        # hides a name whose box would cover a bigger dot's name, redone as the camera moves
+        self.assertLess(mp.LABELS["embed"], mp.LABELS["page"])
+        self.assertEqual(drawn(self.page)["labels"]["top"], mp.LABELS["page"])
+        self.assertEqual(drawn(self.embed)["labels"]["top"], mp.LABELS["embed"])
+        for page in (self.page, self.embed):
+            self.assertIn("function declutter(){", page)
+            self.assertIn("function rectOf(sp,W,H){", page)
+            self.assertIn("meshes[b.userData.i].userData.s-meshes[a.userData.i].userData.s", page)   # biggest first
+            self.assertIn("if(r&&!(PAPER&&(r[0]<0||r[2]>W||r[1]<0||r[3]>H))&&!clash(r)){sp.visible=true; taken.push(r);}", page)
+            self.assertIn("t-declAt<120", page)                                                     # throttled
+            self.assertIn("cam.lookAt(target); cam.updateMatrixWorld(); declutter();", page)       # every frame
+            self.assertIn("f=pinned>=0?pinned:sel", page)                                           # hover or tap names it
+
     def test_the_banned_word_is_absent(self):
         # a seller's own description and host use it; the map carries neither, only the link
-        for text in (self.page, json.dumps(self.graph)):
+        for text in (self.page, self.embed, json.dumps(self.graph)):
             self.assertIsNone(re.search(r"verif", re.sub(r'"url": ?"[^"]*"', "", text), re.I))
         n = self.nodes[whales.short(WV)]
         self.assertEqual((n["url"], n["s"]), ("%s/s/trustverify.example/" % SITE, ""))
