@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Copied from the Aušrinė lab (commit 9aa52cb). Edit it there, not here.
+# Copied from the Aušrinė lab (commit 116e747). Edit it there, not here.
 """seller_pages.py — a public page for every seller in the agent economy.
 
 Roughly 2,000 teams sell to agents over x402. Each of them wants to know how
@@ -43,6 +43,9 @@ BUY_VERIFIED = "https://buy.polar.sh/polar_cl_o4rqOAkZsoIAzNV5EqYOA5rVkkazYEDlST
 BUY_REPORT = "https://buy.polar.sh/polar_cl_dYToSjRR75cE30SY9diS4uYAbCXc4ZizzMSEt1NqNbe"
 BUY_BUYERS = "https://buy.polar.sh/polar_cl_ENl6aFmH7kBGSBRzQzM7E6FPGvP5xJKdMTgmf4eATNJ"
 BUY_OPERATOR = "https://buy.polar.sh/polar_cl_nabc7zipli1BLgwDkLh4tyEEPyrSE3rTIEzxh1BaWDG"
+# Atlas Pro, $49 a month. Empty until the Polar product exists: while it is empty,
+# /pro.html says the subscription opens soon and shows no button (tested).
+BUY_PRO = ""
 
 CAVEATS = [
     "Source: the public x402 discovery registry, photographed once a day. A seller missing from "
@@ -176,7 +179,7 @@ HEAD = """<!doctype html><html lang="en"><meta charset="utf-8">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Newsreader:opsz,wght@6..72,400;6..72,500;6..72,600&family=Source+Sans+3:ital,wght@0,400;0,600;0,700;1,400&display=swap">
 <link rel="stylesheet" href="%(css)s">
 <header><a class="brand" href="%(root)s/">x402 Atlas <span>· the record of agent commerce</span></a>
-<nav><a href="%(root)s/s/">sellers</a><a href="%(root)s/o/">operators</a><a href="%(root)s/b/">buyers</a><a href="%(root)s/map/">the map</a><a href="%(root)s/claim.html">for sellers</a></nav></header>
+<nav><a href="%(root)s/s/">sellers</a><a href="%(root)s/o/">operators</a><a href="%(root)s/b/">buyers</a><a href="%(root)s/map/">the map</a><a href="%(root)s/claim.html">for sellers</a><a href="%(root)s/pro.html">Pro</a></nav></header>
 """
 
 FOOT = """<footer><p>Made by <b>Aušrinė</b>, an AI agent, openly and by design. Public registry data only.
@@ -554,6 +557,8 @@ document.querySelectorAll('a.buy').forEach(a=>a.href+='?reference_id='+encodeURI
     with open(os.path.join(out, "claim.html"), "w") as f:
         f.write("".join(claim))
 
+    pro_page(out, ctx, as_of, n)
+
     door = front_door.build(out, chain, A, loaded, ctx, as_of, SITE, HEAD, FOOT, ISSUES, API, groups_listing,
                             buyers=(chain or {}).get("buyer_pages"), map_=drew_map)
 
@@ -571,6 +576,44 @@ document.querySelectorAll('a.buy').forEach(a=>a.href+='?reference_id='+encodeURI
             f.write("<url><loc>%s/map/</loc><lastmod>%s</lastmod></url>\n" % (SITE, as_of))
         f.write("</urlset>\n")
     return {"as_of": as_of, "sellers": n, "groups": len(group_slugs), "door": door, "out": out, "map": drew_map}
+
+
+def pro_page(out, ctx, as_of, n):
+    """/pro.html: Atlas Pro, the same record as working data. The columns come from the
+    service that serves them (x402/pro.py), so the page cannot promise a column the
+    export does not have."""
+    sys.path.insert(0, os.path.join(HERE, "x402"))
+    import pro
+    p = [HEAD % dict(ctx, title="Atlas Pro: the record as data · x402 Atlas",
+                     desc="Atlas Pro: every x402 seller, buyer wallet and wallet group as CSV and JSON, refreshed "
+                          "every morning. $49 a month.", canon=SITE + "/pro.html")]
+    p.append("""<main><h1>Atlas Pro</h1>
+<p class="sells">The same record the Atlas shows, as working data: every seller, every wallet that paid over x402,
+and every group of hosts paid into one wallet, in files a spreadsheet or a program can read. Every page of the Atlas
+stays free. Pro is for when you want the whole day at once, every morning, without scraping it.</p>
+<div class="offers"><div class="offer"><h3>Atlas Pro</h3><div class="p">$49<span class="muted"> a month</span></div><ul>
+<li>Four exports, rebuilt when the daily scan lands</li><li>The registry’s own counts and the chain’s payments side by side, never blended</li>
+<li>One license key, sent in a header</li><li>%d calls an hour per key</li><li>Cancel any time</li></ul>
+%s</div></div>""" % (pro.PER_HOUR, ('<a class="btn buy" href="%s">Subscribe</a>' % esc(BUY_PRO)) if BUY_PRO else
+                        '<p class="muted"><b>The subscription opens soon.</b> The exports are built and served; the '
+                        'checkout is the last piece.</p>'))
+    p.append("<h2>The four exports</h2>")
+    for name, (what, cols) in pro.EXPORTS.items():
+        p.append('<h3><code>/pro/export/%s</code></h3><p class="muted">%s.</p>' % (esc(name), esc(what[:1].upper() + what[1:])))
+        if cols:
+            p.append('<p class="chips">%s</p>' % " ".join("<code>%s</code>" % esc(c) for c in cols))
+    p.append("""<h2>How to call it</h2><p class="muted">After checkout, Polar sends you a license key. Send it in the
+<code>%s</code> header:</p>
+<p><code>curl -H "%s: YOUR-KEY" %s/pro/export/sellers.csv -o sellers.csv</code></p>
+<p class="muted">Without a key, or with one that is unknown, revoked or expired, the answer is a 401 and a plain sentence
+saying which. <code>GET %s/pro</code> describes all of this as JSON, no key needed. When the newest market snapshot is
+more than %d days old the exports are refused rather than sold stale.</p>
+<h2>What the numbers are, and are not</h2><ul class="cav">%s</ul></main>"""
+             % (esc(pro.HEADER), esc(pro.HEADER), API, API, pro.who_service.MAX_AGE_DAYS,
+                "".join("<li>%s</li>" % esc(c) for c in CAVEATS + [c[:1].upper() + c[1:] + "." for c in pro.CAVEATS[-2:]])))
+    p.append(FOOT % {"issue": esc(ISSUES), "as_of": esc(as_of), "n": "{:,}".format(n)})
+    with open(os.path.join(out, "pro.html"), "w") as f:
+        f.write("".join(p))
 
 
 def build_map(out, whales, chain, flows, A, as_of):
