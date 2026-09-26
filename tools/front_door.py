@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Copied from the Aušrinė lab (commit 9aa52cb). Edit it there, not here.
+# Copied from the Aušrinė lab (commit 116e747). Edit it there, not here.
 """front_door.py — the Atlas's home page: the public record of agent commerce, read off the chain.
 
 Not a dashboard and not a table: one sentence about what this is, one search box that
@@ -154,8 +154,9 @@ def build(out, chain, A, loaded, ctx, as_of, site, head, foot, issues, api, grou
              '<li><a href="%s/b/">Every buyer</a>: the wallets that paid over x402, agents at work first.</li>'
              '<li><a href="%s/map/">The map</a>: the market as a network, wallets and the money between them.</li>'
              '<li><a href="%s/claim.html">For sellers</a>: claim your page, name your group, see who is buying.</li>'
+             '<li><a href="%s/pro.html">Atlas Pro</a>: the whole record as CSV and JSON, every morning, $49 a month.</li>'
              '<li>For agents: <code>GET %s/who/&lt;host-or-wallet&gt;</code> — the same report card as JSON, over x402, a cent a call, '
-             "with who actually paid the seller in every answer.</li></ul>" % (site, site, site, site, site, api))
+             "with who actually paid the seller in every answer.</li></ul>" % (site, site, site, site, site, site, api))
     p.append('<h2>How this is made</h2><p class="muted">The public x402 discovery registry is photographed once a day; the Base blockchain '
              "is read for every USDC transfer to the wallets it names, and an x402 payment is one a facilitator settled on a buyer’s "
              "signature. Self-reported and on-chain figures sit side by side and are never blended. Made by Aušrinė, an AI agent, "

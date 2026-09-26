@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Copied from the Aušrinė lab (commit 9aa52cb). Edit it there, not here.
+# Copied from the Aušrinė lab (commit 116e747). Edit it there, not here.
 """network.py — the agent ecosystem tonight, as a movable 3D network.
 
 Infoharmoni's real subject was never a hub with a crowd around it; it was
@@ -350,14 +350,16 @@ function label(txt,color){const c=document.createElement('canvas'); const x=c.ge
   if(PAPER){x.lineJoin='round'; x.lineWidth=7; x.strokeStyle='rgba(255,255,255,0.92)'; x.strokeText(txt,8,20); color='#26262b';}
   x.fillStyle=color; x.fillText(txt,8,20);
   const t=new THREE.CanvasTexture(c); t.minFilter=THREE.LinearFilter; const sp=new THREE.Sprite(new THREE.SpriteMaterial({map:t,transparent:true,depthTest:false}));
+  sp.userData.pad=[6/w,0.18];   // the text inside its canvas: what must not touch another name
   if(PAPER){sp.renderOrder=10; sp.material.sizeAttenuation=false; sp.center.set(0,0.5); const k=19/(1.07*(cv.clientHeight||innerHeight)); sp.scale.set(w/40*k,k,1);} else sp.scale.set(w/40*7,7,1); return sp;}
-const labels=[]; const LB=G.labels; let labelSet=null;
+const labels=[]; const LB=G.labels; let labelSet=null; const nameOf=n=>(labelSet?'':'@')+n.u, hexOf=n=>'#'+COL[n.k].toString(16).padStart(6,'0');
 if(LB){const pool=N.map((n,i)=>[n,i]).filter(([n])=>LB.kinds.includes(n.k)).sort((a,b)=>(b[0].usd||b[0].f)-(a[0].usd||a[0].f)).slice(0,LB.top);
   labelSet=new Set(pool.map(([,i])=>i));}
 const big=N.length>600; const buyerCut=big?[...N].filter(n=>n.k==='buyer').map(n=>n.f).sort((a,b)=>b-a)[40]||0:-1;
-N.forEach((n,i)=>{ if(labelSet){ if(labelSet.has(i)){const sp=label((n.k==='repo'?'':'')+n.u,'#'+COL[n.k].toString(16).padStart(6,'0')); sp.userData.i=i; root.add(sp); labels.push(sp);} return;}
+N.forEach((n,i)=>{ if(labelSet){ if(labelSet.has(i)){const sp=label(nameOf(n),hexOf(n)); sp.userData.i=i; root.add(sp); labels.push(sp);} return;}
   if((n.k==='buyer'&&n.f>=buyerCut)||n.k==='us'||(n.k==='agent'&&(n.f>3000||n.d>(big?3:1)))||n.d>=(big?12:4)||(n.k!=='repo'&&n.f>60000)||(n.k==='repo'&&(n.f>(big?8000:2000)||n.d>=(big?15:6)))){
-  const sp=label('@'+n.u,'#'+COL[n.k].toString(16).padStart(6,'0')); sp.userData.i=i; root.add(sp); labels.push(sp);} });
+  const sp=label(nameOf(n),hexOf(n)); sp.userData.i=i; root.add(sp); labels.push(sp);} });
+const named=new Map(labels.map(sp=>[sp.userData.i,sp])), extra=new Map(); let declAt=-1e9, declSig='', declF=-2;   // extra: a name made on hover or tap for a dot that carries none
 const cmax=Math.max(...C.map(c=>c.size));
 const clabels=C.map(c=>{const sp=label(c.label||(c.terms.length?c.terms.slice(0,2).join(' · '):'@'+c.hub),PAPER?'#55555e':'#dfe4f0'); sp.material.opacity=0.95; sp.scale.multiplyScalar(1.1+1.5*Math.sqrt(c.size/cmax)); sp.visible=false; root.add(sp); return sp;});
 const hulls=C.map((c,i)=>{const m=new THREE.Mesh(new THREE.SphereGeometry(1,24,16),new THREE.MeshBasicMaterial({color:commCol(i),transparent:true,opacity:0.07,depthWrite:false,side:THREE.BackSide})); root.add(m); return m;});
@@ -373,11 +375,13 @@ const comms=document.getElementById('comms');
 C.forEach((c,i)=>{const d=document.createElement('span'); d.className='c';
   d.innerHTML='<b style="color:#'+commCol(i).toString(16).padStart(6,'0')+'">'+esc(c.label||('@'+c.hub+' +'+(c.size-1)))+'</b><span class="m">'+esc(c.note||c.terms.join(' · ')||'')+'</span>';
   d.onclick=()=>{onComm=onComm===i?-1:i; document.querySelectorAll('#comms .c').forEach((e,j)=>e.classList.toggle('on',j===onComm)); recolour();}; comms.appendChild(d);});
+function placeLabel(sp){const i=sp.userData.i, p=pos[i], o=(meshes[i].scale.x+1)*(sp.userData.flip?-1:1);   // flipped: the name sits left of its dot
+  if(PAPER)sp.center.x=sp.userData.flip?1:0; sp.position.set(p[0]+o,p[1]+3,p[2]);}
 function sync(){N.forEach((n,i)=>{const p=pos[i]; meshes[i].position.set(p[0],p[1],p[2]);});
   C.forEach((c,ci)=>{let x=0,y=0,z=0,k=0; c.members.forEach(u=>{const p=pos[idx[u]]; x+=p[0];y+=p[1];z+=p[2];k++;}); x/=k;y/=k;z/=k;
     let r=0; c.members.forEach(u=>{const p=pos[idx[u]]; r=Math.max(r,Math.hypot(p[0]-x,p[1]-y,p[2]-z)+meshes[idx[u]].scale.x);});
     hulls[ci].position.set(x,y,z); hulls[ci].scale.setScalar(r+5); clabels[ci].position.set(x,y+r+9,z);});
-  labels.forEach(sp=>{const p=pos[sp.userData.i]; sp.position.set(p[0]+meshes[sp.userData.i].scale.x+1,p[1]+3,p[2]);});
+  labels.forEach(placeLabel); extra.forEach(placeLabel);
   LK.forEach(([a,b],i)=>{const pa=pos[a],pb=pos[b]; lpos.set([pa[0],pa[1],pa[2],pb[0],pb[1],pb[2]],i*6);}); lgeo.attributes.position.needsUpdate=true;}
 // ---- controls: drag turns, wheel/pinch zooms, tap picks
 let rx=0.3,ry=0,dist=540*Math.sqrt(N.length/440),drag=null,pinch=0,auto=false,lastMove=0,paused=true;
@@ -403,7 +407,7 @@ cv.addEventListener('touchstart',e=>{if(e.touches.length===2){pinch=Math.hypot(e
 cv.addEventListener('touchmove',e=>{if(e.touches.length===2&&pinch){const d=Math.hypot(e.touches[0].clientX-e.touches[1].clientX,e.touches[0].clientY-e.touches[1].clientY); dist=Math.max(60,Math.min(1200,dist*pinch/d)); pinch=d; const m=[(e.touches[0].clientX+e.touches[1].clientX)/2,(e.touches[0].clientY+e.touches[1].clientY)/2]; if(tmid)pan(m[0]-tmid[0],m[1]-tmid[1]); tmid=m; drag=null;}},{passive:true});
 const ray=new THREE.Raycaster(); ray.params.Points={threshold:4}; const tip=document.getElementById('tip'); let sel=-1, pinned=-1;
 function pick(e,stick){const R=cv.getBoundingClientRect(); const m=new THREE.Vector2(((e.clientX-R.left)/R.width)*2-1,-((e.clientY-R.top)/R.height)*2+1); ray.setFromCamera(m,cam);
-  if(stick){const lh=ray.intersectObjects(labels.filter(x=>x.visible))[0]; if(lh){window.open(prof(N[lh.object.userData.i]),TGT); return;}}
+  if(stick){const lh=ray.intersectObjects(labels.concat([...extra.values()]).filter(x=>x.visible))[0]; if(lh){window.open(prof(N[lh.object.userData.i]),TGT); return;}}
   let hit=ray.intersectObjects(meshes.filter(x=>x.visible))[0];
   if(!hit){ // nothing exactly under the pointer: take the nearest visible dot within reach
     const px=e.clientX,py=e.clientY; let best=null,bd=stick?34:20;
@@ -427,7 +431,7 @@ function pick(e,stick){const R=cv.getBoundingClientRect(); const m=new THREE.Vec
 addEventListener('scroll',()=>{tip.style.display='none'; sel=-1; pinned=-1;},{passive:true});   // the card is pinned to the window, the dots are not
 function filt(){const h=fh.checked,a=fa.checked,d=fd.checked;
   meshes.forEach((m,i)=>{const n=N[i]; const on=(n.k==='human'?h:(n.k==='agent'?a:true))&&(n.d>0||d); m.visible=on;});
-  labels.forEach(sp=>sp.visible=meshes[sp.userData.i].visible);}
+  declSig='';}
 [fh,fa,fd].forEach(el=>el.onchange=filt); filt(); recolour();
 document.querySelectorAll('#sizeBy input').forEach(r=>r.onchange=()=>{sizeBy=r.value;
   meshes.forEach((m,i)=>{const s=baseSize(N[i]); m.userData.s=N[i].d?s:Math.min(s,2); m.scale.setScalar(m.userData.s);});
@@ -476,11 +480,33 @@ if(G.panels&&G.panels.length){ document.getElementById('listT').remove(); list.r
   a.addEventListener('mouseenter',()=>{meshes.forEach((m,j)=>m.material.opacity=(j===i?1:(N[j].d?0.25:0.08)));});
   a.addEventListener('mouseleave',recolour);
   list.appendChild(a);});
+// ---- names never pile up: biggest dot first, a name that would cover one already placed is hidden
+// until the camera moves it clear. The dot under the pointer or finger is always named, first.
+const lv=new THREE.Vector3(), lw=new THREE.Vector3(), LGAP=4;
+function rectOf(sp,W,H){lv.copy(sp.position).project(cam); if(lv.z>1||lv.z<-1)return null;
+  let k=cam.projectionMatrix.elements[5]*H/2; if(sp.material.sizeAttenuation){lw.copy(sp.position).applyMatrix4(cam.matrixWorldInverse); if(lw.z>=0)return null; k/=-lw.z;}
+  const w=sp.scale.x*k, h=sp.scale.y*k, x=(lv.x*0.5+0.5)*W-sp.center.x*w, y=(-lv.y*0.5+0.5)*H-(1-sp.center.y)*h, p=sp.userData.pad||[0,0];
+  return [x+w*p[0],y+h*p[1],x+w*(1-p[0]),y+h*(1-p[1])];}
+function declutter(){const t=performance.now(), W=cv.clientWidth||innerWidth, H=cv.clientHeight||innerHeight, f=pinned>=0?pinned:sel;
+  const sig=[rx,ry,dist,target.x,target.y,target.z,W,H,sizeBy].join();
+  if(f===declF&&(t-declAt<120||(sig===declSig&&paused)))return;   // throttled; still while nothing moves
+  declAt=t; declSig=sig; declF=f;
+  let lf=null; if(f>=0&&meshes[f].visible){lf=named.get(f)||extra.get(f);
+    if(!lf){lf=label(nameOf(N[f]),hexOf(N[f])); lf.userData.i=f; root.add(lf); extra.set(f,lf);}}
+  extra.forEach((sp,k)=>{if(sp!==lf){root.remove(sp); if(sp.material.map)sp.material.map.dispose(); sp.material.dispose(); extra.delete(k);}});   // one hover name at a time, freed after
+  labels.forEach(sp=>sp.visible=false);
+  const taken=[], clash=r=>taken.some(q=>r[0]<q[2]+LGAP&&r[2]+LGAP>q[0]&&r[1]<q[3]+LGAP&&r[3]+LGAP>q[1]);
+  const fit=sp=>{sp.userData.flip=false; placeLabel(sp); let r=rectOf(sp,W,H);   // a name that would leave the frame on the right turns to the left
+    if(PAPER&&r&&r[2]>W-4){sp.userData.flip=true; placeLabel(sp); r=rectOf(sp,W,H);} return r;};
+  if(lf){lf.visible=true; const r=fit(lf); if(r)taken.push(r);}
+  labels.filter(sp=>sp!==lf&&meshes[sp.userData.i].visible)
+    .sort((a,b)=>(meshes[b.userData.i].userData.s-meshes[a.userData.i].userData.s)||(a.userData.i-b.userData.i))
+    .forEach(sp=>{const r=fit(sp); if(r&&!(PAPER&&(r[0]<0||r[2]>W||r[1]<0||r[3]>H))&&!clash(r)){sp.visible=true; taken.push(r);}});}   // cut by the frame: left for hover
 // ---- render loop: the swarm keeps breathing
 const reduced=matchMedia('(prefers-reduced-motion: reduce)').matches;
 function frame(t){ if(!reduced&&!paused){  if((t|0)%3===0) step(0.03); }
   if(EMBED&&!reduced&&!drag&&pinned<0&&t-lastMove>3000) ry+=0.0016;
-  sync(); cam.position.set(target.x+dist*Math.sin(ry)*Math.cos(rx),target.y+dist*Math.sin(rx),target.z+dist*Math.cos(ry)*Math.cos(rx)); cam.lookAt(target);
+  sync(); cam.position.set(target.x+dist*Math.sin(ry)*Math.cos(rx),target.y+dist*Math.sin(rx),target.z+dist*Math.cos(ry)*Math.cos(rx)); cam.lookAt(target); cam.updateMatrixWorld(); declutter();
   const pulse=paused?1:1+0.06*Math.sin(t/900); if(!paused)meshes.forEach((m,i)=>{if(N[i].k!=='human')m.scale.setScalar(m.userData.s*pulse);});
   ren.render(sc,cam); requestAnimationFrame(frame);} requestAnimationFrame(frame);
 </script>
