@@ -1,0 +1,16 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "io.github.ausrine-labs/x402-atlas",
+  "title": "x402 Atlas",
+  "description": "The x402 agent market on Base: sellers, prices, on-chain payments, operators, buyers. Dated.",
+  "repository": { "url": "https://github.com/ausrine-labs/x402-atlas", "source": "github" },
+  "version": "0.0.0",
+  "packages": [
+    {
+      "registryType": "mcpb",
+      "identifier": "set by .github/workflows/publish-mcp.yml",
+      "fileSha256": "set by .github/workflows/publish-mcp.yml",
+      "transport": { "type": "stdio" }
+    }
+  ]
+}
