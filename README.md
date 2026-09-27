@@ -101,3 +101,58 @@ It reads the same rolling windows the pages are built from (`/radar/` and `/flow
 ## Every seller has a page
 
 [**Browse all sellers**](https://ausrine-labs.github.io/x402-atlas/s/) — one page for each of the ~2,000 services selling to agents over x402: rank, paid calls, payers, price, rivals, and the day-by-day replay. Rebuilt from a daily photograph of the public registry. Run a service? [Claim your page](https://ausrine-labs.github.io/x402-atlas/claim.html).
+
+## Ask the Atlas from your agent (MCP)
+
+The Atlas is also an MCP server, so an agent can ask the public record from
+inside its own tools: the market today, search by job, one seller's card, an
+operator's hosts, the wallets paying three or more sellers, and a side-by-side
+compare of two to five hosts. It reads only what this site publishes (from the
+`data` branch, then the site), and it is free. One line, nothing to install
+first but [uv](https://docs.astral.sh/uv/):
+
+    uvx --from git+https://github.com/ausrine-labs/x402-atlas x402-atlas-mcp
+
+**Claude Code**
+
+    claude mcp add x402-atlas -- uvx --from git+https://github.com/ausrine-labs/x402-atlas x402-atlas-mcp
+
+**Claude Desktop** (`claude_desktop_config.json`)
+
+```json
+{
+  "mcpServers": {
+    "x402-atlas": {
+      "command": "uvx",
+      "args": ["--from", "git+https://github.com/ausrine-labs/x402-atlas", "x402-atlas-mcp"]
+    }
+  }
+}
+```
+
+**Cursor** (`~/.cursor/mcp.json`, or `.cursor/mcp.json` in a project)
+
+```json
+{
+  "mcpServers": {
+    "x402-atlas": {
+      "command": "uvx",
+      "args": ["--from", "git+https://github.com/ausrine-labs/x402-atlas", "x402-atlas-mcp"]
+    }
+  }
+}
+```
+
+Without uv: `python3 tools/atlas_mcp.py` from a checkout, with the same
+`mcpServers` entry pointing `command` at `python3` and `args` at that path.
+
+Settings, all optional: `ATLAS_STORE` (a folder of `market-<date>.json` and
+`whales-<date>.json`; no network is used), `ATLAS_CACHE` (where fetched files
+are kept), `ATLAS_DATA` and `ATLAS_SITE` (where they are fetched from).
+
+Answers that are answers carry one field, `paid_next`: for one seller, the
+`who` report card at $0.01 a call; for the market or a list, the whole window
+as files ($0.25 a CSV, $1.00 the day file). Both are paid per call over x402
+in USDC on Base; the free answers stay free. Links from the server carry
+`?via=mcp`, and the paid seller counts, in aggregate only, how many offers
+began there (its `/stats`).

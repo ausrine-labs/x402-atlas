@@ -1,31 +1,47 @@
 #!/usr/bin/env python3
-# Copied from the Aušrinė lab (commit 507dd4a). Edit it there, not here.
+# Copied from the Aušrinė lab (commit 3e428c1). Edit it there, not here.
 """atlas_mcp.py — the x402 Atlas as an MCP server, so an agent can ask the
 public record from inside its own tools.
 
 The site is for people. An agent does not browse it; it calls a tool. This
-server answers the same five questions the pages answer, from the same
-published files the pages are built from, and nothing else:
+server answers the questions the pages answer, from the same published files
+the pages are built from, and nothing else:
 
   market_today      how big the market was yesterday, on the chain, and who led it
   search            which sellers do this job — by name, by words, or by intent
   seller            one seller's card: what it sells, what it charges, who paid it
   operator          which hosts are one operator, and how much they took together
   agents_at_work    the buyer wallets whose x402 payments reached three or more sellers
+  compare           two to five hosts side by side, each row with its data date
 
 Data comes from the rolling windows the Atlas publishes each morning — the
-registry snapshots under /radar/ and the on-chain pulls under /flows/ — fetched
+registry snapshots under radar/ and the on-chain pulls under flows/ — fetched
 once per process into a local store and checksummed on the way in, exactly as
-the paid `who` seller fetches them. Point ATLAS_STORE at a folder that already
+the paid `who` seller fetches them. They are read first from the Atlas
+repository's `data` branch on raw.githubusercontent.com (https, no redirect,
+whatever happens to the site's address; ATLAS_DATA), then from the site
+(ATLAS_SITE). Both fetchers refuse redirects on purpose: a manifest fetched
+through one vouches for nothing. Point ATLAS_STORE at a folder that already
 holds market-<date>.json and whales-<date>.json files and no network is used.
+Links to pages in answers are always the site's.
+
+Every free answer that is an answer (not a refusal) names, in one field
+`paid_next`, the paid thing that follows from it, as a plain fact: for one
+seller, the `who` report card at a cent a call; for the market or a list, the
+Atlas Pro files over x402. Every link this server gives out to the Atlas or its
+seller carries ?via=mcp, so the seller can count, in aggregate, how many
+offers began here. Explorer links to basescan.org are third-party and carry
+nothing.
 
 No dependencies. Standard library only, JSON-RPC 2.0 over stdio.
 
-    python3 atlas_mcp.py
+    uvx --from git+https://github.com/ausrine-labs/x402-atlas x402-atlas-mcp
+    python3 atlas_mcp.py                       # or straight from a checkout
 
 Claude Desktop, Cursor, or any MCP client:
 
-    {"mcpServers": {"x402-atlas": {"command": "python3", "args": ["/path/to/atlas_mcp.py"]}}}
+    {"mcpServers": {"x402-atlas": {"command": "uvx",
+        "args": ["--from", "git+https://github.com/ausrine-labs/x402-atlas", "x402-atlas-mcp"]}}}
 
 The numbers are never for sale; this server is free and reads only what the
 site publishes. MIT. Made by an AI agent, openly and by design.
@@ -36,6 +52,7 @@ import os
 import re
 import sys
 import tempfile
+import urllib.parse
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
@@ -46,11 +63,19 @@ import flows_handoff  # noqa: E402
 import snapshot_handoff  # noqa: E402
 from operator_pages import group_name, group_slug, slug  # noqa: E402
 
-VERSION = "0.1.0"
+VERSION = "0.2.0"
 PROTOCOL = "2024-11-05"
 SITE = (os.environ.get("ATLAS_SITE") or "https://ausrine-labs.github.io/x402-atlas").rstrip("/")
-STORE = os.environ.get("ATLAS_STORE") or os.path.join(tempfile.gettempdir(), "x402-atlas-mcp")
-WHO = "https://ausrine-who.onrender.com/who"               # the paid answer, a cent a call, for the parts not in the record
+# The same radar/ and flows/ folders, kept on the Atlas repository's data branch: read first.
+DATA = (os.environ.get("ATLAS_DATA") or "https://raw.githubusercontent.com/ausrine-labs/x402-atlas/data").rstrip("/")
+OFFLINE = bool(os.environ.get("ATLAS_STORE"))
+STORE = os.environ.get("ATLAS_STORE") or os.environ.get("ATLAS_CACHE") \
+    or os.path.join(tempfile.gettempdir(), "x402-atlas-mcp")
+SELLER = (os.environ.get("ATLAS_SELLER") or "https://ausrine-who.onrender.com").rstrip("/")
+VIA = "mcp"
+PAY = "x402, USDC on Base"
+WHO_PRICE = "$0.01"
+FILE_PRICES = {"sellers.csv": "$0.25", "buyers.csv": "$0.25", "operators.csv": "$0.25", "day.json": "$1.00"}
 
 NOTE_WALLET = "A wallet is not an agent, and one operator can appear as many wallets."
 NOTE_X402 = ("x402 payments are USDC transfers on Base that a facilitator settled on a signed authorization; "
@@ -87,6 +112,15 @@ TOOLS = [
      "description": "Buyer wallets whose x402-settled payments reached three or more sellers on the newest day: "
                     "the honest signal of an agent at work. Payments, USDC, categories bought, and the sellers paid.",
      "inputSchema": {"type": "object", "properties": {"limit": {"type": "integer", "description": "wallets to return, default 12, max 50"}}}},
+    {"name": "compare",
+     "description": "Two to five seller hosts side by side: what each sells, its price range, x402 payments and "
+                    "USDC on the newest chain day, payer wallets, concentration, self-reported 30-day paid calls, "
+                    "and its operator group. Every row names the dates its figures come from. A host the "
+                    "registry does not list is reported as unknown, never guessed at.",
+     "inputSchema": {"type": "object", "properties": {"hosts": {"type": "array", "items": {"type": "string"},
+                                                                "minItems": 2, "maxItems": 5,
+                                                                "description": "two to five hosts, e.g. api.example.com"}},
+                     "required": ["hosts"]}},
 ]
 
 
@@ -96,18 +130,28 @@ _DATA = {}
 
 
 def _refresh():
-    """Bring the store in line with the site, once. Never raises: an offline
-    store still answers from what it has, and says how old it is."""
-    problems = []
-    try:
-        snapshot_handoff.fetch(SITE + "/radar/", STORE)
-    except Exception as e:  # noqa: BLE001 - surface in the answer, never hide
-        problems.append("radar: %s" % (str(e) or type(e).__name__))
-    try:
-        flows_handoff.fetch(SITE + "/flows/", STORE)
-    except Exception as e:  # noqa: BLE001
-        problems.append("flows: %s" % (str(e) or type(e).__name__))
-    return problems
+    """Bring the store in line with the published window, once: each folder from
+    the data branch first, the site second. Never raises: an offline store still
+    answers from what it has, and says how old it is. Returns (problems, sources):
+    what failed everywhere, and where each folder came from."""
+    problems, sources = [], {}
+    for part, fetch in (("radar", snapshot_handoff.fetch), ("flows", flows_handoff.fetch)):
+        tried = []
+        for base in (DATA, SITE):
+            try:
+                report = fetch("%s/%s/" % (base, part), STORE) or {}
+                # a readable manifest whose every file was rejected is no source at all: try the next
+                usable = [x for k in ("kept", "had", "fetched") for x in (report.get(k) or [])]
+                if not usable:
+                    tried.append("%s/%s/: no usable file (%d rejected)" % (base, part, len(report.get("rejected") or [])))
+                    continue
+                sources[part] = "%s/%s/" % (base, part)
+                break
+            except Exception as e:  # noqa: BLE001 - surface in the answer, never hide
+                tried.append("%s/%s/: %s" % (base, part, str(e) or type(e).__name__))
+        else:
+            problems.append("%s: %s" % (part, "; ".join(tried)))
+    return problems, sources
 
 
 def chain_day(d, name):
@@ -139,7 +183,7 @@ def data():
     """Snapshots (oldest to newest), the newest chain rollup, and any fetch problems."""
     if _DATA:
         return _DATA
-    problems = [] if os.environ.get("ATLAS_STORE") else _refresh()
+    problems, sources = ([], {"store": STORE}) if OFFLINE else _refresh()
     os.makedirs(STORE, exist_ok=True)
     snaps = sorted(f for f in os.listdir(STORE) if re.match(r"^market-\d{4}-\d{2}-\d{2}\.json$", f))
     loaded = []
@@ -164,16 +208,41 @@ def data():
             g["usdc_x402"] = round(sum((s or {}).get("on_chain_usdc_x402", 0.0) for s in xs), 2)
             g["hosts_paid"] = sum(1 for s in xs if s and s.get("on_chain_payments_x402"))
         chain["_groups"] = groups
-    _DATA.update({"loaded": loaded, "chain": chain, "problems": problems})
+    _DATA.update({"loaded": loaded, "chain": chain, "problems": problems, "sources": sources})
     return _DATA
 
 
+def via(url):
+    """Every link this server gives out to the Atlas or its seller says where it came from."""
+    return url + ("&" if "?" in url else "?") + "via=" + VIA
+
+
 def seller_url(host):
-    return "%s/s/%s/" % (SITE, slug(host))
+    return via("%s/s/%s/" % (SITE, slug(host)))
 
 
 def operator_url(g):
-    return "%s/o/%s/" % (SITE, g["slug"])
+    return via("%s/o/%s/" % (SITE, g["slug"]))
+
+
+def who_url(host):
+    return via("%s/who/%s" % (SELLER, urllib.parse.quote(host, safe="")))
+
+
+def paid_one(host):
+    """The paid next step when an answer is about one seller."""
+    return {"what": "this seller's report card from the Atlas's paid seller, one HTTPS call, stamped with "
+                    "the snapshot's age; refusals are free",
+            "price": WHO_PRICE, "pay": PAY, "url": who_url(host)}
+
+
+def paid_files(first):
+    """The paid next step when an answer is market-wide or a list: the whole window as files."""
+    order = [first] + [n for n in FILE_PRICES if n != first]
+    return {"what": "the whole newest window as files, every row rather than the top few; %s fits this "
+                    "answer best" % first,
+            "pay": PAY,
+            "files": {n: {"price": FILE_PRICES[n], "url": via("%s/x402/export/%s" % (SELLER, n))} for n in order}}
 
 
 def stale_note(loaded, chain):
@@ -206,8 +275,8 @@ def t_market_today(_args):
                              "x402_usdc": s.get("on_chain_usdc_x402", 0.0), "payer_wallets": s.get("x402_payer_wallets", 0),
                              "concentration": s.get("concentration"), "category": s.get("category"),
                              "page": seller_url(s["host"])} for s in top],
-        "site": SITE + "/", "as_of": stale_note(loaded, chain),
-        "notes": [NOTE_X402, NOTE_WALLET], "problems": d["problems"],
+        "site": via(SITE + "/"), "as_of": stale_note(loaded, chain), "data_from": d["sources"],
+        "notes": [NOTE_X402, NOTE_WALLET], "paid_next": paid_files("day.json"), "problems": d["problems"],
     }
 
 
@@ -255,7 +324,10 @@ def t_search(args):
     return {"query": q, "intent": cats, "matched": len(ranked), "sellers": ranked[:limit],
             "operators": ops[:5], "as_of": stale_note(loaded, chain),
             "notes": ["ranked by x402 payments on the newest chain day, then by the registry's own 30-day counts",
-                      NOTE_WALLET], "problems": d["problems"]}
+                      NOTE_WALLET],
+            **({"paid_next": paid_one(ranked[0]["host"]) if len(ranked) == 1 else paid_files("sellers.csv")}
+               if ranked else {}),
+            "problems": d["problems"]}
 
 
 def on_chain(host, chain):
@@ -294,8 +366,8 @@ def t_seller(args):
         return {"found": False, "say": str(e), "as_of": stale_note(loaded, chain)}
     card["on_chain"] = on_chain(card["host"], chain)
     card["page"] = seller_url(card["host"])
-    card["notes"] = [NOTE_X402, NOTE_CONC, NOTE_OPERATOR,
-                     "the paid `who` answer at %s adds a freshness check and is a cent a call" % WHO]
+    card["notes"] = [NOTE_X402, NOTE_CONC, NOTE_OPERATOR]
+    card["paid_next"] = paid_one(card["host"])
     card["problems"] = d["problems"]
     return card
 
@@ -331,7 +403,7 @@ def t_operator(args):
             "x402_usdc_newest_day": g["usdc_x402"], "day": chain.get("_day"),
             "hosts_list": hosts, "page": operator_url(g),
             "claim": "whether the operator has claimed this group is shown on the page, not here",
-            "notes": [NOTE_OPERATOR, NOTE_X402], "problems": d["problems"]}
+            "notes": [NOTE_OPERATOR, NOTE_X402], "paid_next": paid_files("operators.csv"), "problems": d["problems"]}
 
 
 def t_agents(args):
@@ -350,11 +422,83 @@ def t_agents(args):
     return {"day": chain.get("_day"), "chain": "Base", "agents_3plus": (chain.get("totals") or {}).get("agents_3plus"),
             "shown": len(out), "agents": out,
             "notes": ["an agent at work is a wallet whose x402-settled payments reached three or more sellers",
-                      NOTE_WALLET], "problems": d["problems"]}
+                      NOTE_WALLET],
+            **({"paid_next": paid_files("buyers.csv")} if out else {}), "problems": d["problems"]}
+
+
+def _host(text):
+    """A host as the registry writes it: lower case, no scheme, path or www. Nothing fuzzier."""
+    h = (text or "").strip().lower()
+    h = re.sub(r"^[a-z][a-z0-9+.-]*://", "", h).split("/", 1)[0].split("?", 1)[0]
+    return h[4:] if h.startswith("www.") else h
+
+
+def operator_of(host, chain):
+    if not chain:
+        return None
+    g = next((g for g in chain["_groups"] if host in g["hosts"]), None)
+    if not g:
+        return {"operator": None, "hosts": 1, "say": "no other host in the registry is paid into its wallet"}
+    return {"operator": g["name"], "hosts": len(g["hosts"]), "x402_payments_newest_day": g["payments_x402"],
+            "page": operator_url(g)}
+
+
+def t_compare(args):
+    asked = args.get("hosts")
+    if isinstance(asked, str):
+        asked = re.split(r"[,\s]+", asked)
+    if not isinstance(asked, list):
+        return {"error": "give hosts: a list of two to five"}
+    hosts = []
+    for x in asked:
+        h = _host(x if isinstance(x, str) else "")
+        if h and h not in hosts:
+            hosts.append(h)
+    if not 2 <= len(hosts) <= 5:
+        return {"error": "give two to five different hosts; got %d" % len(hosts)}
+    d = data()
+    loaded, chain = d["loaded"], d["chain"]
+    if not loaded:
+        return {"error": "no registry snapshot in the store", "problems": d["problems"]}
+    snap = loaded[-1]
+    A = {k.lower(): (k, v) for k, v in snap["sellers"].items()}
+    by_host = (chain or {}).get("_by_host") or {}
+    rows, unknown = [], []
+    for h in hosts:
+        if h not in A:
+            unknown.append({"host": h, "say": "not in the registry snapshot of %s; nothing is guessed for it"
+                                              % snap["date"]})
+            continue
+        host, s = A[h]
+        x = by_host.get(host)
+        row = {"host": host, "sells": (s.get("sells") or "")[:140],
+               "category": market.cat((s.get("sells") or "") + " " + host)[0],
+               "price": radar.price_label(s), "price_min": s.get("price_min"), "price_max": s.get("price_max"),
+               "calls_30d_self_reported": s.get("calls", 0),
+               "registry_date": snap["date"], "chain_day": chain.get("_day") if chain else None,
+               "page": seller_url(host)}
+        if chain:
+            row.update({"x402_payments": (x or {}).get("on_chain_payments_x402", 0),
+                        "x402_usdc": (x or {}).get("on_chain_usdc_x402", 0.0),
+                        "payer_wallets": (x or {}).get("x402_payer_wallets", 0),
+                        "concentration": (x or {}).get("concentration")})
+            if not x:
+                row["say"] = "no USDC reached this seller's wallets on the chain day"
+        else:
+            row["on_chain"] = "no classified on-chain day in the store"
+        row["operator"] = operator_of(host, chain)
+        rows.append(row)
+    out = {"compared": len(rows), "sellers": rows, "unknown": unknown, "as_of": stale_note(loaded, chain),
+           "notes": ["x402 payments and USDC are read off Base for the chain day; calls_30d_self_reported is the "
+                     "registry's own count. The two are never blended", NOTE_X402, NOTE_CONC],
+           "problems": d["problems"]}
+    if rows:
+        out["paid_next"] = paid_files("sellers.csv")
+    return out
 
 
 HANDLERS = {"market_today": t_market_today, "search": t_search, "seller": t_seller,
-            "operator": t_operator, "agents_at_work": t_agents}
+            "operator": t_operator, "agents_at_work": t_agents, "compare": t_compare}
 
 
 def call_tool(name, args):

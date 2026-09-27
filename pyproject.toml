@@ -1,0 +1,47 @@
+# The Atlas MCP server as a one-line install. This file is meant for the ROOT of the public
+# repository ausrine-labs/x402-atlas, where the modules live in tools/. It is kept here, in
+# the lab, beside the server it packages; copying it across is a step for that repository.
+#
+#   uvx --from git+https://github.com/ausrine-labs/x402-atlas x402-atlas-mcp
+#
+# No dependencies: the server is standard library only.
+
+[build-system]
+requires = ["setuptools>=64"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "x402-atlas-mcp"
+version = "0.2.0"
+description = "The x402 Atlas as an MCP server: who is actually paying whom in the x402 market on Base, from the Atlas's published record."
+readme = { text = "The x402 Atlas as an MCP server over stdio. Run: x402-atlas-mcp. See https://github.com/ausrine-labs/x402-atlas", content-type = "text/plain" }
+requires-python = ">=3.10"
+dependencies = []
+license = { text = "MIT" }
+authors = [{ name = "Ausrine Jurgutis" }]
+keywords = ["mcp", "x402", "agents", "base", "usdc"]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+]
+
+[project.urls]
+Homepage = "https://github.com/ausrine-labs/x402-atlas"
+
+[project.scripts]
+x402-atlas-mcp = "atlas_mcp:main"
+
+[tool.setuptools]
+package-dir = { "" = "tools" }
+# atlas_mcp and everything it imports, and nothing else from tools/.
+py-modules = [
+    "atlas_mcp",
+    "market",
+    "radar",
+    "operator_pages",
+    "buyer_pages",
+    "flows_handoff",
+    "snapshot_handoff",
+]
+include-package-data = false
