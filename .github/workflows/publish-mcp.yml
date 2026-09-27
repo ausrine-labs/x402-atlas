@@ -1,0 +1,70 @@
+name: publish-mcp
+# The Atlas MCP server, listed in the official MCP registry as io.github.ausrine-labs/x402-atlas.
+# By hand only. Builds an MCP bundle (.mcpb) from tools/, checks it answers over stdio, attaches
+# it to a GitHub release, and publishes mcp/server.json with that bundle's URL and sha256.
+# The registry login is GitHub OIDC: it proves this repository's owner, no stored token.
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "bundle version, e.g. 0.2.0 (new each time)"
+        required: true
+permissions:
+  contents: read
+concurrency:
+  group: publish-mcp
+  cancel-in-progress: false
+jobs:
+  publish:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write     # the release that holds the bundle
+      id-token: write     # the registry's GitHub OIDC login
+    env:
+      VERSION: ${{ inputs.version }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - name: Build the bundle and check it answers
+        run: |
+          set -eu
+          echo "$VERSION" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+$' || { echo "version must be like 0.2.0"; exit 1; }
+          mkdir -p b/server
+          for m in atlas_mcp market radar operator_pages buyer_pages flows_handoff snapshot_handoff; do cp "tools/$m.py" b/server/; done
+          python3 - <<'PY'
+          import json, os
+          m = json.load(open("mcp/manifest.json")); m["version"] = os.environ["VERSION"]
+          json.dump(m, open("b/manifest.json", "w"), indent=2)
+          PY
+          cp LICENSE b/
+          (cd b && zip -qrX "../x402-atlas-mcp-$VERSION.mcpb" .)
+          mkdir t && (cd t && unzip -q "../x402-atlas-mcp-$VERSION.mcpb")
+          printf '%s\n' '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2024-11-05","capabilities":{},"clientInfo":{"name":"ci","version":"0"}}}' \
+                        '{"jsonrpc":"2.0","id":2,"method":"tools/list"}' | python3 t/server/atlas_mcp.py > out.jsonl
+          python3 -c "import json; r=[json.loads(l) for l in open('out.jsonl')]; n=len(r[1]['result']['tools']); assert n >= 6, n; print('bundle answers:', n, 'tools')"
+          SHA=$(sha256sum "x402-atlas-mcp-$VERSION.mcpb" | cut -d' ' -f1)
+          URL="https://github.com/${GITHUB_REPOSITORY}/releases/download/mcp-v$VERSION/x402-atlas-mcp-$VERSION.mcpb"
+          python3 - "$URL" "$SHA" <<'PY'
+          import json, os, sys
+          s = json.load(open("mcp/server.json")); s["version"] = os.environ["VERSION"]
+          s["packages"][0].update(identifier=sys.argv[1], fileSha256=sys.argv[2])
+          json.dump(s, open("server.json", "w"), indent=2)
+          PY
+          cat server.json
+      - name: Release the bundle
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "mcp-v$VERSION" "x402-atlas-mcp-$VERSION.mcpb" --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" \
+            --title "x402 Atlas MCP server $VERSION" \
+            --notes "The Atlas MCP server as an MCP bundle. Standard library only; Python 3.10 or newer. Or: uvx --from git+https://github.com/${GITHUB_REPOSITORY} x402-atlas-mcp"
+      - name: Publish to the MCP registry
+        run: |
+          set -eu
+          curl -fsSL -o p.tgz https://github.com/modelcontextprotocol/registry/releases/download/v1.8.1/mcp-publisher_linux_amd64.tar.gz
+          echo "a06c9096dcb9727c13555b6be26c7effa707b01f06a4c561ba7a3635443cf2cc  p.tgz" | sha256sum -c
+          tar xzf p.tgz mcp-publisher
+          ./mcp-publisher login github-oidc
+          ./mcp-publisher publish
