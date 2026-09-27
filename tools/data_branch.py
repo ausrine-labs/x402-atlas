@@ -66,6 +66,11 @@ def load_window(d):
 def merge_dir(new_dir, branch_dir, warn):
     manifest, data = load_window(new_dir)
     os.makedirs(branch_dir, exist_ok=True)
+    published = {}                                 # what the branch's manifest says about its own bytes
+    try:
+        published = {f["name"]: f for f in json.loads(read(os.path.join(branch_dir, "manifest.json")))["files"]}
+    except (OSError, ValueError, KeyError, TypeError):
+        pass
     out = []
     for f in manifest["files"]:
         name, b = f["name"], data[f["name"]]
@@ -77,7 +82,13 @@ def merge_dir(new_dir, branch_dir, warn):
                 if unzipped(old) != unzipped(b):
                     warn("%s: already published with different content; the published file stays"
                          % os.path.join(os.path.basename(branch_dir), name))
-                entry.update(sha256=sha(old), bytes=len(old))
+                # the published file stays, and so does everything said about it
+                kept = published.get(name)
+                if kept and kept.get("sha256") == sha(old) and kept.get("bytes") == len(old):
+                    entry = dict(kept)
+                else:                              # no trustworthy record: only what the bytes themselves show
+                    entry = {k: f[k] for k in ("name", "date", "kind") if k in f}
+                    entry.update(sha256=sha(old), bytes=len(old))
         else:
             with open(dst, "wb") as fh:
                 fh.write(b)
