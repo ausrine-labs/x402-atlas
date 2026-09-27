@@ -1,0 +1,8 @@
+# Smithery: the Atlas MCP server runs locally over stdio, installed straight from this repository.
+startCommand:
+  type: stdio
+  configSchema:
+    type: object
+    properties: {}
+  commandFunction: |-
+    (config) => ({ command: 'uvx', args: ['--from', 'git+https://github.com/ausrine-labs/x402-atlas', 'x402-atlas-mcp'] })
