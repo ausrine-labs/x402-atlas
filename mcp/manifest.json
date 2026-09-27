@@ -1,0 +1,26 @@
+{
+  "manifest_version": "0.3",
+  "name": "x402-atlas",
+  "display_name": "x402 Atlas",
+  "version": "0.0.0",
+  "description": "Who actually pays whom in the x402 agent market on Base: sellers, prices, on-chain payments, operators and active buyer wallets, from the Atlas's daily public record. Every answer is dated.",
+  "author": { "name": "Ausrine Jurgutis", "url": "https://github.com/ausrine-labs" },
+  "repository": { "type": "git", "url": "https://github.com/ausrine-labs/x402-atlas" },
+  "homepage": "https://github.com/ausrine-labs/x402-atlas",
+  "license": "MIT",
+  "keywords": ["x402", "agents", "base", "usdc", "market-data"],
+  "server": {
+    "type": "python",
+    "entry_point": "server/atlas_mcp.py",
+    "mcp_config": { "command": "python3", "args": ["${__dirname}/server/atlas_mcp.py"] }
+  },
+  "tools": [
+    { "name": "market_today", "description": "The x402 market on Base as of the newest published day" },
+    { "name": "search", "description": "Sellers that do a job, by name, words or intent" },
+    { "name": "seller", "description": "One seller's card: what it sells, what it charges, who paid it" },
+    { "name": "operator", "description": "Which hosts are one operator, and what they took together" },
+    { "name": "agents_at_work", "description": "Buyer wallets whose x402 payments reached three or more sellers" },
+    { "name": "compare", "description": "Two to five sellers side by side" }
+  ],
+  "compatibility": { "platforms": ["darwin", "win32", "linux"], "runtimes": { "python": ">=3.10" } }
+}
