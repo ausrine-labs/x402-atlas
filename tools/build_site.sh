@@ -1,17 +1,28 @@
 #!/bin/sh
 # build_site.sh — the whole public site, from one morning's photograph of the market.
 #
-# Run by .github/workflows/daily.yml. It keeps NO market data in this repository's
-# history: the rolling window lives only on the published site. Each run reads that
-# window back (checking every file), adds today, drops what is older than 8 days,
-# rebuilds every seller page, and hands the result to GitHub Pages.
+# Run by .github/workflows/daily.yml. It keeps NO market data on main: the rolling
+# window lives on the published site and, one commit a day, on the `data` branch
+# (tools/data_branch.py). Each run reads that window back (checking every file), adds
+# today, drops what is older than 8 days, rebuilds every seller page, and hands the
+# result to GitHub Pages.
 set -eu
 SITE=https://ausrine-labs.github.io/x402-atlas
+# The data branch first: raw.githubusercontent.com answers over https with no redirect,
+# whatever happens to the site's own address. The site is the second place to look.
+DATA=https://raw.githubusercontent.com/ausrine-labs/x402-atlas/data
 rm -rf store flows _site && mkdir -p store flows _site
 
-# 1. yesterday's window, from the live site; from this repo's radar/ only if the site has none
-python3 tools/snapshot_handoff.py fetch "$SITE/radar/" --store store || {
-  echo "::warning::no published window on the site; seeding from radar/ in the repository"
+# 1. yesterday's window: the data branch and the live site, each checked against its own
+#    manifest, joined (a day only one of them has is kept; where both have it, the data
+#    branch's copy stands). From this repo's radar/ only if neither has any.
+python3 tools/snapshot_handoff.py fetch "$DATA/radar/" --store store || echo "::warning::no window on the data branch"
+mkdir -p store.site
+python3 tools/snapshot_handoff.py fetch "$SITE/radar/" --store store.site || echo "::warning::no window on the site"
+for f in store.site/market-*.json; do [ -f "$f" ] && [ ! -e "store/${f#store.site/}" ] && cp "$f" store/; done
+rm -rf store.site
+ls store/market-*.json >/dev/null 2>&1 || {
+  echo "::warning::no published window anywhere; seeding from radar/ in the repository"
   for f in radar/market-*.json.gz; do [ -f "$f" ] && gunzip -c "$f" > "store/$(basename "${f%.gz}")"; done
 }
 
@@ -32,12 +43,16 @@ if not glob.glob("store/market-*.json"):
     sys.exit("no usable snapshot at all: refusing to deploy an empty site")
 PY
 
-# 4. who paid whom, read straight off Base: yesterday's flows window back from the live
-#    site, today's pull against the wallets in the newest snapshot, then the whale rollup
+# 4. who paid whom, read straight off Base: yesterday's flows window back from the data
+#    branch or the site, today's pull against the wallets in the newest snapshot, then the whale rollup
 #    over the window. Best effort at every step: the pages are built either way.
 LATEST=$(ls store/market-*.json | sort | tail -1)
 DAY=$(basename "$LATEST" .json | sed 's/^market-//')
-python3 tools/flows_handoff.py fetch "$SITE/flows/" --store flows || echo "::warning::no published flows window yet; starting one today"
+python3 tools/flows_handoff.py fetch "$DATA/flows/" --store flows || echo "::warning::no flows window on the data branch"
+mkdir -p flows.site
+python3 tools/flows_handoff.py fetch "$SITE/flows/" --store flows.site || echo "::warning::no flows window on the site"
+for f in flows.site/*.json; do [ -f "$f" ] && [ ! -e "flows/${f#flows.site/}" ] && cp "$f" flows/; done
+rm -rf flows.site
 YESTERDAY=$(date -u -d "$DAY -1 day" +%F)          # the last whole UTC day; pulled by block timestamp, so days tile exactly
 python3 tools/chain_flows.py --snapshot "$LATEST" --day "$YESTERDAY" --out "flows/flows-$YESTERDAY.json" || echo "::warning::the chain pull for $YESTERDAY failed; the window keeps what it has"
 if [ -f "flows/flows-$YESTERDAY.json" ]; then

@@ -27,6 +27,42 @@ jobs:
       - uses: actions/upload-pages-artifact@56afc609e74202658d3ffba0e8f6dda462b719fa # v3
         with:
           path: _site
+  data:
+    # The same window, one ordinary commit a day on the `data` branch, so the build and the
+    # paid seller can read it from raw.githubusercontent.com: https, no redirect, no
+    # custom-domain certificate. The only job that may write, and only to that branch;
+    # only from main, on the schedule or a manual run. Data only, never code.
+    needs: build
+    if: github.ref == 'refs/heads/main' && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          path: main
+          persist-credentials: false
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: data
+          path: branch
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: github-pages
+          path: artifact
+      - name: Add today's window to the data branch
+        run: |
+          set -eu
+          mkdir site
+          tar -xf artifact/artifact.tar -C site ./radar
+          tar -xf artifact/artifact.tar -C site ./flows || echo "::warning::no flows window in today's build"
+          python3 main/tools/data_branch.py merge --new site --branch branch
+          cd branch
+          git add -A radar flows
+          if git diff --cached --quiet; then echo "the data branch already holds today's window"; exit 0; fi
+          git -c user.name="Ausrine Jurgutis" -c user.email="ausrine@infoharmoni.com" \
+            commit -qm "data: the window as published $(date -u +%FT%TZ) (run ${GITHUB_RUN_ID})"
+          git push -q origin HEAD:data
   deploy:
     needs: build
     runs-on: ubuntu-latest
