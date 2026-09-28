@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Copied from the Aušrinė lab (commit 116e747). Edit it there, not here.
+# Copied from the Aušrinė lab (commit a0d9190). Edit it there, not here.
 """network.py — the agent ecosystem tonight, as a movable 3D network.
 
 Infoharmoni's real subject was never a hub with a crowd around it; it was
@@ -183,11 +183,11 @@ def find_communities(nodes, links, posts, users, skip=()):
     return out
 
 
-PAGE = r"""<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+PAGE = r"""<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>__TITLE__</title>__HEADX__
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Newsreader:opsz,wght@6..72,400;6..72,500;6..72,600&family=Source+Sans+3:ital,wght@0,400;0,600;1,400&display=swap">
+__FONTS__
 <style>
-:root{--bg:#05060d;--ink:#f2f3f8;--muted:#9aa1b8;--line:#ffffff22;--pink:#ff4fa3;--gold:#ffd166;--grey:#7f8fa6}
+__ROOT__
 html,body{margin:0;height:100%;background:var(--bg);color:var(--ink);font-family:"Source Sans 3","Helvetica Neue",Helvetica,Arial,sans-serif;overflow:hidden}
 #c{position:fixed;inset:0;display:block;touch-action:none;cursor:grab}
 #c:active{cursor:grabbing}
@@ -345,7 +345,7 @@ L.forEach((l,i)=>{const c=new THREE.Color(PAPER?0xffffff:(G.panels?0x8fa6c8:(ROO
 lgeo.setAttribute('position',new THREE.BufferAttribute(lpos,3)); lgeo.setAttribute('color',new THREE.BufferAttribute(lcol,3));
 const lines=new THREE.LineSegments(lgeo,new THREE.LineBasicMaterial({vertexColors:true,transparent:true,opacity:PAPER?0.75:0.9})); root.add(lines);
 // labels for the ones worth naming: sprites drawn on canvas
-function label(txt,color){const c=document.createElement('canvas'); const x=c.getContext('2d'); const F='600 28px "Source Sans 3", Helvetica Neue, Helvetica, Arial'; x.font=F;
+function label(txt,color){const c=document.createElement('canvas'); const x=c.getContext('2d'); const F=PAPER?'600 28px "Instrument Sans", system-ui, Arial':'600 28px "Source Sans 3", Helvetica Neue, Helvetica, Arial'; x.font=F;
   const w=x.measureText(txt).width+16; c.width=w; c.height=40; x.font=F; x.textBaseline='middle';
   if(PAPER){x.lineJoin='round'; x.lineWidth=7; x.strokeStyle='rgba(255,255,255,0.92)'; x.strokeText(txt,8,20); color='#26262b';}
   x.fillStyle=color; x.fillText(txt,8,20);
@@ -383,7 +383,7 @@ function sync(){N.forEach((n,i)=>{const p=pos[i]; meshes[i].position.set(p[0],p[
     hulls[ci].position.set(x,y,z); hulls[ci].scale.setScalar(r+5); clabels[ci].position.set(x,y+r+9,z);});
   labels.forEach(placeLabel); extra.forEach(placeLabel);
   LK.forEach(([a,b],i)=>{const pa=pos[a],pb=pos[b]; lpos.set([pa[0],pa[1],pa[2],pb[0],pb[1],pb[2]],i*6);}); lgeo.attributes.position.needsUpdate=true;}
-// ---- controls: drag turns, wheel/pinch zooms, tap picks
+// ---- controls: drag turns, wheel/pinch zooms, tap selects
 let rx=0.3,ry=0,dist=540*Math.sqrt(N.length/440),drag=null,pinch=0,auto=false,lastMove=0,paused=true;
 const target=new THREE.Vector3(); function recentre(){let x=0,y=0,z=0,k=0; N.forEach((n,i)=>{if(n.d>0){x+=pos[i][0];y+=pos[i][1];z+=pos[i][2];k++;}}); if(k){target.set(x/k,y/k,z/k);}}
 function fitAll(){recentre(); const rs=[]; N.forEach((n,i)=>{if(n.d>0||fd.checked){rs.push(Math.hypot(pos[i][0]-target.x,pos[i][1]-target.y,pos[i][2]-target.z));}}); rs.sort((a,b)=>a-b); const R=rs[Math.floor(rs.length*0.93)]||rs[rs.length-1]||100; dist=Math.min(1600,Math.max(80,R/Math.tan(cam.fov*Math.PI/360)*1.08+40));}
@@ -513,6 +513,12 @@ function frame(t){ if(!reduced&&!paused){  if((t|0)%3===0) step(0.03); }
 """
 
 
+# The older pages' night field, and the paper the Atlas draws on (its palette: atlas_style.PALETTE).
+FONTS = ('<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Newsreader:opsz,wght@6..72,400;6..72,500;6..72,600'
+         '&family=Source+Sans+3:ital,wght@0,400;0,600;1,400&display=swap">')
+ROOT = {"night": ":root{--bg:#05060d;--ink:#f2f3f8;--muted:#9aa1b8;--line:#ffffff22;--pink:#ff4fa3;--gold:#ffd166;--grey:#7f8fa6}",
+        "paper": ":root{color-scheme:light;--bg:#FFFFFF;--ink:#102A23;--muted:#66645A;--line:#E7E5DF;--pink:#E0A93B;--gold:#0B7A55;--grey:#A39E8C}"}
+
 GRAPH_KEYS = ("rooms", "source", "key", "mode", "panels", "labels", "totals", "palette", "theme", "embed")
 
 
@@ -524,7 +530,10 @@ def render(g, today, title="AI Agent Economy", head="", css="", top="", bottom="
     data = {"nodes": g["nodes"], "links": g["links"], "communities": g["communities"]}
     data.update({k: g[k] for k in GRAPH_KEYS if k in g})
     blob = json.dumps(data).replace("</", "<\\/")      # a stranger's host name cannot close the script
+    paper = g.get("theme") == "paper"
     page = (PAGE.replace("__TITLE__", title).replace("__HEADX__", head).replace("__CSS__", css)
+            .replace("__FONTS__", "" if paper else FONTS).replace("__ROOT__", ROOT["paper" if paper else "night"])
+            .replace('<div id="hd"><h1>AI Agent Economy</h1>', '<div id="hd"><p class="h">AI Agent Economy</p>' if paper else '<div id="hd"><h1>AI Agent Economy</h1>')
             .replace("__TOP__", top).replace("__BOTTOM__", bottom)
             .replace("__DATE__", today).replace("__SOURCE__", g.get("source", ""))
             .replace("__KEY__", g.get("key", "sphere = one account · size = reach (followers) · line = an @mention tonight")))

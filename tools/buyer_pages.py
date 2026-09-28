@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Copied from the Aušrinė lab (commit 507dd4a). Edit it there, not here.
+# Copied from the Aušrinė lab (commit a0d9190). Edit it there, not here.
 """buyer_pages.py — a page for every buyer wallet: what one wallet paid for, and to whom.
 
 Sellers have pages, wallet groups have pages; the wallets that pay them did not.
@@ -19,6 +19,9 @@ import html
 import json
 import os
 import re
+
+import market  # the product's name
+import atlas_style
 
 # Kept word for word from whales.py's notes (tested against them), so the standing
 # caveats read the same on every page that uses the rollup.
@@ -52,9 +55,8 @@ def span_words(hours):
 
 
 def day_words(chain):
-    """The day (or days) the rollup covers, as the pull named them."""
-    dates = chain.get("dates") or []
-    return ", ".join(dates) if dates else (chain.get("as_of") or "")
+    """The day (or days) the rollup covers, in words: '2 January 2026'."""
+    return atlas_style.chain_day(chain)
 
 
 def link(wallet, site=""):
@@ -93,21 +95,25 @@ def build(out, chain, A, ctx, as_of, n_sellers, site="", head="", foot="", issue
         other = max((b.get("usdc") or 0.0) - (b.get("usdc_x402") or 0.0), 0.0)
         sellers = sorted(b.get("sellers") or [], key=lambda s: (-(s.get("payments_x402") or 0), -(s.get("payments") or 0),
                                                                   -(s.get("usdc") or 0.0), s.get("host") or ""))
-        title = "%s — a buyer wallet on %s · x402 Atlas" % (b["short"], b.get("chain") or "Base")
+        title = "%s — a buyer wallet on %s · %s" % (b["short"], b.get("chain") or "Base", market.BRAND)
         desc = "Wallet %s: %s x402 payments, %s, to %d seller%s in the last %s. As of %s." % (
             b["short"], "{:,}".format(b["payments_x402"]), money(b.get("usdc_x402") or 0.0), b.get("sellers_paid_x402") or 0,
             "s" if (b.get("sellers_paid_x402") or 0) != 1 else "", window, as_of)
         p = [head % dict(ctx, title=esc(title), desc=esc(desc), canon=esc(link(b["wallet"], site)))]
-        p.append("<main><h1><code>%s</code></h1>" % esc(b["short"]))
-        p.append('<p class="muted">Wallet <a rel="nofollow noopener" href="%s"><code>%s</code></a> on %s.</p>'
+        hexes = re.sub(r"[^0-9a-f]", "", sl[2:])[:4] or "·"
+        p.append('<main id="main"><p class="crumbs"><a href="%s/b/">Buyers</a> / %s / %s</p>'
+                 '<div class="ident"><span class="avatar buyer" aria-hidden="true">%s</span><div><h1><code>%s</code></h1>'
+                 % (site, "agents at work" if agent else "buyer wallets", esc(b["short"]), esc(hexes), esc(b["short"])))
+        p.append('<p class="muted">Wallet <a rel="nofollow noopener" href="%s"><code>%s</code></a> on %s.</p></div></div>'
                  % (esc(b.get("explorer") or ""), esc(b["wallet"]), esc(b.get("chain") or "Base")))
         p.append('<p>%s<span class="tag">%s · %s on-chain</span><span class="tag">as of %s</span></p>'
-                 % ('<span class="tag">agent at work</span>' if agent else "", esc(day), esc(window), esc(as_of)))
+                 % ('<span class="tag">agent at work</span>' if agent else "", esc(day), esc(window), esc(atlas_style.long_date(as_of))))
         if agent:
             p.append('<p class="sells">This wallet %s.</p>' % esc(AGENT))
         else:
             p.append('<p class="sells">This wallet’s x402 payments reached %d seller%s in the window.</p>'
                      % (b.get("sellers_paid_x402") or 0, "s" if (b.get("sellers_paid_x402") or 0) != 1 else ""))
+        p.append('<p class="muted">A wallet is not a person, and nothing here says who holds it.</p>')
         p.append('<div class="tiles">'
                  '<div class="tile"><b>%s</b><span>x402 payments, last %s</span></div>'
                  '<div class="tile"><b>%s</b><span>USDC, x402-settled</span></div>'
@@ -117,13 +123,14 @@ def build(out, chain, A, ctx, as_of, n_sellers, site="", head="", foot="", issue
                     b.get("sellers_paid_x402") or 0,
                     (" (%d by any means)" % b["sellers_paid"]) if b.get("sellers_paid", 0) != b.get("sellers_paid_x402") else ""))
         cats = bought(sellers, b)
-        p.append('<h2>What it bought</h2><p class="muted">By category, most payments first: %s.</p>'
-                 % (esc(", ".join(cats)) if cats else "—"))
+        p.append('<h2>What it bought</h2>%s<p class="muted">By category, most payments first: %s.</p>'
+                 % (('<p class="dateline">x402 payments on Base · %s</p>' % esc(day)) if day else "", esc(", ".join(cats)) if cats else "—"))
         p.append('<h2>The sellers it paid</h2><div class="tw"><table><tr><th>seller</th><th class="n">x402 payments</th>'
                  '<th class="n">USDC, x402</th><th class="n">USDC, other means</th><th>category</th></tr>')
         for s in sellers:
             host = s.get("host") or ""
-            name = ('<a href="%s/s/%s/">%s</a>' % (site, esc(slug(host)), esc(host))) if host in A else esc(host)
+            name = '<span class="dot seller" aria-hidden="true"></span>' + (
+                ('<a href="%s/s/%s/">%s</a>' % (site, esc(slug(host)), esc(host))) if host in A else esc(host))
             p.append('<tr><td class="h">%s</td><td class="n">%s</td><td class="n">%s</td><td class="n">%s</td><td>%s</td></tr>'
                      % (name, "{:,}".format(s.get("payments_x402") or 0), money(s.get("usdc_x402") or 0.0),
                         money(max((s.get("usdc") or 0.0) - (s.get("usdc_x402") or 0.0), 0.0)), esc(s.get("category") or "")))
@@ -132,7 +139,7 @@ def build(out, chain, A, ctx, as_of, n_sellers, site="", head="", foot="", issue
             p.append('<p class="muted">%d more sellers not shown: the rollup keeps the eight this wallet sent the most USDC.</p>'
                      % (b["sellers_paid"] - len(sellers)))
         p.append('<h2>How to read this</h2><ul class="cav">%s</ul></main>' % "".join("<li>%s</li>" % esc(c) for c in CAVEATS))
-        p.append(foot % {"issue": esc("%s?template=correct.yml&title=%s" % (issues, "Correction:+buyer+" + sl)), "as_of": esc(as_of),
+        p.append(foot % {"root": site, "issue": esc("%s?template=correct.yml&title=%s" % (issues, "Correction:+buyer+" + sl)), "as_of": esc(as_of),
                          "n": "{:,}".format(n_sellers)})
         d = os.path.join(bdir, sl)
         os.makedirs(d, exist_ok=True)
@@ -145,10 +152,10 @@ def build(out, chain, A, ctx, as_of, n_sellers, site="", head="", foot="", issue
     listing.sort(key=lambda r: (not r["agent"], -r["x402"], -r["usdc_x402"], r["wallet"]))
     at_work = [r for r in listing if r["agent"]]
     rest = [r for r in listing if not r["agent"]]
-    page = [head % dict(ctx, title="Buyers: the wallets that paid over x402 · x402 Atlas",
+    page = [head % dict(ctx, title="Buyers: the wallets that paid over x402 · " + market.BRAND,
                         desc="%d wallets paid x402 sellers in the last %s, %d of them three or more sellers. As of %s."
                         % (len(listing), window, len(at_work), as_of), canon=site + "/b/")]
-    page.append('<main><h1>Buyers</h1><p class="sells">Every wallet that made an x402 payment to a seller in the last %s '
+    page.append('<main id="main"><p class="eyebrow">Buyers · %s</p><h1>Buyers</h1><p class="sells">' % esc(day) + 'Every wallet that made an x402 payment to a seller in the last %s '
                 "(%s): %s wallets. %s of them paid three or more sellers — agents at work. A wallet is not a person, and "
                 "nothing here says who holds one.</p>" % (esc(window), esc(day), "{:,}".format(len(listing)), "{:,}".format(len(at_work))))
 
@@ -166,7 +173,7 @@ def build(out, chain, A, ctx, as_of, n_sellers, site="", head="", foot="", issue
     page.append("<h2>Every other buyer · %s</h2>" % "{:,}".format(len(rest)))
     page.append(table(rest) if rest else '<p class="muted">None.</p>')
     page.append('<h2>How to read this</h2><ul class="cav">%s</ul></main>' % "".join("<li>%s</li>" % esc(c) for c in CAVEATS))
-    page.append(foot % {"issue": esc(issues), "as_of": esc(as_of), "n": "{:,}".format(n_sellers)})
+    page.append(foot % {"root": site, "issue": esc(issues), "as_of": esc(as_of), "n": "{:,}".format(n_sellers)})
     with open(os.path.join(bdir, "index.html"), "w") as fh:
         fh.write("".join(page))
     with open(os.path.join(bdir, "index.json"), "w") as fh:        # the front door's search will read this

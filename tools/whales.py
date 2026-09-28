@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Copied from the Aušrinė lab (commit 507dd4a). Edit it there, not here.
+# Copied from the Aušrinė lab (commit a0d9190). Edit it there, not here.
 """whales.py — the agent whales: which wallets pay a lot, for what, and which
 sellers are actually paid on-chain.
 
@@ -158,7 +158,17 @@ def rollup(edges, sellers, chain_of, hours, snap):
         r["buyers"].add(f)
         if nx:
             r["payers_x402"][f] += nx
+        # one host can be paid on two chains; each chain's figures are kept apart so a reader
+        # can count x402 where that chain's pull told it apart, and every transfer where not
+        c = r.setdefault("by_chain", {}).setdefault(chain_of.get(t, "Base"), {"payments": 0, "usdc": 0.0,
+                                                                              "payments_x402": 0, "usdc_x402": 0.0})
+        c["payments"] += e["n"]
+        c["usdc"] += e["usdc"]
+        c["payments_x402"] += nx
+        c["usdc_x402"] += ux
     classified = any("n_x402" in e for e in edges)
+    # a pull tells x402 apart per chain: Base does, an older or Solana pull may not
+    classified_chains = sorted({chain_of.get(e["to"]) or chain_of.get(e["from"], "Base") for e in edges if "n_x402" in e})
 
     out_buyers = []
     for b in buyers.values():
@@ -192,6 +202,8 @@ def rollup(edges, sellers, chain_of, hours, snap):
             "on_chain_usdc": round(r["usdc"], 2), "on_chain_payments": r["payments"],
             "on_chain_usdc_x402": round(r["usdc_x402"], 2), "on_chain_payments_x402": r["payments_x402"],
             "on_chain_buyer_wallets": len(r["buyers"]),
+            "by_chain": {k: dict(v, usdc=round(v["usdc"], 2), usdc_x402=round(v["usdc_x402"], 2))
+                         for k, v in sorted(r.get("by_chain", {}).items())},
             "x402_payer_wallets": len(r["payers_x402"]),
             "x402_top3_share": top3, "x402_top_payers": top_payers, "concentration": word,
             "operator_hosts": len(op["hosts"]), "operator_wallets": op["wallets"],
@@ -206,6 +218,7 @@ def rollup(edges, sellers, chain_of, hours, snap):
     return {
         "hours": hours,
         "classified": classified,
+        "classified_chains": classified_chains,
         # every host whose wallet the registry lists under other hosts too, paid or not
         "operators": {h: {"group": o["id"], "hosts": len(o["hosts"]), "others": [x for x in o["hosts"] if x != h][:12]}
                       for h, o in ops.items() if len(o["hosts"]) > 1},
