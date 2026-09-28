@@ -1,5 +1,5 @@
+# Copied from the Aušrinė lab (commit 935dfef). Edit it there, not here.
 #!/usr/bin/env python3
-# Copied from the Aušrinė lab (commit a0d9190). Edit it there, not here.
 """live_feed.py — /live/: x402 payments as they settle, read in the viewer's own browser.
 
 Every other Atlas page is a photograph of yesterday. This one is a window. The page
@@ -103,7 +103,7 @@ def table_json(data):
 SCRIPT = r"""(function(){
 "use strict";
 var RPC="%(rpc)s", USDC="%(usdc)s", TRANSFER="%(transfer)s", AUTH="%(auth)s";
-var POLL=%(poll)d, BLOCKS=%(blocks)d, ROWS=%(rows)d, CHUNK=100;
+var POLL=%(poll)d, BLOCKS=%(blocks)d, ROWS=%(rows)d, CHUNK=100, MAXB=10;
 var T=JSON.parse(document.getElementById("atlas-live-wallets").textContent);
 var SELL=T.wallets, BUY=new Set(T.buyers), SITE=T.site, KEYS=Object.keys(SELL);
 var list=document.getElementById("live-rows"), state=document.getElementById("live-state"),
@@ -155,8 +155,11 @@ function poll(){
       batch.push({jsonrpc:"2.0",id:1+i/CHUNK,method:"eth_getLogs",
         params:[{fromBlock:hex(from),toBlock:hex(head),address:USDC,topics:[TRANSFER,null,KEYS.slice(i,i+CHUNK).map(pad)]}]});
     }
-    return post(batch).then(function(ans){
-      if(!Array.isArray(ans))throw new Error("the RPC refused a batch");
+    // The public Base RPC takes at most 10 calls in one batch: send groups of MAXB, then join.
+    var groups=[]; for(var g=0;g<batch.length;g+=MAXB){groups.push(post(batch.slice(g,g+MAXB)));}
+    return Promise.all(groups).then(function(parts){
+      parts.forEach(function(p){if(!Array.isArray(p))throw new Error("the RPC refused a batch");});
+      var ans=[].concat.apply([],parts);
       var by={}; ans.forEach(function(a){by[a.id]=a;});
       var auth=new Set(res(by[0]).map(function(l){return l.transactionHash;}));
       for(var j=1;j<batch.length;j++){
