@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# Copied from the Aušrinė lab (commit a0d9190). Edit it there, not here.
 """market.py — the x402 market: agents with wallets, what they sell, who buys.
 
 The facilitator's public registry lists every endpoint that takes x402
@@ -22,6 +23,18 @@ import math
 import re
 import urllib.parse
 from datetime import date
+
+# The product's name, in one place. Every page, the MCP server and the paid seller read it
+# from here. "x402 Atlas" belongs to other projects in this same market; the name says ours,
+# and the descriptions beside it still say plainly that it covers x402 on Base.
+# The company and its product, the way a company presents a product it makes: the header and
+# footer show them apart ("Infoharmoni | Atlas"); titles and descriptions use BRAND.
+COMPANY = "Infoharmoni"
+PRODUCT = "Atlas"
+BRAND = COMPANY + " " + PRODUCT              # "Infoharmoni Atlas"
+BRAND_SHORT = PRODUCT
+BRAND_SLUG = "infoharmoni-atlas"          # the MCP server's name and the package's
+BRAND_WHAT = "the public record of the x402 market on Base"
 
 CATS = [
     ("money & payments", "#ffd166", r"\binvoice|\bbank (account|transfer)|\bach\b|prepaid|gift card|remit|send (dollars|money)|off-?ramp|on-?ramp|\bpayout|pay (a|an|your) |bill pay|top[- ]up"),

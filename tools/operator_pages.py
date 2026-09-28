@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Copied from the Aušrinė lab (commit 507dd4a). Edit it there, not here.
+# Copied from the Aušrinė lab (commit a0d9190). Edit it there, not here.
 """operator_pages.py — a page for every wallet group: the hosts paid into one wallet.
 
 The registry counts hosts; the chain shows which of them are paid into the same
@@ -24,6 +24,8 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import buyer_pages  # noqa: E402
+import market  # noqa: E402
+import atlas_style  # noqa: E402
 
 MARK = "Claimed by operator"
 DISCLAIMER = ("“Claimed by operator” means the operator proved control of the hosts the registry lists under "
@@ -175,26 +177,29 @@ def build(out, chain, A, ctx, as_of, n_sellers, operators=None, site="", head=""
         f = group_facts(g, chain, A)
         for h in g["hosts"]:
             by_host[h] = {"slug": sl, "name": name, "claimed": bool(mine)}
-        title = "%s — %d hosts paid into one wallet · x402 Atlas" % (name, f["hosts"])
+        title = "%s — %d hosts paid into one wallet · %s" % (name, f["hosts"], market.BRAND)
         desc = "%d x402 hosts paid into one wallet: %s x402 payments in the window, %s. As of %s." % (
             f["hosts"], "{:,}".format(f["x402"]), money(f["usdc"]), as_of)
         p = [head % dict(ctx, title=esc(title), desc=esc(desc), canon=esc("%s/o/%s/" % (site, sl)))]
-        p.append("<main><h1>%s</h1>" % esc(name))
+        initials = "".join(w[0] for w in re.findall(r"[A-Za-z0-9]+", name)[:2]).upper() or "·"
+        p.append('<main id="main"><p class="crumbs"><a href="%s/o/">Operators</a> / %s</p>'
+                 '<div class="ident"><span class="avatar seller" aria-hidden="true">%s</span><div><h1>%s</h1></div></div>'
+                 % (site, esc(name), esc(initials), esc(name)))
         if share is not None and not mine:
             p.append('<p class="muted">%s</p>' % esc(NAMED_FOR % (share, f["hosts"])))
         if mine:
             p.append('<p><span class="tag mark">%s</span><span class="tag">%d hosts · %d wallet%s</span><span class="tag">as of %s</span></p>'
-                     % (esc(MARK), f["hosts"], f["wallets"], "s" if f["wallets"] != 1 else "", esc(as_of)))
+                     % (esc(MARK), f["hosts"], f["wallets"], "s" if f["wallets"] != 1 else "", esc(atlas_style.long_date(as_of))))
             p.append('<p class="muted disclaimer">%s</p>' % esc(DISCLAIMER))
             o = mine[1]
             p.append('<div class="owner"><h2>In the operator’s words</h2>%s<p class="sells">%s</p>%s</div>' % (
-                '<img class="logo" src="%s" alt="" loading="lazy" referrerpolicy="no-referrer">' % esc(o["logo"]) if o["logo"] else "",
-                esc(o["description"]) or "—",
+                '<img class="logo-owner" src="%s" alt="%s logo, as the operator supplied it" loading="lazy" referrerpolicy="no-referrer">' % (esc(o["logo"]), esc(name)) if o["logo"] else "",
+                esc(atlas_style.unsay(o["description"])) or "—",
                 "".join('<a class="olink" rel="nofollow ugc noopener" href="%s">%s</a>' % (esc(l["url"]), esc(l["label"] or l["url"]))
                         for l in o["links"])))
         else:
             p.append('<p><span class="tag">unclaimed group</span><span class="tag">%d hosts · %d wallet%s</span><span class="tag">as of %s</span></p>'
-                     % (f["hosts"], f["wallets"], "s" if f["wallets"] != 1 else "", esc(as_of)))
+                     % (f["hosts"], f["wallets"], "s" if f["wallets"] != 1 else "", esc(atlas_style.long_date(as_of))))
             p.append('<p class="sells">%s</p>' % esc(UNCLAIMED))
         p.append('<div class="tiles">'
                  '<div class="tile"><b>%d</b><span>hosts paid into this wallet</span></div>'
@@ -207,7 +212,9 @@ def build(out, chain, A, ctx, as_of, n_sellers, operators=None, site="", head=""
                     f["paid_hosts"], "{:,}".format(f["calls30"]),
                     ('<div class="tile"><b>%s</b><span>reached the wallet by ordinary transfer, not a call</span></div>' % money(f["other"]))
                     if f["other"] >= 1 else ""))
-        p.append("<h2>Who actually paid the group</h2>")
+        day = atlas_style.chain_day(chain, as_of)
+        p.append('<div class="cols"><div>')
+        p.append('<h2>Who actually paid the group</h2><p class="dateline">x402 payments on Base · %s</p>' % esc(day))
         if f["x402"]:
             p.append('<p class="muted">Across the group, %s x402 payments in the last %s; payer wallets summed per host: %d. '
                      "The busiest wallets, among each host’s busiest three: %s.</p>"
@@ -220,8 +227,12 @@ def build(out, chain, A, ctx, as_of, n_sellers, operators=None, site="", head=""
         for r in f["rows"]:
             p.append('<tr><td class="h"><a href="%s/s/%s/">%s</a></td><td class="n">%s</td><td class="n">%s</td><td>%s</td><td>%s</td></tr>'
                      % (site, esc(slug(r["host"])), esc(r["host"]), "{:,}".format(r["x402"]), "{:,}".format(r["calls30"]),
-                        esc(r["word"] or ("—" if not r["x402"] else "")), esc(r["sells"])))
-        p.append("</table></div>")
+                        esc(r["word"] or ("—" if not r["x402"] else "")), esc(atlas_style.unsay(r["sells"]))))
+        p.append("</table></div></div><aside aria-label=\"Key facts\">")
+        p.append('<div class="box"><p class="eyebrow" style="margin:0">Key facts</p><dl class="kv">'
+                 '<dt>Type</dt><dd>Hosts paid into one wallet</dd><dt>Protocol</dt><dd>x402</dd><dt>Chain</dt><dd>Base</dd>'
+                 '<dt>Hosts</dt><dd>%d</dd><dt>Wallets</dt><dd>%d</dd><dt>Profile</dt><dd>%s</dd></dl></div>'
+                 % (f["hosts"], f["wallets"], "claimed by its operator" if mine else "unclaimed"))
         if not mine:
             p.append('<div class="claim"><h3>Is this your group?</h3><p>Put one name on it: this page with your description, '
                      "logo and links; a “claimed by operator” mark on each of the %d host pages; your hosts’ buyers, concentration "
@@ -229,13 +240,14 @@ def build(out, chain, A, ctx, as_of, n_sellers, operators=None, site="", head=""
                      "The numbers never change for money.</p>"
                      '<a class="btn" href="%s?reference_id=%s">Name this group</a></div>'
                      % (f["hosts"], esc(buy_url), esc("o:" + sl)))
+        p.append("</aside></div>")
         p.append('<h2>How to read this</h2><ul class="cav"><li>%s</li><li>%s</li><li>%s</li></ul></main>' % (
             esc("Hosts are grouped because the registry lists the same payTo wallet for them. That is what the wallet shows, and nothing more: "
                 "usually one operator, sometimes a platform collecting for several."),
             esc("x402 payments are transfers a facilitator settled on a buyer’s signature, on Base, over the window. Money that reached "
                 "the same wallet by ordinary transfer is shown apart and is not a call."),
             esc("Payer wallets are summed per host: a wallet paying two hosts counts twice. A wallet is not a person.")))
-        p.append(foot % {"issue": esc("%s?template=correct.yml&title=%s" % (issues, "Correction:+group+" + sl)), "as_of": esc(as_of),
+        p.append(foot % {"root": site, "issue": esc("%s?template=correct.yml&title=%s" % (issues, "Correction:+group+" + sl)), "as_of": esc(as_of),
                          "n": "{:,}".format(n_sellers)})
         d = os.path.join(odir, sl)
         os.makedirs(d, exist_ok=True)
@@ -244,10 +256,10 @@ def build(out, chain, A, ctx, as_of, n_sellers, operators=None, site="", head=""
         listing.append((sl, name, f["hosts"], f["x402"], f["usdc"], bool(mine)))
 
     listing.sort(key=lambda r: (-r[2], -r[3]))
-    page = [head % dict(ctx, title="Operators: the hosts paid into one wallet · x402 Atlas",
+    page = [head % dict(ctx, title="Operators: the hosts paid into one wallet · " + market.BRAND,
                         desc="%d groups of x402 hosts paid into one wallet, with a page each. As of %s." % (len(listing), as_of),
                         canon=site + "/o/")]
-    page.append('<main><h1>Operators</h1><p class="sells">The registry counts hosts. The chain shows which hosts are paid into '
+    page.append('<main id="main"><p class="eyebrow">Operators · %s</p><h1>Operators</h1><p class="sells">' % esc(atlas_style.long_date(as_of)) + 'The registry counts hosts. The chain shows which hosts are paid into '
                 "the same wallet — usually one operator, sometimes a platform collecting for several. %d groups hold %d of the "
                 "hosts with a known wallet.</p>" % (len(listing), sum(r[2] for r in listing)))
     page.append('<div class="tw"><table><tr><th>group</th><th class="n">hosts</th><th class="n">x402 payments</th><th class="n">USDC</th><th></th></tr>')
@@ -258,7 +270,7 @@ def build(out, chain, A, ctx, as_of, n_sellers, operators=None, site="", head=""
     page.append("</table></div>")
     if any(r[5] for r in listing):
         page.append('<p class="muted disclaimer">%s</p>' % esc(DISCLAIMER))
-    page.append("</main>" + foot % {"issue": esc(issues), "as_of": esc(as_of), "n": "{:,}".format(n_sellers)})
+    page.append("</main>" + foot % {"root": site, "issue": esc(issues), "as_of": esc(as_of), "n": "{:,}".format(n_sellers)})
     with open(os.path.join(odir, "index.html"), "w") as fh:
         fh.write("".join(page))
     with open(os.path.join(odir, "index.json"), "w") as fh:        # the front door's search reads this

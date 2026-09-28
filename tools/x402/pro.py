@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Copied from the Aušrinė lab (commit 116e747). Edit it there, not here.
+# Copied from the Aušrinė lab (commit a0d9190). Edit it there, not here.
 """pro.py — Atlas Pro: the Atlas's record as working data, for a license key.
 
 The Atlas is a free public record, and every page of it stays free. Pro sells the
@@ -15,7 +15,13 @@ The exports are built from exactly what the `who` answers are built from: the sn
 set who_service.capture() checks (the same freshness rule, the same refusals), and the
 newest classified rollup in who_service.CHAIN_STORE. Nothing here reads anything else.
 
-The gate is a Polar license key in the header X-Atlas-Key, checked against Polar's
+Two doors to the same four files, the same bytes for the same day:
+
+    GET /pro/export/<file>         a Polar license key in X-Atlas-Key, $49 a month, every file
+    GET /x402/export/<file>        no key, no account: paid per file over x402 when fetched,
+                                   $0.25 a CSV, $1.00 day.json (X402_PRICES; sell-who.py prices it)
+
+The first gate is a Polar license key in the header X-Atlas-Key, checked against Polar's
 public validation endpoint, which needs no access token: only the key and the
 organization id, from POLAR_ORG_ID. A good answer is kept ten minutes. The key is
 never logged, never echoed, never stored: the caches hold its sha256.
@@ -63,6 +69,10 @@ BUYER_COLUMNS = [
 OPERATOR_COLUMNS = [
     "group", "name", "hosts", "host_list", "wallets", "paid_hosts", "x402_payments", "x402_usdc",
     "usdc_other_means", "calls_30d_self_reported", "top_payer_wallets"]
+
+# The second door: one file, paid once, over x402. No key, no account, no subscription.
+X402_PATH = "/x402/export/"
+X402_PRICES = {"sellers.csv": "$0.25", "buyers.csv": "$0.25", "operators.csv": "$0.25", "day.json": "$1.00"}
 
 EXPORTS = {
     "sellers.csv": ("every seller in the newest registry snapshot; the on-chain columns are the window's "
@@ -138,21 +148,28 @@ def _wallets(top):
     return ";".join("%s:%d" % (t["wallet"], t["payments"]) for t in (top or []) if t.get("wallet"))
 
 
-def tables(A, rollup):
-    """(sellers, buyers, operators) as lists of dicts, from one snapshot's sellers A and
-    one rollup (or None). Pure."""
-    S = {s["host"]: s for s in (rollup or {}).get("sellers") or [] if isinstance(s, dict) and s.get("host")}
-    groups = (rollup or {}).get("groups") or []
-    group_of = {}
-    operators = []
-    seen = set()
-    for g in groups:
+def operator_groups(rollup, with_group=False):
+    """[(slug, hosts)] for every group of two or more hosts in a rollup, slugged by the same
+    rule as the /o/ pages. with_group adds the rollup's group dict as a third item."""
+    out, seen = [], set()
+    for g in (rollup or {}).get("groups") or []:
         hosts = [h for h in g.get("hosts") or [] if isinstance(h, str)]
         if len(hosts) < 2:
             continue
         base = operator_pages.group_slug(hosts)
         sl = base if base not in seen else "%s-%s" % (base, g.get("id"))   # the same rule as the /o/ pages
         seen.add(sl)
+        out.append((sl, hosts, g) if with_group else (sl, hosts))
+    return out
+
+
+def tables(A, rollup):
+    """(sellers, buyers, operators) as lists of dicts, from one snapshot's sellers A and
+    one rollup (or None). Pure."""
+    S = {s["host"]: s for s in (rollup or {}).get("sellers") or [] if isinstance(s, dict) and s.get("host")}
+    group_of = {}
+    operators = []
+    for sl, hosts, g in operator_groups(rollup, with_group=True):
         for h in hosts:
             group_of[h] = (sl, len(hosts))
         facts = operator_pages.group_facts({"hosts": hosts, "wallets": g.get("wallets")}, {"sellers": S}, A)
@@ -276,17 +293,31 @@ def _unchanged(set_key):
 
 
 def describe():
-    """GET /pro: what Pro holds and how to call it. Free, no key."""
+    """GET /pro: what Pro holds and the two ways to pay for it. Free, no key, no payment."""
+    base = who_service_public_url()
     return {
-        "ok": True, "name": "Atlas Pro", "price": PRICE,
-        "what": "The x402 Atlas's newest window as working data: every seller, every paying wallet and every "
+        "ok": True, "name": market.BRAND_SHORT + " Pro", "price": PRICE,
+        "what": "The " + market.BRAND + "'s newest window of the x402 market on Base, as working data: every seller, every paying wallet and every "
                 "wallet group, with the on-chain facts beside the registry's own counts. The Atlas's pages stay free; "
                 "Pro is the same record as files a program can use.",
+        "ways_to_pay": [
+            "a subscription, %s: a Polar license key in the %s header opens every file at %s<file>"
+            % (PRICE, HEADER, "/pro/export/"),
+            "per file, over x402: no key and no account, each file is paid for when it is fetched at %s<file>; "
+            "%s" % (X402_PATH, ", ".join("%s %s" % (p, n) for n, p in X402_PRICES.items()))],
         "auth": {"header": HEADER, "value": "the license key Polar sends after you subscribe",
                  "refused": "401 when the key is missing, unknown, revoked or expired",
                  "limit": "%d export calls per key per hour; 429 beyond it" % PER_HOUR},
-        "exports": {"/pro/export/" + n: {"what": what, "columns": cols} for n, (what, cols) in EXPORTS.items()},
-        "example": "curl -H '%s: YOUR-KEY' %s/pro/export/sellers.csv" % (HEADER, who_service_public_url()),
+        "x402": {"prices": {X402_PATH + n: p for n, p in X402_PRICES.items()},
+                 "how": "GET the file; the 402 answer names the price, the network and the address to pay in USDC; "
+                        "sign and send again with the payment header. The same bytes the license key gets for the same day",
+                 "refused": "an unknown file is 404, and a stale snapshot or a missing on-chain window is 503, "
+                            "before any payment is asked; nothing is charged for a refusal"},
+        "exports": {"/pro/export/" + n: {"what": what, "columns": cols, "x402": X402_PATH + n, "x402_price": X402_PRICES[n]}
+                    for n, (what, cols) in EXPORTS.items()},
+        "example": "curl -H '%s: YOUR-KEY' %s/pro/export/sellers.csv" % (HEADER, base),
+        "example_x402": "an x402 client, e.g. GET %s%ssellers.csv, pays %s and receives the file"
+                        % (base, X402_PATH, X402_PRICES["sellers.csv"]),
         "fresh": "rebuilt when the daily scan lands; refused (503) when the newest snapshot is more than %d days old"
                  % who_service.MAX_AGE_DAYS,
         "subscribe": ATLAS + "/pro.html", "caveats": CAVEATS}

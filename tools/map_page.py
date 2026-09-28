@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Copied from the Aušrinė lab (commit 9aa52cb). Edit it there, not here.
+# Copied from the Aušrinė lab (commit a0d9190). Edit it there, not here.
 """map_page.py — the Atlas map, rebuilt each morning from the day's real flows.
 
 The map at /map/ was a copy of a page drawn once, on 2026-09-11. Every other
@@ -33,12 +33,14 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 import buyer_pages  # noqa: E402
 import flows_graph  # noqa: E402
+import market  # noqa: E402
 import network  # noqa: E402
+import atlas_style  # noqa: E402
 import whales as whales_mod  # noqa: E402
 
 CAP = 400
-# drawn on white: a deep ochre gold and a muted rose, far apart in hue and both dark enough to read
-PALETTE = {"seller": ["#a8780a", "gold"], "buyer": ["#c0457c", "pink"]}
+# drawn on white, in the Atlas palette: sellers emerald, the wallets that paid amber
+PALETTE = {"seller": [atlas_style.PALETTE["seller"], "green"], "buyer": [atlas_style.PALETTE["buyer"], "amber"]}
 LABELS = {"page": 12, "embed": 8}          # only the largest sellers carry a name; the rest on hover or tap
 # which of whales.py's notes belong under the map: what a line is, and what a dot is not
 NOTE_STARTS = ("On-chain figures", "x402-settled means", "A wallet is not an agent",
@@ -51,31 +53,33 @@ LEGEND = ('<p class="legend"><span><i style="background:%s"></i>a seller</span><
 NO_NAMES = "A seller is shown as its host and a buyer as its shortened wallet. The map names no one."
 
 # The renderer's own style is the dark field of the older pages; this lays the paper over it.
-PAPER = """:root{--bg:#fdfcf9;--ink:#16161a;--muted:#6b6b73;--line:#e3e0d8;--pink:#c0457c;--gold:#a8780a;--grey:#8a8a92}
-#key{background:#ffffffee;border:1px solid var(--line);border-radius:4px;box-shadow:0 1px 3px #0000000d;backdrop-filter:none;color:#3d3d45}
-#key .t,#side .t{font:600 13px "Source Sans 3",sans-serif;letter-spacing:0;text-transform:none;color:var(--ink)}
-#key .kr{color:#3d3d45}#key .kr b{color:var(--ink)}#key #sizeBy{border-top-color:var(--line)}
-#key #sizeBy label:has(input:checked){color:var(--ink)}#key #sizeBy label:has(input:checked)::before{color:#1d4f91}
-#tip{background:#fff;border:1px solid var(--line);border-radius:4px;box-shadow:0 4px 16px #0000001a;color:var(--ink)}
-#tip .kd{letter-spacing:0;text-transform:none;font-size:12.5px}#tip a{color:#1d4f91}#tip .q{color:var(--muted)}
+PAPER = """:root{color-scheme:light;--bg:#FFFFFF;--ink:#102A23;--muted:#66645A;--line:#E7E5DF;--pink:#E0A93B;--gold:#0B7A55;--grey:#A39E8C}
+html,body{font-family:"Instrument Sans",system-ui,Arial,sans-serif}
+#key{background:#ffffffee;border:1px solid var(--line);border-radius:10px;box-shadow:0 1px 3px #0000000d;backdrop-filter:none;color:#3A4A43}
+#key .t,#side .t{font:500 11px "IBM Plex Mono",monospace;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+#key .kr{color:#3A4A43}#key .kr b{color:var(--ink)}#key #sizeBy{border-top-color:var(--line)}
+#key #sizeBy label:has(input:checked){color:var(--ink)}#key #sizeBy label:has(input:checked)::before{color:#0B7A55}
+#tip{background:#fff;border:1px solid var(--line);border-radius:10px;box-shadow:0 4px 16px #0000001a;color:var(--ink)}
+#tip .kd{font-family:"IBM Plex Mono",monospace;letter-spacing:.06em;font-size:11px}#tip a{color:#0B5A40}#tip .q{color:var(--muted)}
 #bar{background:#fffffff2;border-top:1px solid var(--line);color:var(--muted)}
 #bar label,#mode label,#qsort label{border-color:var(--line);color:var(--muted)}
-#bar label:has(input:checked),#mode label:has(input:checked),#qsort label:has(input:checked){color:var(--ink);border-color:#9a968c;background:#f3f1ea}
-#side{background:#fffffff5;border:1px solid var(--line);border-radius:4px;backdrop-filter:none;color:var(--ink)}
-#side a,#side .row{border-top-color:var(--line)}#side .row a,#side a{color:var(--ink)}#side .row a:hover,#side a:hover{color:#1d4f91}
-#side .row .m{color:var(--muted)}#side input#q{background:#fff;border:1px solid #cfcbc0;color:var(--ink);border-radius:3px;margin:4px 0}
-#comms .c{border-top-color:var(--line)}#comms .c:hover,#comms .c.on{color:#1d4f91}
-.btn{background:#fff;border:1px solid #cfcbc0;color:var(--ink);border-radius:3px;backdrop-filter:none;font:14px "Source Sans 3",sans-serif}
+#bar label:has(input:checked),#mode label:has(input:checked),#qsort label:has(input:checked){color:var(--ink);border-color:#A39E8C;background:#F5F4EF}
+#side{background:#fffffff5;border:1px solid var(--line);border-radius:10px;backdrop-filter:none;color:var(--ink)}
+#side a,#side .row{border-top-color:var(--line)}#side .row a,#side a{color:var(--ink)}#side .row a:hover,#side a:hover{color:#0B5A40}
+#side .row .m{color:var(--muted);font-family:"IBM Plex Mono",monospace}
+#side input#q{background:#fff;border:1px solid var(--line);color:var(--ink);border-radius:8px;margin:4px 0;height:auto;padding:7px 10px;font-size:13px}
+#comms .c{border-top-color:var(--line)}#comms .c:hover,#comms .c.on{color:#0B5A40}
+.btn{background:#fff;border:1px solid var(--line);color:var(--ink);border-radius:8px;backdrop-filter:none;font:14px "Instrument Sans",sans-serif;min-height:0}
 .btn:hover{border-color:var(--ink);background:#fff}
-.legend{display:flex;flex-wrap:wrap;gap:4px 18px;align-items:center;font-size:14px;color:#3d3d45;margin:10px 0 0;max-width:none}
+.legend{display:flex;flex-wrap:wrap;gap:4px 18px;align-items:center;font-size:14px;color:#3A4A43;margin:10px 0 0;max-width:none}
 .legend i{display:inline-block;width:11px;height:11px;border-radius:50%;margin-right:6px;vertical-align:-1px}
-.legend s{display:inline-block;width:24px;height:0;border-top:1.5px solid #b5b3ad;margin-right:6px;vertical-align:4px;text-decoration:none}
+.legend s{display:inline-block;width:24px;height:0;border-top:1.5px solid #D6D3CA;margin-right:6px;vertical-align:4px;text-decoration:none}
 """
 
 CSS = PAPER + """html,body{height:auto;overflow:auto;background:var(--bg)}
-.maphead h1{margin:34px 0 10px}.maphead .sells{margin:0 0 8px}.maphead p.muted{margin:0}
-#stage{position:relative;height:calc(100vh - 20px);min-height:520px;max-height:860px;margin-top:18px;overflow:hidden;background:#fff;
-  border-top:1px solid var(--ink);border-bottom:1px solid var(--line)}
+.maphead h1{margin:10px 0 10px}.maphead .sells{margin:0 0 8px}.maphead p.muted{margin:0}
+#stage{position:relative;height:calc(100vh - 20px);min-height:520px;max-height:860px;margin:18px auto 0;overflow:hidden;background:#fff;
+  border:1px solid var(--line);border-radius:12px;width:calc(100% - 2*clamp(16px,4.4vw,64px));max-width:1312px}
 #stage #c,#stage #key,#stage #bar,#stage #side,#stage #tog,#stage #ctl{position:absolute}
 #stage #c{inset:0;width:100%;height:100%}
 #stage #hd,#stage #ft{display:none}
@@ -194,8 +198,8 @@ def dress(g, A, buyer_slugs, site, day):
     g["palette"] = PALETTE
     g["theme"] = "paper"
     g["source"] = "Base · x402-settled USDC payments · %s" % day
-    g["key"] = ("Every dot is a wallet on Base. Gold is a seller, pink a wallet that paid; "
-                "a line is money, x402-settled, on %s." % day)
+    g["key"] = ("Every dot is a wallet on Base. Green is a seller, amber a wallet that paid; "
+                "a line is money, x402-settled, on %s." % atlas_style.long_date(day))
     return g
 
 
@@ -270,8 +274,8 @@ def build(out, flows_path, whales, A, site="", as_of="", head=None, foot=None, i
     with open(os.path.join(mdir, "graph.json"), "w") as f:
         json.dump(full, f, separators=(",", ":"))
 
-    lede = ("Yesterday on Base: %s between %s and %s. Gold is a seller, pink a wallet that paid; a line is money."
-            % (num(t["payments"], "x402 payment"), num(t["buyers"], "wallet"), num(t["sellers"], "seller")))
+    lede = ("On %s on Base: %s between %s and %s. Green is a seller, amber a wallet that paid; a line is money."
+            % (atlas_style.long_date(day), num(t["payments"], "x402 payment"), num(t["buyers"], "wallet"), num(t["sellers"], "seller")))
     if left["edges"]:
         drawn_line = ("Drawn: the %s busiest lines of %s, by x402 payments. Left out of the picture: %s, %s and %s, "
                       "counted in the numbers above and all in <a href=\"graph.json\">graph.json</a>."
@@ -280,24 +284,26 @@ def build(out, flows_path, whales, A, site="", as_of="", head=None, foot=None, i
     else:
         drawn_line = ("Every line is drawn: %s. The data is in <a href=\"graph.json\">graph.json</a>."
                       % num(cut["edges"], "line"))
-    ctx = {"title": "", "desc": esc(lede), "canon": site + "/map/", "css": site + "/s/radar.css", "root": site}
+    title = esc("The map — who paid whom on Base, %s · %s" % (atlas_style.long_date(day), market.BRAND))
+    ctx = {"title": title, "desc": esc(lede), "canon": site + "/map/", "css": site + "/atlas.css", "root": site}
     h = head % ctx
     head_extra = h[h.index("</title>") + len("</title>"):h.index("<header")]
     header = h[h.index("<header"):]
-    top = (header + '<main class="maphead"><h1>The map</h1><p class="sells">%s</p>'
+    top = (header + '<main class="maphead" id="main"><p class="eyebrow">The network · %s · Base · x402</p><h1>Who paid whom</h1>'
+           '<p class="sells">%s</p>'
            '<p class="muted">x402-settled payments on Base, %s. Tap a dot for its card; its page is one tap more. %s</p>%s</main>'
-           % (esc(lede), esc(day), drawn_line, LEGEND))
+           % (esc(atlas_style.long_date(day)), esc(lede), esc(atlas_style.long_date(day)), drawn_line, LEGEND))
     bottom = ('<main><h2>Read it with care</h2><ul class="cav">%s</ul></main>'
               % "".join("<li>%s</li>" % esc(c) for c in notes_of(rollup)))
-    bottom += foot % {"issue": esc(issues), "as_of": esc(as_of), "n": "{:,}".format(len(A))}
+    bottom += foot % {"root": site, "issue": esc(issues), "as_of": esc(as_of), "n": "{:,}".format(len(A))}
     page = network.render(dict(drawn, labels=dict(drawn.get("labels") or {"kinds": ["buyer"]}, top=LABELS["page"])), day,
-                          title=esc("The map — who paid whom on Base, %s · x402 Atlas" % day),
+                          title=title,
                           head=head_extra, css=CSS, top=top, bottom=bottom)
     with open(os.path.join(mdir, "index.html"), "w") as f:
         f.write(page)
     embed = network.render(dict(drawn, embed=True, labels=dict(drawn.get("labels") or {"kinds": ["buyer"]}, top=LABELS["embed"])),
-                           day, title=esc("The map, %s · x402 Atlas" % day),
-                           head='<meta name="robots" content="noindex">', css=EMBED_CSS, top=LEGEND.replace("<p ", '<p id="lg" ', 1))
+                           day, title=esc("The map, %s · %s" % (atlas_style.long_date(day), market.BRAND)),
+                           head='<meta name="robots" content="noindex"><link rel="stylesheet" href="%s">' % atlas_style.FONTS.replace("&", "&amp;"), css=EMBED_CSS, top=LEGEND.replace("<p ", '<p id="lg" ', 1).replace("</p>", "<span>%s</span></p>" % esc(atlas_style.long_date(day)), 1))
     with open(os.path.join(mdir, "embed.html"), "w") as f:
         f.write(embed)
     return {"payments": t["payments"], "wallets": t["buyers"], "sellers": t["sellers"], **cut, "lede": lede,

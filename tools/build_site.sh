@@ -71,6 +71,13 @@ if [ -f "flows/whales-$DAY.json" ]; then
 else
   python3 tools/seller_pages.py --out _site --store store
 fi
+# the pages that cover the whole market: live feed, where sellers are hosted, leaders, prices.
+# Best effort: a failure here leaves the rest of the site as built.
+if [ -f "flows/whales-$DAY.json" ]; then
+  python3 tools/coverage_build.py --whales "flows/whales-$DAY.json" --store store --flows flows/flows-*.json \
+    --dbip-cache .dbip --site "$SITE" --out _site || echo "::warning::the coverage pages failed"
+fi
+mkdir -p _site/watch && python3 tools/spend_watch.py page --out _site/watch --seller https://ausrine-who.onrender.com || echo "::warning::the watch page failed"
 if ls flows/flows-*.json >/dev/null 2>&1; then
   python3 tools/flows_handoff.py publish --store flows --out _site/flows || echo "::warning::nothing fit to publish under flows/"
   [ -f "flows/whales-$DAY.txt" ] && cp "flows/whales-$DAY.txt" _site/flows/whales-latest.txt

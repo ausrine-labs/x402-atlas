@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Copied from the Aušrinė lab (commit 116e747). Edit it there, not here.
+# Copied from the Aušrinė lab (commit a0d9190). Edit it there, not here.
 """who_service.py — what the paid `who` endpoint answers, and what it refuses.
 
 No web framework, no payment library, no network: this is the part that

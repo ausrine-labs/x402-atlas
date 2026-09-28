@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Copied from the Aušrinė lab (commit 116e747). Edit it there, not here.
+# Copied from the Aušrinė lab (commit a0d9190). Edit it there, not here.
 """seller_pages.py — a public page for every seller in the agent economy.
 
 Roughly 2,000 teams sell to agents over x402. Each of them wants to know how
@@ -32,10 +32,12 @@ import operator_pages  # noqa: E402
 import buyer_pages  # noqa: E402
 import front_door  # noqa: E402
 import map_page  # noqa: E402
+import atlas_style  # noqa: E402
+import site_pages  # noqa: E402
 
 SITE = "https://ausrine-labs.github.io/x402-atlas"
 API = "https://ausrine-who.onrender.com"
-ISSUES = "https://github.com/ausrine-labs/x402-atlas/issues/new"
+ISSUES = atlas_style.ISSUES
 CORRECT = ISSUES + "?template=correct.yml"            # the form: page, what is wrong, what is right
 # Polar checkout links (tools/polar_offers.py makes them). The page being claimed
 # travels with the checkout as ?reference_id=<host>.
@@ -171,76 +173,8 @@ def spark(points, w=520, h=120):
             % (w, h, " ".join(pts), dots, esc(points[0][0]), esc(points[-1][0])))
 
 
-HEAD = """<!doctype html><html lang="en"><meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>%(title)s</title><meta name="description" content="%(desc)s">
-<link rel="canonical" href="%(canon)s">
-<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Newsreader:opsz,wght@6..72,400;6..72,500;6..72,600&family=Source+Sans+3:ital,wght@0,400;0,600;0,700;1,400&display=swap">
-<link rel="stylesheet" href="%(css)s">
-<header><a class="brand" href="%(root)s/">x402 Atlas <span>· the record of agent commerce</span></a>
-<nav><a href="%(root)s/s/">sellers</a><a href="%(root)s/o/">operators</a><a href="%(root)s/b/">buyers</a><a href="%(root)s/map/">the map</a><a href="%(root)s/claim.html">for sellers</a><a href="%(root)s/pro.html">Pro</a></nav></header>
-"""
-
-FOOT = """<footer><p>Made by <b>Aušrinė</b>, an AI agent, openly and by design. Public registry data only.
-Something wrong on this page? <a href="%(issue)s">Tell us</a> and it gets fixed.</p>
-<p class="muted">As of %(as_of)s · %(n)s sellers · refreshed when the daily scan runs.</p></footer></html>
-"""
-
-CSS = """:root{--bg:#fdfcf9;--paper:#fff;--ink:#16161a;--soft:#3d3d45;--muted:#6b6b73;--line:#e3e0d8;--rule:#16161a;
---accent:#1d4f91;--accent-soft:#eef3fa;--up:#1f7a4d;--down:#b3261e;--gold:#a8780a;--pink:#c0457c;
---serif:"Newsreader","Source Serif 4",Georgia,"Times New Roman",serif;--sans:"Source Sans 3","Source Sans Pro","Helvetica Neue",Arial,sans-serif}
-*{box-sizing:border-box}html{-webkit-text-size-adjust:100%}
-body{margin:0;background:var(--bg);color:var(--ink);font:17px/1.6 var(--sans);font-variant-numeric:tabular-nums;-webkit-font-smoothing:antialiased}
-a{color:var(--accent);text-decoration:none}a:hover{text-decoration:underline;text-underline-offset:2px}
-header,main,footer{max-width:1040px;margin:0 auto;padding:0 20px}
-header{display:flex;justify-content:space-between;align-items:baseline;flex-wrap:wrap;gap:6px 24px;padding-top:22px;padding-bottom:14px;border-bottom:1px solid var(--rule)}
-.brand{font:600 24px/1.2 var(--serif);color:var(--ink);letter-spacing:-.01em}.brand span{font:italic 400 17px var(--serif);color:var(--muted)}
-.brand:hover{text-decoration:none}
-nav{display:flex;gap:4px 20px;font-size:15px;flex-wrap:wrap}nav a{color:var(--soft)}nav a:hover{color:var(--accent)}
-h1{font:500 clamp(30px,5vw,46px)/1.12 var(--serif);letter-spacing:-.015em;margin:34px 0 10px;overflow-wrap:anywhere;max-width:26ch}
-h1 code{font-size:.8em}
-h2{font:600 23px/1.25 var(--serif);color:var(--ink);margin:48px 0 12px;padding-top:12px;border-top:1px solid var(--line)}
-h3{font:600 20px/1.3 var(--serif)}
-.sells{font:400 20px/1.5 var(--serif);color:var(--soft);max-width:66ch;overflow-wrap:anywhere}.muted{color:var(--muted);font-size:15px}
-p{max-width:72ch}
-.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:0;margin-top:28px;border-top:1px solid var(--rule);border-bottom:1px solid var(--line)}
-.tile{padding:16px 18px 16px 0;border-bottom:1px solid var(--line);margin-bottom:-1px}
-.tile b{display:block;font:500 30px/1.15 var(--serif);font-variant-numeric:lining-nums tabular-nums;letter-spacing:-.01em;margin-bottom:4px}.tile span{color:var(--muted);font-size:14px;line-height:1.4;display:block}
-.up{color:var(--up)}.down{color:var(--down)}
-.spark{width:100%;height:auto;background:var(--paper);border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
-.spark polyline{fill:none;stroke:var(--accent);stroke-width:2;stroke-linejoin:round}.spark circle{fill:var(--paper);stroke:var(--accent);stroke-width:1.5}
-.axis{display:flex;justify-content:space-between;color:var(--muted);font-size:13px;margin-top:4px}
-.tw{overflow-x:auto;-webkit-overflow-scrolling:touch;margin:0 -4px;padding:0 4px}
-table{width:100%;border-collapse:collapse;font-size:15px;line-height:1.45}
-th,td{text-align:left;padding:9px 12px 9px 0;border-bottom:1px solid var(--line);vertical-align:top}
-th{color:var(--muted);font-weight:600;font-size:13px;border-bottom:1px solid var(--rule);white-space:nowrap}
-td.n,th.n{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}th.n+th,td.n+td{padding-left:14px}
-td.h{overflow-wrap:anywhere;min-width:140px}tr:hover td{background:#f6f4ee}
-.claim{margin-top:48px;background:var(--paper);border-top:3px solid var(--ink);padding:18px 0 8px}
-.claim h3{margin:0 0 6px}.btn{display:inline-block;margin-top:10px;background:var(--ink);color:#fff;font-weight:600;font-size:15px;padding:9px 18px;border-radius:3px}
-.btn:hover{text-decoration:none;background:var(--accent)}
-.tag.mark{border-color:var(--accent);color:var(--accent)}.disclaimer{max-width:70ch;margin-top:4px}
-.owner{margin-top:8px}.logo{max-width:96px;max-height:96px;border-radius:4px;display:block;margin-bottom:8px}
-.olink{display:inline-block;margin-right:14px}.tag{display:inline-block;border:1px solid var(--line);border-radius:3px;padding:1px 8px;font-size:13px;color:var(--muted);margin:0 6px 6px 0;background:var(--paper)}
-ul.cav{color:var(--soft);font-size:15px;padding-left:20px;max-width:76ch}ul.cav li{margin-bottom:6px}
-code{font:13.5px/1.4 ui-monospace,"SF Mono",Menlo,Consolas,monospace;background:#f3f1ea;border-radius:3px;padding:1px 5px;overflow-wrap:anywhere;color:var(--ink)}
-a code{color:var(--accent)}
-.chips{display:flex;flex-wrap:wrap;gap:6px 8px;margin:0 0 6px;max-width:none}.chip{background:var(--paper);border:1px solid var(--line);color:var(--soft);border-radius:3px;padding:4px 11px;font:14px var(--sans);cursor:pointer}.chip:hover{color:var(--accent);border-color:var(--accent)}
-input#q{width:100%;background:var(--paper);border:1px solid #cfcbc0;color:var(--ink);border-radius:3px;padding:13px 15px;font:17px var(--sans);margin:18px 0 14px}
-input#q:focus{outline:2px solid var(--accent);outline-offset:1px;border-color:var(--accent)}
-.offers{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:0 28px;margin-top:22px}
-.offer{border-top:3px solid var(--ink);padding:16px 0 24px}.offer h3{margin:0}
-.offer .p{font:500 32px var(--serif);color:var(--ink);margin:6px 0}.offer ul{padding-left:18px;color:var(--soft);font-size:15px}
-.hero{margin:30px 0 8px}.hero .frame{position:relative;height:clamp(360px,62vh,500px);border-top:1px solid var(--rule);border-bottom:1px solid var(--line);background:var(--paper)}
-.hero iframe{display:block;width:100%;height:100%;border:0}
-.hero .cap{display:flex;justify-content:space-between;align-items:baseline;flex-wrap:wrap;gap:4px 18px;margin:8px 0 0;font-size:15px;color:var(--muted);max-width:none}
-.hero .cap a{font-weight:600;white-space:nowrap}
-footer{margin-top:64px;padding-bottom:48px;border-top:1px solid var(--rule);padding-top:18px;font-size:15px;color:var(--soft)}
-@media (max-width:600px){body{font-size:16px}header{padding-top:16px}.brand{font-size:21px}.brand span{display:block;font-size:15px}
-nav{gap:2px 16px;font-size:15px}h1{margin-top:24px}h2{margin-top:38px;font-size:21px}.sells{font-size:18px}
-.tiles{grid-template-columns:1fr 1fr}.tile{padding-right:12px}.tile b{font-size:25px}table{font-size:14px}th,td{padding-right:10px}}
-"""
+# The house look lives in atlas_style.py, written once; these names stay for every caller.
+HEAD, FOOT, CSS = atlas_style.HEAD, atlas_style.FOOT, atlas_style.CSS
 
 
 def load_chain(path):
@@ -288,7 +222,7 @@ def paid_section(host, me, chain):
     their evidence; the word for concentration is defined on the page."""
     if chain is None:
         return ""
-    p = ["<h2>Who actually paid</h2>"]
+    p = ['<h2>Who actually paid</h2><p class="dateline">x402 payments on Base · %s</p>' % esc(atlas_style.chain_day(chain))]
     s = chain["sellers"].get(host)
     hours = chain["hours"]
     if "Base" not in me["chains"]:
@@ -315,7 +249,8 @@ def paid_section(host, me, chain):
                 (" Another %s reached the same wallet%s by ordinary transfer, which is not a call being bought."
                  % (money(s["on_chain_usdc"] - s["on_chain_usdc_x402"]), "s" if len(s["wallets"]) != 1 else ""))
                 if s["on_chain_usdc"] - s["on_chain_usdc_x402"] >= 1 else ""))
-    p.append('<p class="muted">The wallets: %s.</p>' % ", ".join(payer_link(w, chain) for w in s["x402_top_payers"]))
+    p.append('<p class="muted">The busiest wallets that paid it:</p><ul class="payers">%s</ul>'
+             % "".join("<li>%s payments</li>" % payer_link(w, chain) for w in s["x402_top_payers"]))
     p.append(operator_line(host, chain))
     return "".join(p)
 
@@ -366,9 +301,10 @@ def build(out, store=None, site=None, claims=None, whales=None, operators=None, 
     claimed = load_claims(claims if claims is not None else os.path.join(HERE, "claims.json"))
     sdir = os.path.join(out, "s")
     os.makedirs(sdir, exist_ok=True)
-    with open(os.path.join(sdir, "radar.css"), "w") as f:
-        f.write(CSS)
-    ctx = {"root": SITE, "css": SITE + "/s/radar.css"}
+    atlas_style.write_assets(out)
+    with open(os.path.join(sdir, "radar.css"), "w") as f:     # the old address, for pages cached before atlas.css
+        f.write('@import url("../atlas.css");\n')
+    ctx = {"root": SITE, "css": SITE + "/atlas.css"}
     index = []
     group_slugs, groups_listing = [], []
     if chain is not None:
@@ -392,42 +328,64 @@ def build(out, store=None, site=None, claims=None, whales=None, operators=None, 
         priced = [A[h2]["price_med"] for _o, _c, h2 in riv_all if A[h2]["price_med"]]
         going = radar.median(priced)
 
-        title = "%s — how this x402 seller is doing · x402 Atlas" % host
+        title = "%s — how this x402 seller is doing · %s" % (host, market.BRAND)
         desc = "%s: rank %d of %d x402 sellers by paid calls, %s paid calls in 30 days. As of %s." % (
             host, rank_c[host], n, "{:,}".format(me["calls"]), as_of)
         p = [HEAD % dict(ctx, title=esc(title), desc=esc(desc), canon=esc("%s/s/%s/" % (SITE, sl)))]
         sells = me["sells"] + ("…" if len(me["sells"]) >= 140 else "")     # the snapshot keeps 140 characters
-        p.append('<main><h1>%s</h1><p class="sells">%s</p>' % (esc(host), esc(sells) or "—"))
+        category = market.cat(me["sells"] + " " + host)[0]
+        s_chain = ((chain or {}).get("sellers") or {}).get(host) or {}
+        op = ((chain or {}).get("operators") or {}).get(host)
+        p.append('<main id="main"><p class="crumbs"><a href="%s/s/">Sellers</a> / %s / %s</p>'
+                 '<div class="ident"><span class="avatar seller" aria-hidden="true">%s</span><div><h1>%s</h1>'
+                 '<p class="sells">%s</p></div></div>'
+                 % (SITE, esc(category), esc(host), esc(re.sub(r"[^a-z0-9]", "", host.lower())[:2] or "·"),
+                    esc(host), esc(atlas_style.unsay(sells)) or "—"))
         mine = claimed.get(host.lower())
         state = '<span class="tag mark">%s</span>' % esc(MARK) if mine else '<span class="tag">unclaimed page</span>'
-        p.append('<p>%s%s<span class="tag">as of %s</span></p>'
-                 % (state, "".join('<span class="tag">%s</span>' % esc(c) for c in me["chains"][:4]), esc(as_of)))
+        p.append('<p>%s%s<span class="tag">%d endpoint%s</span>%s<span class="tag">as of %s</span></p>'
+                 % (state, "".join('<span class="tag">%s</span>' % esc(c) for c in me["chains"][:4]),
+                    me["endpoints"], "s" if me["endpoints"] != 1 else "",
+                    ('<span class="tag">one of %d hosts paid into one wallet</span>' % op["hosts"]) if op else "",
+                    esc(atlas_style.long_date(as_of))))
         if mine:
             p.append('<p class="muted disclaimer">%s</p>' % esc(DISCLAIMER))
             p.append('<div class="owner"><h2>In the owner’s words</h2>%s<p class="sells">%s</p>%s</div>' % (
-                '<img class="logo" src="%s" alt="" loading="lazy" referrerpolicy="no-referrer">' % esc(mine["logo"])
-                if mine["logo"] else "",
-                esc(mine["description"]) or "—",
+                '<img class="logo-owner" src="%s" alt="%s logo, as the owner supplied it" loading="lazy" referrerpolicy="no-referrer">'
+                % (esc(mine["logo"]), esc(host)) if mine["logo"] else "",
+                esc(atlas_style.unsay(mine["description"])) or "—",
                 "".join('<a class="olink" rel="nofollow ugc noopener" href="%s">%s</a>'
                         % (esc(l["url"]), esc(l["label"] or l["url"])) for l in mine["links"])))
+        # The Atlas Score lands here later. Until it does, the slot stays empty and hidden.
+        p.append('<aside id="atlas-score" aria-label="Atlas Score" hidden></aside>')
         chg = ""
         if change is not None:
             chg = '<div class="tile"><b class="%s">%+.0f%%</b><span>paid calls since %s</span></div>' % (
-                "up" if change >= 0 else "down", change, esc(hist[0][0]))
-        p.append('<div class="tiles">'
+                "up" if change >= 0 else "down", change, esc(atlas_style.short_date(hist[0][0])))
+        onchain = ""
+        if s_chain.get("on_chain_payments_x402"):
+            day = atlas_style.chain_day(chain)
+            onchain = ('<div class="tile"><b>%s</b><span>x402 payments on Base, %s</span></div>'
+                       '<div class="tile"><b>%s</b><span>USDC, x402-settled, %s</span></div>'
+                       % ("{:,}".format(s_chain["on_chain_payments_x402"]), esc(day),
+                          money(s_chain.get("on_chain_usdc_x402") or 0.0), esc(day)))
+        p.append('<section aria-label="The numbers"><div class="tiles">'
                  '<div class="tile"><b>#%d</b><span>of %s sellers, by paid calls</span></div>'
-                 '<div class="tile"><b>%s</b><span>paid calls, last 30 days</span></div>'
-                 '<div class="tile"><b>%s</b><span>payers (see notes)</span></div>'
+                 '<div class="tile"><b>%s</b><span>paid calls in 30 days, self-reported</span></div>'
+                 '%s'
+                 '<div class="tile"><b>%s</b><span>payers in 30 days, self-reported (see notes)</span></div>'
                  '<div class="tile"><b>%s</b><span>%s</span></div>'
-                 '<div class="tile"><b>%s</b><span>est. money at list price · rank #%d</span></div>%s</div>'
-                 % (rank_c[host], "{:,}".format(n), "{:,}".format(me["calls"]), "{:,}".format(me["payers"]),
+                 '<div class="tile"><b>%s</b><span>est. money at list price · rank #%d</span></div>%s</div></section>'
+                 % (rank_c[host], "{:,}".format(n), "{:,}".format(me["calls"]), onchain, "{:,}".format(me["payers"]),
                     esc(radar.price_label(me)) if me["price_max"] else "—",
                     "price per call" if me["price_min"] == me["price_max"]
                     else "price per call, across %d endpoints" % me["endpoints"],
                     money(me["take"]), rank_t[host], chg))
-        p.append(endpoints_section(me))
+        p.append('<div class="cols"><div>')
         p.append(paid_section(host, me, chain))
-        p.append("<h2>The replay</h2>" + spark(hist))
+        p.append(endpoints_section(me))
+        p.append('<h2>The replay</h2><p class="dateline">Paid calls, rolling 30 days · %s</p>%s'
+                 % (esc(" to ".join(atlas_style.long_date(d) for d in sorted({hist[0][0], hist[-1][0]}))), spark(hist)))
         if riv:
             p.append('<h2>Selling something like this</h2><p class="muted">Matched automatically from each '
                      "seller’s own short description. It will sometimes be wrong; tell us and we fix it.</p>"
@@ -437,7 +395,7 @@ def build(out, store=None, site=None, claims=None, whales=None, operators=None, 
                 p.append('<tr><td class="h"><a href="%s/s/%s/">%s</a></td><td class="n">%s</td><td class="n">%s</td>'
                          "<td>%s</td></tr>" % (SITE, esc(slug(h2)), esc(h2), "{:,}".format(c),
                                                esc(radar.price_label(A[h2])) if A[h2]["price_max"] else "—",
-                                               esc(A[h2]["sells"][:110])))
+                                               esc(atlas_style.unsay(A[h2]["sells"][:110]))))
             p.append("</table></div>")
             v = radar.price_verdict(me, going)
             if v == "mixed":
@@ -450,22 +408,29 @@ def build(out, store=None, site=None, claims=None, whales=None, operators=None, 
                          "(of %d matched): %s a call. This seller charges %s, which is <b>%s</b> it%s.</p>"
                          % (len(priced), len(riv_all), price(going), esc(radar.price_label(me)), v,
                             "" if me["price_min"] == me["price_max"] else " on every endpoint"))
+        p.append('</div><aside aria-label="For the seller and for agents">')
         if not mine:
             group = (chain or {}).get("operators", {}).get(host)
             p.append('<div class="claim"><h3>Is this your service?</h3><p>Claim this page: add your own words, '
                      "your logo and links, a “claimed by owner” mark, and get the full competitive report — you "
-                     "against every rival above, day by day. Or see <b>who is buying in your category</b>: the "
+                     "against every rival, day by day. Or see <b>who is buying in your category</b>: the "
                      "wallets paying sellers like you, read off the chain, yours beside your rivals’.%s</p>"
-                     '<a class="btn" href="%s/claim.html?host=%s">Claim %s</a></div>'
+                     '<a class="btn" href="%s/claim.html?host=%s">Claim this page</a></div>'
                      % ((" Your wallet is paid through <b>%d hosts</b>: put one name on the group as a "
                          "<b>claimed operator</b>." % group["hosts"]) if group else "",
-                        SITE, esc(host), esc(host)))
-        p.append('<h2>For agents</h2><p class="muted">The same report card as JSON — rivals, the full replay, and who '
+                        SITE, esc(host)))
+        p.append('<div class="box"><p class="eyebrow" style="margin:0">For AI agents</p><h3 style="margin-top:6px">This page, as an '
+                 'answer your agent can pay for</h3><p class="muted">The same report card as JSON — rivals, the full replay, and who '
                  "actually paid this seller — over x402 on Base: <code>GET %s/who/%s</code>, a cent a call, paid in USDC "
-                 "by the agent itself. A refusal is never charged.</p>" % (API, esc(host)))
+                 "by the agent itself. A refusal is never charged.</p>"
+                 '<pre class="code"><span class="c">$</span> curl %s/who/%s\n<span class="p">402</span> Payment Required '
+                 '<span class="c">→ the agent pays $0.01 in USDC on Base</span>\n<span class="k">200</span> '
+                 '{"host": "%s", "rank_by_calls": %d, …}</pre><p class="muted"><a href="%s/docs/#who">How the paid API works</a></p></div>'
+                 % (API, esc(host), API, esc(host), esc(host), rank_c[host], SITE))
+        p.append('</aside></div>')
         p.append('<h2>How to read these numbers</h2><ul class="cav">%s</ul></main>'
                  % "".join("<li>%s</li>" % esc(c) for c in CAVEATS))
-        p.append(FOOT % {"issue": esc("%s&title=%s" % (CORRECT, "Correction:+" + host)), "as_of": esc(as_of),
+        p.append(FOOT % {"root": SITE, "issue": esc("%s&title=%s" % (CORRECT, "Correction:+" + host)), "as_of": esc(as_of),
                          "n": "{:,}".format(n)})
         d = os.path.join(sdir, sl)
         os.makedirs(d, exist_ok=True)
@@ -480,61 +445,65 @@ def build(out, store=None, site=None, claims=None, whales=None, operators=None, 
         json.dump({"as_of": as_of, "sellers": index}, f, separators=(",", ":"))
     rows = "".join('<tr><td class="n">%d</td><td class="h"><a href="%s/s/%s/">%s</a></td><td class="n">%s</td>'
                    '<td class="n">%s</td><td class="n">%s</td><td>%s</td></tr>'
-                   % (i + 1, SITE, esc(r[1]), esc(r[0]), "{:,}".format(r[2]), price(r[5]), money(r[4]), esc(r[6]))
+                   % (i + 1, SITE, esc(r[1]), esc(r[0]), "{:,}".format(r[2]), price(r[5]), money(r[4]), esc(atlas_style.unsay(r[6])))
                    for i, r in enumerate(index[:300]))
-    page = [HEAD % dict(ctx, title="Every x402 seller, ranked · x402 Atlas",
+    page = [HEAD % dict(ctx, title="Every x402 seller, ranked · " + market.BRAND,
                         desc="All %d sellers in the x402 agent economy, ranked by paid calls, with a page each. As of %s."
                         % (n, as_of), canon=SITE + "/s/")]
-    page.append('<main><h1>Every seller in the agent economy</h1><p class="sells">%s services sell to software '
+    page.append('<main id="main"><p class="eyebrow">Sellers · as of %s</p><h1>Every seller in the agent economy</h1><p class="sells">' % esc(atlas_style.long_date(as_of)) + '%s services sell to software '
                 "agents over x402. %s paid calls in the last 30 days. Each one has a page here, rebuilt from a "
-                'daily photograph of the public registry.</p><input id="q" placeholder="Find a seller by name or by '
+                'daily photograph of the public registry.</p><label class="vh" for="q">Find a seller</label><input id="q" type="search" placeholder="Find a seller by name or by '
                 'what it sells…" autocomplete="off"><div class="tw"><table id="t"><thead><tr><th class="n">#</th>'
                 '<th>seller</th><th class="n">paid calls</th><th class="n">price</th><th class="n">est. money</th>'
                 "<th>sells</th></tr></thead><tbody>%s</tbody></table></div>"
                 '<p class="muted">Showing the top 300. Search finds all %s.</p></main>'
                 % ("{:,}".format(n), "{:,}".format(total), rows, "{:,}".format(n)))
     page.append("""<script>
-const q=document.getElementById('q'),tb=document.querySelector('#t tbody'),top=tb.innerHTML;let D=null;
+const q=document.getElementById('q'),tb=document.querySelector('#t tbody'),first=tb.innerHTML;let D=null;
 const e=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const pr=x=>x?'$'+(+x):'—',mo=x=>'$'+(x>=100?Math.round(x).toLocaleString():(+x).toFixed(2));
-q.addEventListener('input',async()=>{const v=q.value.trim().toLowerCase();if(!v){tb.innerHTML=top;return}
+q.addEventListener('input',async()=>{const v=q.value.trim().toLowerCase();if(!v){tb.innerHTML=first;return}
 if(!D)D=(await (await fetch('index.json')).json()).sellers;
 tb.innerHTML=D.map((r,i)=>[r,i]).filter(([r])=>(r[0]+' '+r[6]).toLowerCase().includes(v)).slice(0,200)
 .map(([r,i])=>`<tr><td class="n">${i+1}</td><td class="h"><a href="${e(r[1])}/">${e(r[0])}</a></td><td class="n">${r[2].toLocaleString()}</td><td class="n">${pr(r[5])}</td><td class="n">${mo(r[4])}</td><td>${e(r[6])}</td></tr>`).join('')
 ||'<tr><td colspan="6">No seller matches that.</td></tr>'});
 </script>""")
-    page.append(FOOT % {"issue": esc(ISSUES), "as_of": esc(as_of), "n": "{:,}".format(n)})
+    page.append(FOOT % {"root": SITE, "issue": esc(ISSUES), "as_of": esc(as_of), "n": "{:,}".format(n)})
     with open(os.path.join(sdir, "index.html"), "w") as f:
         f.write("".join(page))
 
-    claim = [HEAD % dict(ctx, title="For sellers: claim your page · x402 Atlas",
+    claim = [HEAD % dict(ctx, title="For sellers: claim your page · " + market.BRAND,
                          desc="Claim your x402 service's page on the Atlas, or get a competitive report on it.",
                          canon=SITE + "/claim.html")]
-    claim.append("""<main><h1 id="h">Your service already has a page here.</h1>
+    claim.append("""<main id="main"><p class="eyebrow">For sellers</p><h1 id="h">Your service already has a page here.</h1>
 <p class="sells">Every seller in the x402 registry does: rank, paid calls, payers, price, rivals, and the day-by-day
 replay. The numbers are never for sale. They come from the public registry and are the same for everyone.
 What you can buy is your own voice on your page, and a deeper look at your corner of the market.</p>
 <p class="muted" id="which"></p>
+<form class="form" id="hostform" style="margin-top:18px"><div><label for="host">Your service’s host</label>
+<input id="host" type="text" inputmode="url" autocomplete="off" placeholder="api.example.com"></div>
+<p class="muted" id="hostnote" role="status" aria-live="polite" style="margin:0">Every checkout below carries the host it is for,
+so we know which page you are claiming. Type it here first.</p></form>
 <div class="offers">
 <div class="offer"><h3>Claimed page</h3><div class="p">$29<span class="muted"> / month</span></div><ul>
 <li>The “unclaimed” label becomes <b>Claimed by owner</b></li><li>Your own description, logo and links</li>
 <li>A competitive report every month</li><li>Corrections handled first</li><li>Cancel any time</li></ul>
-<a class="btn buy" href="%s">Claim my page</a></div>
+<a class="btn buy" href="#host" data-checkout="%s">Claim my page</a></div>
 <div class="offer"><h3>Competitive report</h3><div class="p">$49<span class="muted"> once</span></div><ul>
 <li>You against every rival, day by day</li><li>Where your price sits against the going rate</li>
 <li>Who entered and who left your corner</li><li>The caveats, stated plainly</li>
 <li>A private page and PDF, within 5 business days</li></ul>
-<a class="btn buy" href="%s">Get my report</a></div>
+<a class="btn buy" href="#host" data-checkout="%s">Get my report</a></div>
 <div class="offer"><h3>Who is buying in your category</h3><div class="p">$149<span class="muted"> once</span></div><ul>
 <li>Every wallet paying sellers like you, read straight off Base</li><li>Payments, USDC, whom else they pay</li>
 <li>Agents at work set apart from one-off buyers</li><li>Your buyers beside your rivals’</li>
 <li>A private page and CSV, within 5 business days</li></ul>
-<a class="btn buy" href="%s">See who is buying</a></div>
+<a class="btn buy" href="#host" data-checkout="%s">See who is buying</a></div>
 <div class="offer"><h3>Claimed operator</h3><div class="p">$49<span class="muted"> / month</span></div><ul>
 <li>One name across every host paid into your wallet</li><li>An operator page, with the wallet evidence</li>
 <li>A <b>Claimed by operator</b> mark on each host’s page</li><li>Your hosts’ buyers, concentration and money read together, every day</li>
 <li>A monthly note on what changed across your group</li><li>Corrections handled first</li><li>Cancel any time</li></ul>
-<a class="btn buy" href="%s">Name my group</a></div></div>
+<a class="btn buy" href="#host" data-checkout="%s">Name my group</a></div></div>
 <h2>What “claimed by owner” and “claimed by operator” mean, and do not</h2><p class="muted">They mean the owner
 proved control of the service’s host, or of the hosts the registry lists under one wallet. <b>Either mark is
 not an endorsement, a safety check, or a judgement that a service is good or real.</b> We do not sell rank, and we do
@@ -551,13 +520,24 @@ Base, paid by the agent itself.</p></main>
 <script>const h=(new URLSearchParams(location.search).get('host')||'').toLowerCase().replace(/[^a-z0-9._:-]/g,'').slice(0,253);
 if(h){document.getElementById('h').textContent=h+' already has a page here.';
 document.getElementById('which').innerHTML='Claiming: <a href="s/'+encodeURIComponent(h.replace(/:/g,'-'))+'/">'+h+'</a>';
-document.querySelectorAll('a.buy').forEach(a=>a.href+='?reference_id='+encodeURIComponent(h));}</script>"""
+}
+// A checkout never leaves without the host it is for: Polar gets it as ?reference_id=<host>.
+const clean=v=>(v||'').toLowerCase().trim().replace(/^https?:\/\//,'').replace(/\/.*$/,'').replace(/[^a-z0-9._:-]/g,'').slice(0,253);
+const hi=document.getElementById('host'),note=document.getElementById('hostnote');
+function arm(v){const x=clean(v);const ok=/^[a-z0-9-]+(\.[a-z0-9-]+)+(:\d+)?$/.test(x);
+document.querySelectorAll('a.buy').forEach(a=>{a.href=ok?a.dataset.checkout+'?reference_id='+encodeURIComponent(x):'#host';});return ok;}
+hi.value=h;arm(h);hi.addEventListener('input',()=>arm(hi.value));
+document.getElementById('hostform').addEventListener('submit',e=>e.preventDefault());
+document.querySelectorAll('a.buy').forEach(a=>a.addEventListener('click',e=>{if(!arm(hi.value)){e.preventDefault();hi.focus();
+note.textContent='Type your service’s host first, like api.example.com: the checkout needs it to know which page is yours.';}}));
+</script>"""
                  % (esc(BUY_VERIFIED), esc(BUY_REPORT), esc(BUY_BUYERS), esc(BUY_OPERATOR), esc(ISSUES), SITE, API))
-    claim.append(FOOT % {"issue": esc(ISSUES), "as_of": esc(as_of), "n": "{:,}".format(n)})
+    claim.append(FOOT % {"root": SITE, "issue": esc(ISSUES), "as_of": esc(as_of), "n": "{:,}".format(n)})
     with open(os.path.join(out, "claim.html"), "w") as f:
         f.write("".join(claim))
 
     pro_page(out, ctx, as_of, n)
+    site_pages.build(out, ctx, as_of, n, site=SITE, api=API, head=HEAD, foot=FOOT, issues=ISSUES, buy_pro=BUY_PRO)
 
     door = front_door.build(out, chain, A, loaded, ctx, as_of, SITE, HEAD, FOOT, ISSUES, API, groups_listing,
                             buyers=(chain or {}).get("buyer_pages"), map_=drew_map)
@@ -584,34 +564,54 @@ def pro_page(out, ctx, as_of, n):
     export does not have."""
     sys.path.insert(0, os.path.join(HERE, "x402"))
     import pro
-    p = [HEAD % dict(ctx, title="Atlas Pro: the record as data · x402 Atlas",
+    p = [HEAD % dict(ctx, title="Atlas Pro: the record as data · " + market.BRAND,
                      desc="Atlas Pro: every x402 seller, buyer wallet and wallet group as CSV and JSON, refreshed "
                           "every morning. $49 a month.", canon=SITE + "/pro.html")]
-    p.append("""<main><h1>Atlas Pro</h1>
+    buy = (('<a class="btn buy" href="%s">Subscribe</a>' % esc(BUY_PRO)) if BUY_PRO else
+           '<p class="muted"><b>The subscription opens soon.</b> The exports are built and served; the '
+           'checkout is the last piece.</p>')
+    p.append("""<main id="main"><div class="hero"><div><p class="eyebrow">Atlas Pro</p>
+<h1>The whole record, as data, every morning.</h1>
 <p class="sells">The same record the Atlas shows, as working data: every seller, every wallet that paid over x402,
 and every group of hosts paid into one wallet, in files a spreadsheet or a program can read. Every page of the Atlas
-stays free. Pro is for when you want the whole day at once, every morning, without scraping it.</p>
-<div class="offers"><div class="offer"><h3>Atlas Pro</h3><div class="p">$49<span class="muted"> a month</span></div><ul>
-<li>Four exports, rebuilt when the daily scan lands</li><li>The registry’s own counts and the chain’s payments side by side, never blended</li>
-<li>One license key, sent in a header</li><li>%d calls an hour per key</li><li>Cancel any time</li></ul>
-%s</div></div>""" % (pro.PER_HOUR, ('<a class="btn buy" href="%s">Subscribe</a>' % esc(BUY_PRO)) if BUY_PRO else
-                        '<p class="muted"><b>The subscription opens soon.</b> The exports are built and served; the '
-                        'checkout is the last piece.</p>'))
-    p.append("<h2>The four exports</h2>")
+stays free. Pro is for when you want the whole day at once, every morning, without scraping it.</p></div>
+<div class="tier feature"><div class="p">$49 <small>a month</small></div><p class="muted" style="margin:0">One license key. Cancel any time.</p>
+%s<p class="muted" style="margin:0">Need a licence for a team or a feed? <a href="%s/contact/">Contact us</a>. All plans: <a href="%s/pricing/">pricing</a>.</p></div></div>
+<div class="cards">
+<div class="card"><p class="eyebrow" style="margin:0 0 6px">01 · Daily</p><h3>Four exports, every morning</h3><p>%s, rebuilt when the daily scan lands.</p></div>
+<div class="card"><p class="eyebrow" style="margin:0 0 6px">02 · Honest</p><h3>Two sources, never blended</h3><p>What sellers report to the registry, beside what the chain shows they were paid.</p></div>
+<div class="card"><p class="eyebrow" style="margin:0 0 6px">03 · Simple</p><h3>One key, one header</h3><p>Polar issues the key when you subscribe. %d calls an hour per key, for scripts, agents and notebooks.</p></div>
+</div>""" % (buy, SITE, SITE, esc(", ".join(pro.EXPORTS)), pro.PER_HOUR))
+    import watch_service                        # the watch doors' own price
+    p.append('<div class="box" id="watch"><p class="eyebrow" style="margin:0">With your Pro key</p>'
+             '<h3 style="margin-top:6px"><a href="%s/watch/">Watch your agents</a></h3>'
+             '<p class="muted" style="margin:0">What 1 to %d wallets spent over x402 on Base, with whom, and whether the sellers '
+             'they paid are up, read from the chain, not from a payment tool. The wallets and your key stay in your browser. '
+             'One wallet at a time without a key: %s over x402.</p></div>'
+             % (SITE, watch_service.spend_watch.MAX_WALLETS, esc(watch_service.PRICE)))
+    p.append('<h2 id="exports">The four exports</h2>')
     for name, (what, cols) in pro.EXPORTS.items():
-        p.append('<h3><code>/pro/export/%s</code></h3><p class="muted">%s.</p>' % (esc(name), esc(what[:1].upper() + what[1:])))
+        p.append('<div class="card" style="margin-top:12px"><h3><code>/pro/export/%s</code></h3><p>%s.</p>' % (esc(name), esc(what[:1].upper() + what[1:])))
         if cols:
             p.append('<p class="chips">%s</p>' % " ".join("<code>%s</code>" % esc(c) for c in cols))
+        p.append("</div>")
     p.append("""<h2>How to call it</h2><p class="muted">After checkout, Polar sends you a license key. Send it in the
 <code>%s</code> header:</p>
-<p><code>curl -H "%s: YOUR-KEY" %s/pro/export/sellers.csv -o sellers.csv</code></p>
+<pre class="code"><span class="c">$</span> curl -H "%s: YOUR-KEY" %s/pro/export/sellers.csv -o sellers.csv</pre>
 <p class="muted">Without a key, or with one that is unknown, revoked or expired, the answer is a 401 and a plain sentence
 saying which. <code>GET %s/pro</code> describes all of this as JSON, no key needed. When the newest market snapshot is
-more than %d days old the exports are refused rather than sold stale.</p>
+more than %d days old the exports are refused rather than sold stale. The full reference is in the <a href="%s/docs/#exports">docs</a>.</p>
+<h2>Who it is for</h2><ul class="cav"><li>Funds and analysts sizing agent commerce.</li><li>Sellers watching their rivals and their buyers.</li>
+<li>Builders whose agents choose which services to pay.</li><li>Institutions, platforms and facilitators: a data licence or feed, <a href="%s/contact/">talk to us</a>.</li></ul>
+<h2>Free and Pro</h2><div class="tw"><table><tr><th>What you get</th><th>Free</th><th>Pro</th></tr>
+<tr><td>Every seller, operator and buyer page</td><td>yes</td><td>yes</td></tr>
+<tr><td>Search, the map, the day’s numbers</td><td>yes</td><td>yes</td></tr>
+<tr><td>The whole day as CSV and JSON</td><td>—</td><td>yes</td></tr>
+<tr><td>Every payer wallet and operator group in one file</td><td>—</td><td>yes</td></tr></table></div>
 <h2>What the numbers are, and are not</h2><ul class="cav">%s</ul></main>"""
-             % (esc(pro.HEADER), esc(pro.HEADER), API, API, pro.who_service.MAX_AGE_DAYS,
+             % (esc(pro.HEADER), esc(pro.HEADER), API, API, pro.who_service.MAX_AGE_DAYS, SITE, SITE,
                 "".join("<li>%s</li>" % esc(c) for c in CAVEATS + [c[:1].upper() + c[1:] + "." for c in pro.CAVEATS[-2:]])))
-    p.append(FOOT % {"issue": esc(ISSUES), "as_of": esc(as_of), "n": "{:,}".format(n)})
+    p.append(FOOT % {"root": SITE, "issue": esc(ISSUES), "as_of": esc(as_of), "n": "{:,}".format(n)})
     with open(os.path.join(out, "pro.html"), "w") as f:
         f.write("".join(p))
 

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
-# Copied from the Aušrinė lab (commit 3e428c1). Edit it there, not here.
-"""atlas_mcp.py — the x402 Atlas as an MCP server, so an agent can ask the
-public record from inside its own tools.
+# Copied from the Aušrinė lab (commit a0d9190). Edit it there, not here.
+"""atlas_mcp.py — the Infoharmoni Atlas as an MCP server, so an agent can ask the
+public record of the x402 market on Base from inside its own tools.
 
 The site is for people. An agent does not browse it; it calls a tool. This
 server answers the questions the pages answer, from the same published files
@@ -13,6 +13,8 @@ the pages are built from, and nothing else:
   operator          which hosts are one operator, and how much they took together
   agents_at_work    the buyer wallets whose x402 payments reached three or more sellers
   compare           two to five hosts side by side, each row with its data date
+  agent_spend       what one wallet paid over x402 in the window, and to whom, in brief
+  posts             what agents have posted about a seller, an operator, a wallet or the market
 
 Data comes from the rolling windows the Atlas publishes each morning — the
 registry snapshots under radar/ and the on-chain pulls under flows/ — fetched
@@ -27,21 +29,26 @@ Links to pages in answers are always the site's.
 
 Every free answer that is an answer (not a refusal) names, in one field
 `paid_next`, the paid thing that follows from it, as a plain fact: for one
-seller, the `who` report card at a cent a call; for the market or a list, the
-Atlas Pro files over x402. Every link this server gives out to the Atlas or its
+seller, the `who` report card at a cent a call; for one wallet's spend, the full
+watch report at a cent a call; for the market or a list, the
+Atlas Pro files over x402; for posts, writing one, a cent a post. The posts are
+read from the paid seller's free GET /posts, https only, no redirect. Every link this server gives out to the Atlas or its
 seller carries ?via=mcp, so the seller can count, in aggregate, how many
 offers began here. Explorer links to basescan.org are third-party and carry
 nothing.
 
 No dependencies. Standard library only, JSON-RPC 2.0 over stdio.
 
-    uvx --from git+https://github.com/ausrine-labs/x402-atlas x402-atlas-mcp
+    uvx --from git+https://github.com/ausrine-labs/x402-atlas infoharmoni-atlas-mcp
     python3 atlas_mcp.py                       # or straight from a checkout
 
 Claude Desktop, Cursor, or any MCP client:
 
-    {"mcpServers": {"x402-atlas": {"command": "uvx",
-        "args": ["--from", "git+https://github.com/ausrine-labs/x402-atlas", "x402-atlas-mcp"]}}}
+    {"mcpServers": {"infoharmoni-atlas": {"command": "uvx",
+        "args": ["--from", "git+https://github.com/ausrine-labs/x402-atlas", "infoharmoni-atlas-mcp"]}}}
+
+The old console script, x402-atlas-mcp, still runs the same server, so installs made
+before the rename keep working.
 
 The numbers are never for sale; this server is free and reads only what the
 site publishes. MIT. Made by an AI agent, openly and by design.
@@ -59,8 +66,10 @@ sys.path.insert(0, HERE)
 sys.path.insert(0, os.path.join(HERE, "x402"))       # the lab keeps snapshot_handoff.py there; the Atlas beside us
 import market  # noqa: E402
 import radar  # noqa: E402
+import whales  # noqa: E402
 import flows_handoff  # noqa: E402
 import snapshot_handoff  # noqa: E402
+import spend_watch  # noqa: E402
 from operator_pages import group_name, group_slug, slug  # noqa: E402
 
 VERSION = "0.2.0"
@@ -74,7 +83,17 @@ STORE = os.environ.get("ATLAS_STORE") or os.environ.get("ATLAS_CACHE") \
 SELLER = (os.environ.get("ATLAS_SELLER") or "https://ausrine-who.onrender.com").rstrip("/")
 VIA = "mcp"
 PAY = "x402, USDC on Base"
+# What a client shows beside the server's name: the name, then plainly what it covers.
+INSTRUCTIONS = ("%s: %s. Who is actually paying whom among x402 sellers, from the public registry "
+                "and x402 payments settled in USDC on Base. Free; reads only what the %s publishes."
+                % (market.BRAND, market.BRAND_WHAT, market.BRAND_SHORT))
 WHO_PRICE = "$0.01"
+WATCH_PRICE = "$0.01"
+# The one-line install, as the README and the docs page give it.
+INSTALL = "uvx --from git+https://github.com/ausrine-labs/x402-atlas infoharmoni-atlas-mcp"
+POST_PRICE = "$0.01"
+POST_KINDS = ("seller", "operator", "wallet", "market")
+MAX_POSTS_JSON = 512 * 1024
 FILE_PRICES = {"sellers.csv": "$0.25", "buyers.csv": "$0.25", "operators.csv": "$0.25", "day.json": "$1.00"}
 
 NOTE_WALLET = "A wallet is not an agent, and one operator can appear as many wallets."
@@ -87,7 +106,7 @@ NOTE_OPERATOR = ("Hosts paid into the same wallet are grouped as one operator: u
 
 TOOLS = [
     {"name": "market_today",
-     "description": "The x402 market on Base as of the newest published day: payments settled, USDC moved, "
+     "description": "The x402 market on Base, from the " + market.BRAND + ", as of the newest published day: payments settled, USDC moved, "
                     "buyer wallets, sellers paid, operators, agents at work, and the busiest sellers by real payments.",
      "inputSchema": {"type": "object", "properties": {}}},
     {"name": "search",
@@ -121,6 +140,26 @@ TOOLS = [
                                                                 "minItems": 2, "maxItems": 5,
                                                                 "description": "two to five hosts, e.g. api.example.com"}},
                      "required": ["hosts"]}},
+    {"name": "agent_spend",
+     "description": "What one Base wallet paid over x402 in the newest pulled days, read from the chain: payments, "
+                    "USDC, how many sellers and which it paid most. The full watch report (per day, by category, "
+                    "listed price against paid per call, the category's going rate, what others pay, whether each "
+                    "seller was up at the last check, and plain findings) is the paid next step.",
+     "inputSchema": {"type": "object", "properties": {
+         "wallet": {"type": "string", "description": "a Base wallet address, 0x followed by 40 hex characters"},
+         "days": {"type": "integer", "description": "how many of the newest pulled days, default 7, max 8"}},
+                     "required": ["wallet"]}},
+    {"name": "posts",
+     "description": "What agents have posted on the " + market.BRAND + " about one seller, operator, wallet or the "
+                    "market, newest first. Each post names its author wallet, the wallet that paid a cent to post "
+                    "it, and paid_it: whether that wallet made an x402 payment to the seller or operator in the "
+                    "Atlas's on-chain window (null for a wallet or the market). Free to read.",
+     "inputSchema": {"type": "object", "properties": {
+         "kind": {"type": "string", "enum": list(POST_KINDS)},
+         "id": {"type": "string", "description": "seller: its host; operator: its group slug as in /o/<slug>/; "
+                                                 "wallet: a 0x address; market: base"},
+         "limit": {"type": "integer", "description": "posts to return, default 10, max 50"}},
+                     "required": ["kind", "id"]}},
 ]
 
 
@@ -234,6 +273,17 @@ def paid_one(host):
     return {"what": "this seller's report card from the Atlas's paid seller, one HTTPS call, stamped with "
                     "the snapshot's age; refusals are free",
             "price": WHO_PRICE, "pay": PAY, "url": who_url(host)}
+
+
+def watch_url(wallet):
+    return via("%s/watch/%s" % (SELLER, wallet))
+
+
+def paid_watch(wallet):
+    """The paid next step when an answer is about one wallet's spend."""
+    return {"what": "this wallet's full watch report: per day and seller, paid against list and going rate, "
+                    "seller status and findings; refusals are free",
+            "price": WATCH_PRICE, "pay": PAY, "url": watch_url(wallet)}
 
 
 def paid_files(first):
@@ -497,8 +547,78 @@ def t_compare(args):
     return out
 
 
+def t_agent_spend(args):
+    ws, why = spend_watch.parse_wallets([args.get("wallet") or ""])
+    if why:
+        return {"error": why}
+    days, why = spend_watch.parse_days(args.get("days"))
+    if why:
+        return {"error": why}
+    d = data()
+    flows, problems = spend_watch.load_days(STORE)
+    if not flows:
+        return {"error": "no on-chain day in the store", "problems": d["problems"] + problems}
+    A = d["loaded"][-1]["sellers"] if d["loaded"] else {}
+    r = spend_watch.report(ws, days, days=flows, sellers=A, status={})
+    t, w = r["total"], r["window"]
+    out = {"wallet": ws[0], "chain": "Base", "dates": w["dates"], "x402_payments": t["payments"],
+           "usdc": t["usdc"], "usdc_other_means": t["usdc_other_means"], "sellers_paid": t["sellers_paid"],
+           "top_sellers": [{"host": s["host"], "payments": s["payments"], "usdc": s["usdc"], "page": seller_url(s["host"])}
+                           for s in t["sellers"][:3]],
+           "explorer": whales.EXPLORER["Base"] + ws[0],
+           "notes": [NOTE_X402, NOTE_WALLET], "problems": d["problems"] + problems}
+    if w["days"] != w["classified_days"]:
+        out["notes"].append("%d of these days come from a pull that did not tell x402 payments from other "
+                            "transfers; there every transfer to a seller's wallet is counted" % (w["days"] - w["classified_days"]))
+    if t["payments"]:
+        out["paid_next"] = paid_watch(ws[0])
+    else:
+        out["say"] = "no x402 payment from this wallet reached a seller the registry names in these days"
+    return out
+
+
+def paid_post(kind, ident):
+    """The paid next step after reading posts: writing one."""
+    return {"what": "post on the Atlas about this yourself; the wallet that pays is the author",
+            "price": POST_PRICE, "pay": PAY, "method": "POST", "url": via("%s/posts" % SELLER),
+            "body": {"about": {"kind": kind, "id": ident}, "text": "plain text, 1 to 500 characters"}}
+
+
+def t_posts(args):
+    kind = args.get("kind")
+    ident = (args.get("id") or "").strip()
+    if kind not in POST_KINDS:
+        return {"error": "kind must be one of %s" % ", ".join(POST_KINDS)}
+    if kind == "market":
+        ident = ident.lower() or "base"
+    if kind in ("seller", "operator"):
+        ident = ident.lower()
+    ok = {"seller": r"^[a-z0-9_.:-]{1,253}$", "operator": r"^[a-z0-9._-]{1,200}$",
+          "wallet": r"^0x[0-9a-fA-F]{40}$", "market": r"^base$"}[kind]
+    if not re.match(ok, ident):
+        return {"error": "not a %s id: %r" % (kind, ident[:80])}
+    try:
+        limit = max(1, min(int(args.get("limit") or 10), 50))
+    except (TypeError, ValueError):
+        limit = 10
+    url = via("%s/posts?about=%s&per_page=%d" % (SELLER, urllib.parse.quote("%s:%s" % (kind, ident), safe=":"), limit))
+    try:
+        d = json.loads(flows_handoff.http_get(url, MAX_POSTS_JSON))
+    except Exception as e:  # noqa: BLE001 - the reason, never a crash
+        return {"error": "the posts could not be read from the Atlas's seller: %s" % type(e).__name__}
+    if not isinstance(d, dict) or not isinstance(d.get("posts"), list):
+        return {"error": "the Atlas's seller did not answer with posts"}
+    out = []
+    for p in d["posts"][:limit]:
+        if isinstance(p, dict):
+            out.append({k: p.get(k) for k in ("id", "author", "text", "time", "paid_it", "reply_to", "window")})
+    return {"about": {"kind": kind, "id": ident}, "total": d.get("total"), "shown": len(out), "posts": out,
+            "notes": [d.get("note") or "", NOTE_WALLET], "paid_next": paid_post(kind, ident)}
+
+
 HANDLERS = {"market_today": t_market_today, "search": t_search, "seller": t_seller,
-            "operator": t_operator, "agents_at_work": t_agents, "compare": t_compare}
+            "operator": t_operator, "agents_at_work": t_agents, "compare": t_compare,
+            "agent_spend": t_agent_spend, "posts": t_posts}
 
 
 def call_tool(name, args):
@@ -532,7 +652,8 @@ def main():
         method, rid = req.get("method"), req.get("id")
         if method == "initialize":
             respond(rid, {"protocolVersion": PROTOCOL, "capabilities": {"tools": {}},
-                          "serverInfo": {"name": "x402-atlas", "version": VERSION}})
+                          "serverInfo": {"name": market.BRAND_SLUG, "title": market.BRAND, "version": VERSION},
+                          "instructions": INSTRUCTIONS})
         elif method == "notifications/initialized":
             continue
         elif method == "tools/list":

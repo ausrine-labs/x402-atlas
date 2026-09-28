@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Copied from the Aušrinė lab (commit 116e747). Edit it there, not here.
+# Copied from the Aušrinė lab (commit a0d9190). Edit it there, not here.
 """snapshot_handoff.py — how a seller with no disk gets its market snapshots.
 
 Two halves of one hand-off. Standard library only.
