@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Copied from the Aušrinė lab (commit a0d9190). Edit it there, not here.
+# Copied from the Aušrinė lab (commit defb6e9). Edit it there, not here.
 """site_pages.py — the company pages of the Infoharmoni Atlas: pricing, docs, about, contact.
 
 seller_pages.py calls build() after the data pages are written. Four pages, each at its
@@ -7,13 +7,16 @@ own folder so the address reads cleanly:
 
     /pricing/   the tiers side by side (PRICING, below: the one place to change them),
                 agents' per-call prices over x402 among them
+    /sellers/   Atlas for Sellers: the "Your buyers" report, with a real sample blurred to
+                ranges (x402/seller_report.py makes it), and a way to open your own
     /docs/      the paid API, the Pro exports, the MCP server and the free JSON files,
                 with requests and responses taken from the code that serves them
     /about/     what the Atlas is, who makes it, the principles it keeps
     /contact/   the email as text with a copy button; a note form that sends nothing
 
-Nothing here invents a number: prices come from x402/pro.py, x402/sell-who.py and
-atlas_mcp.py; examples are the ones those files already publish. Standard library only.
+Nothing here invents a number: prices come from x402/pro.py, x402/sell-who.py,
+x402/seller_report.py and atlas_mcp.py; examples are the ones those files already publish.
+Standard library only.
 """
 
 import html
@@ -58,9 +61,12 @@ PRICING = {
     "sellers": {
         "name": "Sellers", "price": "$29", "per": "a month",
         "for": "For a service that sells to agents over x402.",
-        "features": [("Claim your page", LIVE), ("Your own description, logo and links", LIVE),
+        "features": [("“Your buyers”: a report on your own customers, from your payments on Base", LIVE),
+                     ("Who came back, who left and for whom, where new buyers came from", LIVE),
+                     ("Claim your page", LIVE), ("Your own description, logo and links", LIVE),
                      ("A monthly competitive report", LIVE)],
         "cta": ("Claim your page", "/claim.html"),        # the page that asks for the host before any checkout
+        "also": ("See the buyers report", "/sellers/"),
     },
     "institutions": {
         "name": "Institutions", "price": "from $500", "per": "a month",
@@ -98,6 +104,12 @@ def _pro():
     return pro
 
 
+def _seller_report():
+    sys.path.insert(0, os.path.join(HERE, "x402"))
+    import seller_report
+    return seller_report
+
+
 def x402_prices():
     """[(what, price)] as the paid seller charges them: the who report, each CSV, the day file."""
     sw, pro = _sell_who(), _pro()
@@ -126,6 +138,13 @@ def tier_cta(t, site, buy_pro):
     return '<a class="btn ghost" href="%s%s">%s</a>' % (site, esc(where), esc(label))
 
 
+def tier_also(t, site):
+    if not t.get("also"):
+        return ""
+    label, where = t["also"]
+    return '<a href="%s%s">%s</a>' % (site, esc(where), esc(label))
+
+
 def feature(words, state):
     if state == COMING:
         return '<li class="soon">%s <span class="coming">coming</span></li>' % esc(words)
@@ -137,10 +156,10 @@ def pricing(site, buy_pro, api):
     for key, t in PRICING.items():
         word = not t["price"].startswith("$")
         cards.append('<section class="tier%s" aria-labelledby="t-%s"><h2 id="t-%s" style="margin:0;font-size:22px">%s</h2>'
-                     '<div class="p%s">%s%s</div><p class="muted" style="margin:0">%s</p><ul>%s</ul>%s</section>'
+                     '<div class="p%s">%s%s</div><p class="muted" style="margin:0">%s</p><ul>%s</ul>%s%s</section>'
                      % (" feature" if key == "pro" else "", key, key, esc(t["name"]), " word" if word else "", esc(t["price"]),
                         " <small>%s</small>" % (esc(t["per"]) or "&nbsp;"), esc(t["for"]),
-                        "".join(feature(w, st) for w, st in t["features"]), tier_cta(t, site, buy_pro)))
+                        "".join(feature(w, st) for w, st in t["features"]), tier_cta(t, site, buy_pro), tier_also(t, site)))
     return ('<main id="main"><p class="eyebrow">Pricing</p><h1>Free to read. Paid when you want it all.</h1>'
             '<p class="sells">Every seller has a free page, and the numbers are the same for everyone. Pro is the whole record; '
             'sellers can claim their page; institutions license the data; agents pay per call.</p>'
@@ -156,7 +175,7 @@ def pricing(site, buy_pro, api):
 
 
 def docs(site, api):
-    sw, pro = _sell_who(), _pro()
+    sw, pro, sr = _sell_who(), _pro(), _seller_report()
     import atlas_mcp
     who = json.dumps(sw.WHO_EXAMPLE, indent=2, ensure_ascii=False)
     exports = "".join(
@@ -172,7 +191,7 @@ def docs(site, api):
 <p class="sells">Three ways in: a paid answer per question over x402, the whole day as files with Atlas Pro, and a
 free MCP server for agents. Every example below is the one the serving code publishes.</p>
 <nav class="box" aria-label="On this page"><p style="margin:0"><a href="#who">The who report</a> · <a href="#exports">Exports</a> ·
-<a href="#mcp">MCP server</a> · <a href="#free">Free JSON</a></p></nav>
+<a href="#sellers">Your buyers</a> · <a href="#mcp">MCP server</a> · <a href="#free">Free JSON</a></p></nav>
 
 <h2 id="who">The who report, %(who_price)s a call over x402</h2>
 <p>One seller’s report card: what it sells, paid calls and payers in 30 days, price, rank, rivals, the day-by-day
@@ -194,6 +213,16 @@ refused before payment and never charged. The answer is stamped with the snapsho
 <p class="muted"><code>GET %(api)s/pro</code> describes the exports, columns and prices as JSON, no key needed.
 Column lists: <a href="%(site)s/pro.html#exports">Atlas Pro</a>.</p>
 
+<h2 id="sellers">Your buyers: the seller report</h2>
+<p>For one seller host, per payTo wallet: buyers, payments and USDC day by day, who came back, buyers lost and where
+each went, where new buyers came from, what is bought alongside, and its closest rivals side by side. With an
+%(sellers)s or Atlas Pro key in the <code>%(header)s</code> header at <code>%(api)s%(key_path)s&lt;host&gt;</code> (add
+<code>.html</code> for one printable page), %(sellers_price)s; or per report over x402 at
+<code>%(api)s%(report_path)s&lt;host&gt;</code>, %(report_price)s.</p>
+<pre class="code"><span class="c">$</span> curl -H "%(header)s: YOUR-KEY" %(api)s%(key_path)sapi.example.com.html -o your-buyers.html</pre>
+<p class="muted"><code>GET %(api)s/sellers</code> describes the report, with a real sample blurred to ranges. More:
+<a href="%(site)s/sellers/">Atlas for Sellers</a>.</p>
+
 <h2 id="mcp">MCP server, free</h2>
 <p>An MCP server that reads only what this site publishes. One line, with <a href="https://docs.astral.sh/uv/">uv</a>:</p>
 <pre class="code"><span class="c">$</span> %(install)s</pre>
@@ -212,7 +241,9 @@ Column lists: <a href="%(site)s/pro.html#exports">Atlas Pro</a>.</p>
 <p class="muted">A wallet is not a person, and nothing in any of these files says who holds one.</p></main>""" % {
         "who_price": esc(sw.PRICE), "api": esc(api), "who_json": esc(who), "header": esc(pro.HEADER),
         "per_hour": pro.PER_HOUR, "x402_path": esc(pro.X402_PATH), "exports": exports, "sample": esc(sample),
-        "site": site, "install": esc(atlas_mcp.INSTALL), "desktop": esc(desktop), "tools": tools}
+        "site": site, "install": esc(atlas_mcp.INSTALL), "desktop": esc(desktop), "tools": tools,
+        "sellers": esc(sr.PRODUCT), "key_path": esc(sr.KEY_PATH), "sellers_price": esc(sr.PRICE),
+        "report_path": esc(sr.X402_PATH), "report_price": esc(sr.X402_PRICES["report"])}
 
 
 def about(site):
@@ -302,8 +333,97 @@ Jurgutis. Aušrinė reads the chain every morning, writes every page, and answer
 </form></aside></div></main>""" % {"product": esc(market.PRODUCT), "company": esc(market.COMPANY), "email": EMAIL, "rows": rows, "opts": opts} + COPY_JS
 
 
-def build(out, ctx, as_of, n, site="", api="", head="", foot="", issues="", buy_pro=""):
-    """Write /pricing/, /docs/, /about/ and /contact/. Returns the folders written."""
+SELLERS_JS = """<script>
+// Your report, opened here: the key goes from this browser to the service in its header, and nowhere else.
+const API=%(api)s,f=document.getElementById('rf'),hi=document.getElementById('rh'),ki=document.getElementById('rk'),
+st=document.getElementById('rstatus'),fr=document.getElementById('rframe'),sv=document.getElementById('rsave');
+hi.value=(new URLSearchParams(location.search).get('host')||'').toLowerCase().replace(/[^a-z0-9._:-]/g,'').slice(0,253);
+f.addEventListener('submit',async ev=>{ev.preventDefault();
+const h=hi.value.trim().toLowerCase().replace(/^https?:\\/\\//,'').replace(/\\/.*$/,''),k=ki.value.trim();
+if(!/^[a-z0-9_-]+(\\.[a-z0-9_-]+)+(:\\d+)?$/.test(h)){st.textContent='Type your service’s host, like api.example.com.';hi.focus();return}
+if(!k){st.textContent='Paste the license key Polar sent you.';ki.focus();return}
+st.textContent='Asking for the report…';
+try{const r=await fetch(API+'/sellers/report/'+encodeURIComponent(h)+'.html',{headers:{'X-Atlas-Key':k}});const t=await r.text();
+if(!r.ok){let m='';try{m=JSON.parse(t).say}catch(_){}st.textContent='Refused ('+r.status+'): '+(m||'the service said no');return}
+fr.hidden=false;fr.srcdoc=t;sv.href=URL.createObjectURL(new Blob([t],{type:'text/html'}));sv.download='your-buyers-'+h+'.html';
+sv.hidden=false;st.textContent='Here it is. This page kept nothing.'}
+catch(_){st.textContent='The service could not be reached; try again in a minute.'}});
+</script>"""
+
+
+def sellers(site, api, sample, checkout):
+    """/sellers/: Atlas for Sellers. What the report holds, a real sample blurred to ranges (or a
+    plain line when the build had no window), how to subscribe, and a way to open your own."""
+    sr = _seller_report()
+    import pro
+    if checkout:
+        buy = '<a class="btn buy" href="%s">Subscribe</a>' % esc(checkout)
+    else:
+        buy = ('<p class="muted" style="margin:0"><b>Subscriptions open soon.</b> The report is built and served; the '
+               'checkout is the last piece. To be told first, write to <a href="mailto:%s?subject=Atlas%%20for%%20Sellers">'
+               '%s</a>.</p>' % (EMAIL, EMAIL))
+    cards = "".join('<div class="card"><h3>%s</h3><p>%s.</p></div>' % (esc(k.replace("_", " ").capitalize()),
+                                                                      esc(v[:1].upper() + v[1:]))
+                    for k, v in sr.SECTIONS)
+    if sample and sample.get("available"):
+        w = sample["window"]
+        shown = ('<p class="dateline">x402 payments on Base · %s – %s · %s days · registry as of %s</p>'
+                 '<p class="muted">The busiest seller in the window, by buyers, among those whose buyers also paid at '
+                 "least five other sellers (so every section has something in it): <b>%s</b>. This is one of its payTo "
+                 "wallets as the report shows it, with every number blurred to a range, every buyer wallet masked and "
+                 "each long list cut to three rows. Your report has the exact figures and every wallet in full.</p>"
+                 '<div class="sample">%s</div>'
+                 % (esc(atlas_style.long_date(w["from"])), esc(atlas_style.long_date(w["to"])), w["days"],
+                    esc(atlas_style.long_date(sample["as_of"])), esc(atlas_style.unsay(sample["host"])),
+                    sr.wallet_html(sample["wallet"], level=3)))
+    else:
+        shown = ('<p class="muted">The sample is drawn from the on-chain window when the site is built; this build had '
+                 "none. <code>GET %s/sellers</code> carries the same sample, made now.</p>" % esc(api))
+    return ("""<main id="main"><div class="hero"><div><p class="eyebrow">%(product)s</p>
+<h1>See who your buyers are.</h1>
+<p class="sells">For a service that sells to agents over x402: a report on your own customers, read from your x402
+payments on Base. Who paid you and when, who came back, who left and for whom, where new buyers came from, what they
+buy alongside you, and your closest rivals side by side. Every figure with its numbers and dates.</p></div>
+<div class="tier feature"><div class="p">$29 <small>a month</small></div><p class="muted" style="margin:0">One license
+key: the report for your host, any day, as JSON or one printable page. Cancel any time.</p>%(buy)s
+<p class="muted" style="margin:0">Agents: the same report per call, %(x402)s over x402, no account. All plans:
+<a href="%(site)s/pricing/">pricing</a>.</p></div></div>
+<h2>What the report holds</h2><p class="muted">Per payTo wallet the registry lists for your host, over the Atlas’s
+window of daily pulls. Wallets are shown in full: it is your own customer list, read from a public chain. Nothing in it
+says who holds a wallet, and nothing in it is a score.</p>
+<div class="cards">%(cards)s</div>
+<h2 id="sample">A real report, blurred</h2>%(shown)s
+<h2 id="open">Open your report</h2>
+<p class="muted">After checkout Polar sends you a license key; an Atlas Pro key works too. Type your host and the key,
+and the report opens below. The key goes from this browser to <code>%(api)s</code> in the <code>%(header)s</code> header
+and nowhere else.</p>
+<form class="form box" id="rf"><div><label for="rh">Your service’s host</label><input id="rh" type="text" inputmode="url"
+autocomplete="off" placeholder="api.example.com"></div><div><label for="rk">Your license key</label><input id="rk"
+type="password" autocomplete="off"></div><button class="btn" type="submit">Open my report</button></form>
+<p class="muted" id="rstatus" role="status" aria-live="polite"></p>
+<iframe class="rpt-frame" id="rframe" title="Your buyers report" sandbox="" hidden></iframe>
+<p><a id="rsave" hidden>Save the report as a page</a></p>
+<p class="muted">From code:</p>
+<pre class="code"><span class="c">$</span> curl -H "%(header)s: YOUR-KEY" %(api)s%(key_path)sapi.example.com.html -o your-buyers.html
+<span class="c">$</span> curl %(api)s%(x402_path)sapi.example.com
+<span class="p">402</span> Payment Required <span class="c">→ an x402 client pays %(x402)s in USDC on Base</span>
+<span class="k">200</span> {"report": "Your buyers", "host": "api.example.com", "wallets": […]}</pre>
+<p class="muted">A host that is not in the registry, not in the window, or was not paid in it is refused before any
+payment and never charged. <a href="%(site)s/docs/#sellers">The docs</a>.</p>
+<h2>What the numbers are, and are not</h2><ul class="cav">%(caveats)s</ul>
+<dl class="kv" style="max-width:860px">%(means)s</dl></main>""" % {
+        "product": esc(sr.PRODUCT), "buy": buy, "x402": esc(sr.X402_PRICES["report"]), "site": site, "cards": cards,
+        "shown": shown, "api": esc(api), "header": esc(pro.HEADER), "key_path": esc(sr.KEY_PATH),
+        "x402_path": esc(sr.X402_PATH),
+        "caveats": "".join("<li>%s.</li>" % esc(c[:1].upper() + c[1:]) for c in sr.CAVEATS),
+        "means": "".join("<dt>%s</dt><dd>%s</dd>" % (esc(k.replace("_", " ")), esc(v)) for k, v in sr.MEANS.items())}
+        + SELLERS_JS % {"api": json.dumps(api)})
+
+
+def build(out, ctx, as_of, n, site="", api="", head="", foot="", issues="", buy_pro="", sample=None, buy_sellers=None):
+    """Write /pricing/, /docs/, /about/, /contact/ and /sellers/. Returns the folders written.
+    `sample` is seller_report.sample_from()'s blurred wallet, or None; `buy_sellers` the Atlas
+    for Sellers checkout (default: SELLERS_CHECKOUT_URL, when it is set)."""
     site = (site or "").rstrip("/")
     brand = market.BRAND
     pages = [
@@ -315,6 +435,10 @@ def build(out, ctx, as_of, n, site="", api="", head="", foot="", issues="", buy_
          "with Vilija Jurgutis. Independent; the numbers are never for sale." % (market.COMPANY, market.PRODUCT), about(site)),
         ("contact", "Contact · " + brand, "Write to %s: claims, Atlas Pro, data licences, corrections." % EMAIL,
          contact(site, issues)),
+        ("sellers", "Atlas for Sellers: see who your buyers are · " + brand, "A report for an x402 seller about its own "
+         "customers, read from its payments on Base: who came back, who left and for whom. $29 a month.",
+         sellers(site, api, sample, os.environ.get("SELLERS_CHECKOUT_URL", "").strip()
+                 if buy_sellers is None else buy_sellers)),
     ]
     for rel, title, desc, body in pages:
         _page(out, rel, head, foot, ctx, title, desc, body, site, issues, as_of, n)

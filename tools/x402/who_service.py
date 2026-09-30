@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Copied from the Aušrinė lab (commit a0d9190). Edit it there, not here.
+# Copied from the Aušrinė lab (commit defb6e9). Edit it there, not here.
 """who_service.py — what the paid `who` endpoint answers, and what it refuses.
 
 No web framework, no payment library, no network: this is the part that
@@ -25,6 +25,7 @@ from datetime import date
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.dirname(HERE))
 import radar  # noqa: E402  (the engine; who_data() is the single source of the report card)
+import relationships  # noqa: E402  (came back, bought alongside, left for: read from the flows window)
 
 # A target reaches the engine only if it looks like what the registry holds.
 # Checked against every host and wallet in a real snapshot: none is rejected.
@@ -48,6 +49,9 @@ CAVEATS = [
     "every x402 payment in the window came from one wallet; 'concentrated' means ten or more payments "
     "with the busiest three wallets sending 80% or more",
     "hosts paid into one wallet are grouped: usually one operator, sometimes a platform collecting for several",
+    "relationships are read from the x402 payments we observe on Base over the window's days: a wallet is not an "
+    "agent, and a relationship (came back, bought alongside, left for) is a pattern of payments between wallets, "
+    "not a claim about who anyone is or who runs a wallet",
 ]
 
 CHAIN_STORE = None      # a folder of whales-<date>.json (flows_handoff.fetch keeps it); None = not available
@@ -95,6 +99,80 @@ def on_chain(host, chain):
     if out["payer_wallets"] is None:
         out["say"] = "this rollup predates concentration; payer wallets and the busiest three are not known for it"
     return out
+
+
+_rel_lock = threading.Lock()
+CHANGING = ("changing",)
+_rel = {"key": None, "window": None}
+
+
+def relationships_window():
+    """(key, window) for the flows files in CHAIN_STORE, computed once per set of files: the key is
+    each file's name, size and mtime, so a new day or a replaced file recomputes it. (None, None)
+    when there are none; a window with no dates when none could be read. Never raises."""
+    try:
+        key = relationships.files_key(CHAIN_STORE)
+    except Exception:
+        return None, None
+    if not key:
+        return None, None
+    with _rel_lock:
+        if _rel["key"] == key:
+            return _rel["key"], _rel["window"]
+        for _ in range(2):             # the hourly sync replaces files one by one: a window is kept only
+            try:                       # when the files were the same before and after it was read
+                win = relationships.window(CHAIN_STORE)
+            except Exception as e:     # the report card stands without them; a window that will not compute is said
+                win = {"dates": [], "problems": ["it could not be computed (%s)" % type(e).__name__]}
+            try:
+                after = relationships.files_key(CHAIN_STORE)
+            except Exception:
+                after = None
+            if after == key:
+                _rel["key"], _rel["window"] = key, win
+                return key, win
+            key = after
+            if not key:
+                return None, None
+        # a key no stable read ever has, so an answer made from this is never served again
+        return CHANGING, {"dates": [], "problems": ["the window's files were changing while they were read; "
+                                                         "ask again shortly"]}
+
+
+def relationships_for(host, win):
+    """The relationship facts for one seller, for the paid answer: one entry per payTo wallet the
+    window's sellers map names for the host. Never raises; never blocks an answer: when the window
+    is not loaded, or the seller is not in it, it says so."""
+    if not win:
+        return {"available": False, "say": "the on-chain window is not loaded on this host yet; the report card above stands"}
+    if not win.get("dates"):
+        return {"available": False, "say": "the on-chain window is here but no day of it could be read (%s); the report "
+                                           "card above stands" % "; ".join(win.get("problems") or ["no Base day in it"])[:300]}
+    try:
+        out = {"available": True, "chain": "Base", "dates": win["dates"], "means": relationships.MEANS,
+               "busy_buyer_rule": "buyer wallets that paid more than %d sellers in the window are left out of "
+                                  "bought_alongside and switches" % relationships.BUSY}
+        if win.get("problems"):        # part of the window was skipped: say so beside every fact
+            out["incomplete"] = True
+            out["problems"] = [str(x)[:200] for x in win["problems"][:10]]
+        view = relationships.for_host(win, host)
+        if view is None:
+            out.update({"wallets": [], "say": "this seller's payTo wallets are not in the window's sellers map, "
+                                              "so no payment to it was read"})
+            return out
+        out["wallets"] = view["wallets"]
+        out["unpaid_wallets"] = view["unpaid_wallets"]
+        if not view["wallets"]:
+            out["say"] = ("no x402 payment to this seller's wallets was read in the window, but part of the window "
+                          "could not be read (see problems)" if win.get("problems") else
+                          "no x402 payment reached this seller's wallets on Base in the window")
+        elif len(view["wallets"]) > 1 or any(f["hosts_total"] > 1 for f in view["wallets"]):
+            out["say"] = ("each wallet's facts are its own, across every host paid into it; this host is paid into "
+                          "%d wallet%s that were paid in the window" % (len(view["wallets"]), "s" if len(view["wallets"]) != 1 else ""))
+        return out
+    except Exception as e:
+        return {"available": False, "say": "the relationships could not be read from the window (%s); the report "
+                                           "card above stands" % type(e).__name__}
 
 
 def valid_target(target):
@@ -231,7 +309,8 @@ def answer(target, today=None, max_age_days=MAX_AGE_DAYS):
     if refusal:
         return refusal
     chain_name, chain = newest_chain()
-    ckey = (set_key, chain_name, target.lower())
+    rel_key, rel = relationships_window()
+    ckey = (set_key, chain_name, rel_key, target.lower())
     with _lock:
         hit = _answers.get(ckey)
     if hit:
@@ -254,8 +333,10 @@ def answer(target, today=None, max_age_days=MAX_AGE_DAYS):
         body = {"ok": True}
         body.update(card)
         body["on_chain"] = on_chain(card["host"], chain)
+        body["relationships"] = relationships_for(card["host"], rel)
         body["caveats"] = CAVEATS
-        body["source"] = "x402 discovery registry, daily snapshots; on_chain from the Atlas's daily Base pull"
+        body["source"] = ("x402 discovery registry, daily snapshots; on_chain and relationships from the Atlas's "
+                          "daily Base pull")
         out = 200, body
     try:
         unchanged = _set_keys() == set_key
@@ -268,5 +349,6 @@ def answer(target, today=None, max_age_days=MAX_AGE_DAYS):
     with _lock:
         if len(_answers) >= MAX_CACHED or any(k[0] != set_key for k in list(_answers)[:1]):
             _answers.clear()
-        _answers[ckey] = out
+        if rel_key != CHANGING:        # an answer made while the window was changing is never kept
+            _answers[ckey] = out
     return with_age(out[0], out[1], now)

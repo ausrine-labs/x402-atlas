@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Copied from the Aušrinė lab (commit 4d8f92b). Edit it there, not here.
+# Copied from the Aušrinė lab (commit defb6e9). Edit it there, not here.
 """seller_pages_test.py — the public pages, from a synthetic store. No network.
 
     python3 seller_pages_test.py
@@ -162,6 +162,11 @@ class Pages(unittest.TestCase):
         self.assertNotIn("buy.polar.sh", html)
         self.assertNotIn('class="btn', html)
         self.assertNotIn("Subscribe</a>", html)
+
+    def test_the_sellers_page_carries_the_sellers_checkout(self):
+        self.assertTrue(sp.BUY_SELLERS.startswith("https://buy.polar.sh/polar_cl_"))
+        html = self.page("sellers", "index.html")
+        self.assertIn(sp.BUY_SELLERS, html)
 
     def test_the_pro_checkout_is_the_polar_link_for_atlas_pro(self):
         self.assertTrue(sp.BUY_PRO.startswith("https://buy.polar.sh/polar_cl_"))

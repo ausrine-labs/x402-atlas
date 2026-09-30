@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Copied from the Aušrinė lab (commit a0d9190). Edit it there, not here.
+# Copied from the Aušrinė lab (commit defb6e9). Edit it there, not here.
 """pro.py — Atlas Pro: the Atlas's record as working data, for a license key.
 
 The Atlas is a free public record, and every page of it stays free. Pro sells the
@@ -25,6 +25,15 @@ The first gate is a Polar license key in the header X-Atlas-Key, checked against
 public validation endpoint, which needs no access token: only the key and the
 organization id, from POLAR_ORG_ID. A good answer is kept ten minutes. The key is
 never logged, never echoed, never stored: the caches hold its sha256.
+
+One gate, two doors (Gate.check(key, door)). A key opens a door when its Polar benefit is
+one that door accepts:
+
+    door "pro"      the Pro exports and /pro/watch   POLAR_BENEFIT_ID (Atlas Pro) only
+    door "sellers"  the seller reports               POLAR_BENEFIT_ID or POLAR_SELLERS_BENEFIT_ID
+
+so an Atlas for Sellers key never opens a Pro file, and a Pro key opens both. A door with
+no benefit configured answers 503 (pro_not_configured, sellers_not_configured), never billed.
 
 No web framework here: sell-who.py puts this behind routes. Standard library only.
 """
@@ -320,7 +329,9 @@ def describe():
                         % (base, X402_PATH, X402_PRICES["sellers.csv"]),
         "fresh": "rebuilt when the daily scan lands; refused (503) when the newest snapshot is more than %d days old"
                  % who_service.MAX_AGE_DAYS,
-        "subscribe": ATLAS + "/pro.html", "caveats": CAVEATS}
+        "subscribe": ATLAS + "/pro.html",
+        "seller_reports": "a Pro key also opens the seller report (Your buyers) at /sellers/report/<host>; GET /sellers",
+        "caveats": CAVEATS}
 
 
 def who_service_public_url():
@@ -330,6 +341,8 @@ def who_service_public_url():
 # --- the gate ------------------------------------------------------------------------------
 
 KEY_SHAPE = re.compile(r"^[A-Za-z0-9_-]{8,128}$")
+PRO, SELLERS = "pro", "sellers"          # the doors a key can open
+FOR = {PRO: "Atlas Pro", SELLERS: "seller reports"}
 
 
 def polar_validate(key, org_id, benefit_id=None, timeout=10):
@@ -350,17 +363,19 @@ def polar_validate(key, org_id, benefit_id=None, timeout=10):
 
 
 class Gate:
-    """Who may take an export. check(key) -> (status, message): 200 lets the request
-    through; 401 missing/unknown/revoked/expired; 429 over the per-key limit; 503 when this
-    host cannot ask Polar (not configured, Polar unreachable, too many new keys at once).
-    Only a key's sha256 is ever held."""
+    """Who may take an export or a seller report. check(key, door) -> (status, message): 200 lets
+    the request through; 401 missing/unknown/revoked/expired, or a key for another door; 429 over
+    the per-key limit; 503 when this host cannot ask Polar (the door not configured, Polar
+    unreachable, too many new keys at once). Only a key's sha256 is ever held, with the benefit
+    Polar named for it."""
 
     def __init__(self, org_id, benefit_id=None, validate=polar_validate, clock=time.time,
-                 good_for=GOOD_FOR, per_hour=PER_HOUR, polar_per_minute=POLAR_PER_MINUTE):
+                 good_for=GOOD_FOR, per_hour=PER_HOUR, polar_per_minute=POLAR_PER_MINUTE, sellers_benefit_id=None):
         self.org_id, self.benefit_id, self.validate, self.clock = org_id, benefit_id, validate, clock
+        self.sellers_benefit_id = sellers_benefit_id
         self.good_for, self.per_hour, self.polar_per_minute = good_for, per_hour, polar_per_minute
         self.lock = threading.Lock()
-        self.good = {}                                  # sha256 -> trusted until (epoch seconds)
+        self.good = {}                                  # sha256 -> (trusted until, benefit id)
         self.used = {}                                  # sha256 -> deque of call times, last hour
         self.asked = collections.deque()                # times this host asked Polar, last minute
 
@@ -368,22 +383,35 @@ class Gate:
     def enabled(self):
         return bool(self.org_id and self.benefit_id)
 
-    def _refused(self, why):
-        return 401, {"ok": False, "error": "key_refused", "say": why,
-                     "subscribe": ATLAS + "/pro.html", "header": HEADER}
+    @property
+    def sellers_enabled(self):
+        return bool(self.org_id and (self.benefit_id or self.sellers_benefit_id))
 
-    def check(self, key):
+    def opens(self, door):
+        """The benefits whose keys open this door."""
+        return {b for b in ((self.benefit_id, self.sellers_benefit_id) if door == SELLERS else (self.benefit_id,)) if b}
+
+    def _refused(self, why, door=PRO):
+        return 401, {"ok": False, "error": "key_refused", "say": why,
+                     "subscribe": ATLAS + ("/sellers/" if door == SELLERS else "/pro.html"), "header": HEADER}
+
+    def check(self, key, door=PRO):
         if not key:
-            return self._refused("no license key: send it in the %s header" % HEADER)
+            return self._refused("no license key: send it in the %s header" % HEADER, door)
         if not KEY_SHAPE.match(key):
-            return self._refused("this license key is not one we know")
-        if not self.enabled:              # both ids, or a key for another product could open Pro
+            return self._refused("this license key is not one we know", door)
+        if door == SELLERS and not self.sellers_enabled:
+            return 503, {"ok": False, "error": "sellers_not_configured",
+                         "say": "seller reports by subscription are not switched on on this host yet; the same report "
+                                "is sold per call over x402"}
+        if door != SELLERS and not self.enabled:      # both ids, or a key for another product could open Pro
             return 503, {"ok": False, "error": "pro_not_configured",
                          "say": "Atlas Pro is not switched on on this host yet"}
         h = hashlib.sha256(key.encode()).hexdigest()
         now = self.clock()
         with self.lock:
-            trusted = self.good.get(h, 0) > now
+            until, benefit = self.good.get(h, (0, None))
+            trusted = until > now
             if not trusted:
                 while self.asked and self.asked[0] <= now - 60:
                     self.asked.popleft()
@@ -392,48 +420,52 @@ class Gate:
                 self.asked.append(now)
         if not trusted:
             status, body = self.validate(key, self.org_id, self.benefit_id)
-            verdict = self._verdict(status, body, now)
+            verdict = self._verdict(status, body, now, door)
             if verdict is not None:
                 return verdict
+            benefit = body.get("benefit_id")
             until = now + self.good_for
             exp = _when((body or {}).get("expires_at"))
             if exp is not None:
                 until = min(until, exp)
             with self.lock:
                 if len(self.good) > 10000:
-                    self.good = {k: v for k, v in self.good.items() if v > now}
-                self.good[h] = until
+                    self.good = {k: v for k, v in self.good.items() if v[0] > now}
+                self.good[h] = (until, benefit)
+        if benefit not in self.opens(door):             # a good key, for the other door
+            return self._refused("this license key is not for %s" % FOR[door], door)
         with self.lock:
             q = self.used.setdefault(h, collections.deque())
             while q and q[0] <= now - 3600:
                 q.popleft()
             if len(q) >= self.per_hour:
                 return 429, {"ok": False, "error": "rate_limited", "retry_after": int(q[0] + 3600 - now) + 1,
-                             "say": "%d export calls an hour per key; this key has used them" % self.per_hour}
+                             "say": "%d %s calls an hour per key; this key has used them"
+                                    % (self.per_hour, "report" if door == SELLERS else "export")}
             q.append(now)
             if len(self.used) > 10000:
                 self.used = {k: v for k, v in self.used.items() if v and v[-1] > now - 3600}
         return 200, None
 
-    def _verdict(self, status, body, now):
-        """None when Polar's answer lets the key in, else the refusal."""
+    def _verdict(self, status, body, now, door=PRO):
+        """None when Polar's answer lets the key in (for one of this host's benefits), else the refusal."""
         if status is None or (status >= 500 or status == 429):
             return 503, {"ok": False, "error": "license_check_unavailable",
                          "say": "the license service could not be reached; try again in a minute"}
         if status != 200 or not isinstance(body, dict):
-            return self._refused("this license key is not one we know")
+            return self._refused("this license key is not one we know", door)
         if body.get("organization_id") != self.org_id:
-            return self._refused("this license key is not one we know")
-        if body.get("benefit_id") != self.benefit_id:
-            return self._refused("this license key is not for Atlas Pro")
+            return self._refused("this license key is not one we know", door)
+        if body.get("benefit_id") not in self.opens(SELLERS):     # a benefit this host sells nothing for
+            return self._refused("this license key is not for %s" % FOR[door], door)
         st = body.get("status")
         if st in ("revoked", "disabled"):
-            return self._refused("this license key has been revoked")
+            return self._refused("this license key has been revoked", door)
         if st != "granted":
-            return self._refused("this license key is not one we know")
+            return self._refused("this license key is not one we know", door)
         exp = _when(body.get("expires_at"))
         if exp is not None and exp <= now:
-            return self._refused("this license key has expired")
+            return self._refused("this license key has expired", door)
         return None
 
 

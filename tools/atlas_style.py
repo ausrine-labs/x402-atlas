@@ -1,5 +1,5 @@
-# Copied from the Aušrinė lab (commit acb80fd). Edit it there, not here.
 #!/usr/bin/env python3
+# Copied from the Aušrinė lab (commit defb6e9). Edit it there, not here.
 """atlas_style.py — the one look of the Infoharmoni Atlas: stylesheet, header, footer.
 
 Every page the site build writes carries the same three things, written here once:
@@ -203,6 +203,25 @@ figure.net figcaption{padding:10px 18px;border-top:1px solid var(--rule);font-si
 .form textarea{min-height:130px;resize:vertical}
 .email{font:500 clamp(18px,2.4vw,26px)/1.3 var(--mono);user-select:all;-webkit-user-select:all;overflow-wrap:anywhere}
 .copyrow{display:flex;flex-wrap:wrap;align-items:center;gap:12px}
+/* the seller report ("Your buyers"): one printable page, and its blurred sample on /sellers/ */
+span.brand{display:inline-flex;align-items:center;gap:10px;color:var(--ink)}
+.rpt-wallet{margin-top:48px;border-top:2px solid var(--ink)}.rpt-wallet h2{margin-top:20px}
+.rpt-wallet h3{margin:32px 0 8px}.rpt-wallet h4{font:600 17px/1.3 var(--sans);margin:28px 0 6px}
+.bars{display:block;width:100%;max-width:720px;height:auto;margin:8px 0 12px;border:1px solid var(--rule);border-radius:var(--radius);background:var(--paper)}
+.bars rect{fill:var(--seller)}.bars rect.new{fill:var(--buyer)}.bars text{font:11px var(--mono);fill:var(--muted)}
+td.w{font:13px/1.45 var(--mono);overflow-wrap:anywhere;min-width:200px}
+tr.this td{background:var(--seller-soft);font-weight:600}
+ul.changes li{color:var(--ink);margin-bottom:8px}
+.sample{border:1px dashed var(--under);border-radius:14px;padding:4px clamp(14px,2.4vw,28px) 20px;margin-top:20px}
+.sample .rpt-wallet{margin-top:20px}
+iframe.rpt-frame{display:block;width:100%;height:80vh;border:1px solid var(--rule);border-radius:var(--radius);margin-top:16px;background:var(--paper)}
+iframe.rpt-frame[hidden]{display:none}
+@page{margin:14mm}
+@media print{.skip,form.hsearch,nav.main,.no-print{display:none!important}body{font-size:11.5px;overflow:visible}
+main{max-width:none;padding:0}h1{font-size:30px;margin-top:6px}h2,h3,h4{break-after:avoid}.tw{overflow:visible}
+table{font-size:10.5px}th,td{padding:4px 8px 4px 0}tr{break-inside:avoid}.tiles{grid-template-columns:repeat(3,1fr)}
+.tile{padding:8px 10px}.tile b{font-size:18px}.rpt-wallet~.rpt-wallet{break-before:page}a{text-decoration:none}
+footer.site{margin-top:24px}}
 /* footer */
 footer.site{margin-top:88px;border-top:1px solid var(--rule);background:var(--paper);color:var(--ink-2);font-size:14px}
 .fwrap{max-width:calc(var(--max) + 2*var(--gutter));margin:0 auto;padding:36px var(--gutter) 12px;display:grid;grid-template-columns:minmax(0,1fr);gap:28px 40px}

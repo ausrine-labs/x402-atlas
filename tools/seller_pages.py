@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Copied from the Aušrinė lab (commit 4d8f92b). Edit it there, not here.
+# Copied from the Aušrinė lab (commit defb6e9). Edit it there, not here.
 """seller_pages.py — a public page for every seller in the agent economy.
 
 Roughly 2,000 teams sell to agents over x402. Each of them wants to know how
@@ -25,6 +25,7 @@ import os
 import re
 import sys
 from datetime import date
+from urllib.parse import quote
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
@@ -51,6 +52,8 @@ BUY_OPERATOR = "https://buy.polar.sh/polar_cl_nabc7zipli1BLgwDkLh4tyEEPyrSE3rTIE
 # Atlas Pro, $49 a month: the Polar checkout for the product whose license key opens /pro.
 # Set it to "" and /pro.html says the subscription opens soon and shows no button (tested).
 BUY_PRO = "https://buy.polar.sh/polar_cl_lJhAOVU7EHynszEyW3pSoPuEuMkbPKORYjVqJ1d7MBP"   # Atlas Pro, $49/mo; its key opens /pro (2026-09-30)
+# Atlas for Sellers, $29 a month: the Polar checkout for "Your buyers", whose key opens the seller report.
+BUY_SELLERS = "https://buy.polar.sh/polar_cl_tKCkIdfx92wCN3i0rrY5cTCTzk3giBZADbkHk04KET8"
 
 CAVEATS = [
     "Source: the public x402 discovery registry, photographed once a day. A seller missing from "
@@ -528,6 +531,11 @@ def build(out, store=None, site=None, claims=None, whales=None, operators=None, 
         p.append('<div class="cols"><div>')
         p.append(paid_section(host, me, chain))
         p.append(relationships_section(host, me, rel, known, chain))
+        # every seller page points its owner at the buyers report; a claimed page already has its owner
+        p.append('<p class="box">%s <a href="%s/sellers/?host=%s">See who your buyers are</a>: every wallet that paid '
+                 "you, day by day, and where the ones that left went, in one report.</p>"
+                 % ("For the owner:" if claimed.get(host.lower()) else "Is this your service?", SITE,
+                    esc(quote(host.lower(), safe=""))))
         p.append(endpoints_section(me))
         p.append('<h2>The replay</h2><p class="dateline">Paid calls, rolling 30 days · %s</p>%s'
                  % (esc(" to ".join(atlas_style.long_date(d) for d in sorted({hist[0][0], hist[-1][0]}))), spark(hist)))
@@ -682,7 +690,8 @@ note.textContent='Type your service’s host first, like api.example.com: the ch
         f.write("".join(claim))
 
     pro_page(out, ctx, as_of, n)
-    site_pages.build(out, ctx, as_of, n, site=SITE, api=API, head=HEAD, foot=FOOT, issues=ISSUES, buy_pro=BUY_PRO)
+    site_pages.build(out, ctx, as_of, n, site=SITE, api=API, head=HEAD, foot=FOOT, issues=ISSUES, buy_pro=BUY_PRO,
+                     sample=sellers_sample(rel, A, as_of), buy_sellers=BUY_SELLERS)
 
     door = front_door.build(out, chain, A, loaded, ctx, as_of, SITE, HEAD, FOOT, ISSUES, API, groups_listing,
                             buyers=(chain or {}).get("buyer_pages"), map_=drew_map)
@@ -701,6 +710,21 @@ note.textContent='Type your service’s host first, like api.example.com: the ch
             f.write("<url><loc>%s/map/</loc><lastmod>%s</lastmod></url>\n" % (SITE, as_of))
         f.write("</urlset>\n")
     return {"as_of": as_of, "sellers": n, "groups": len(group_slugs), "door": door, "out": out, "map": drew_map}
+
+
+def sellers_sample(rel, A, as_of):
+    """The /sellers/ page's sample: the busiest seller's wallet in the build's own window, blurred
+    by the report's own rule (x402/seller_report.py). None without a window."""
+    if not rel or not rel.get("dates") or "ledger" not in rel:
+        return None
+    sys.path.insert(0, os.path.join(HERE, "x402"))
+    import seller_report
+    pick = seller_report.busiest(rel, A, full=True)
+    if pick is None:
+        return None
+    row = next((v for k, v in A.items() if k.lower() == pick[0]), None)
+    body = seller_report.build(rel, pick[0], row, as_of)
+    return seller_report.sample_from(body, pick[1]) if body and body["wallets"] else None
 
 
 def pro_page(out, ctx, as_of, n):
