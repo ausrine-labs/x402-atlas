@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Copied from the Aušrinė lab (commit 54e8506). Edit it there, not here.
+# Copied from the Aušrinė lab (commit 4d8f92b). Edit it there, not here.
 """seller_pages_test.py — the public pages, from a synthetic store. No network.
 
     python3 seller_pages_test.py
@@ -151,12 +151,20 @@ class Pages(unittest.TestCase):
                 self.assertIn("<code>%s</code>" % c, html)
 
     def test_the_pro_page_has_no_buy_link_while_buy_pro_is_empty(self):
-        self.assertEqual(sp.BUY_PRO, "")
-        html = self.page("pro.html")
+        out, real = tempfile.mkdtemp(), sp.BUY_PRO
+        sp.BUY_PRO = ""
+        try:
+            sp.build(out, store(), site="https://example.test/atlas", claims="/nonexistent/claims.json")
+        finally:
+            sp.BUY_PRO = real
+        html = open(os.path.join(out, "pro.html")).read()
         self.assertIn("The subscription opens soon.", html)
         self.assertNotIn("buy.polar.sh", html)
         self.assertNotIn('class="btn', html)
         self.assertNotIn("Subscribe</a>", html)
+
+    def test_the_pro_checkout_is_the_polar_link_for_atlas_pro(self):
+        self.assertTrue(sp.BUY_PRO.startswith("https://buy.polar.sh/polar_cl_"))
 
     def test_with_a_buy_link_the_pro_page_shows_the_button(self):
         out, real = tempfile.mkdtemp(), sp.BUY_PRO

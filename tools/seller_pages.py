@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Copied from the Aušrinė lab (commit 54e8506). Edit it there, not here.
+# Copied from the Aušrinė lab (commit 4d8f92b). Edit it there, not here.
 """seller_pages.py — a public page for every seller in the agent economy.
 
 Roughly 2,000 teams sell to agents over x402. Each of them wants to know how
@@ -48,9 +48,9 @@ BUY_VERIFIED = "https://buy.polar.sh/polar_cl_o4rqOAkZsoIAzNV5EqYOA5rVkkazYEDlST
 BUY_REPORT = "https://buy.polar.sh/polar_cl_dYToSjRR75cE30SY9diS4uYAbCXc4ZizzMSEt1NqNbe"
 BUY_BUYERS = "https://buy.polar.sh/polar_cl_ENl6aFmH7kBGSBRzQzM7E6FPGvP5xJKdMTgmf4eATNJ"
 BUY_OPERATOR = "https://buy.polar.sh/polar_cl_nabc7zipli1BLgwDkLh4tyEEPyrSE3rTIEzxh1BaWDG"
-# Atlas Pro, $49 a month. Empty until the Polar product exists: while it is empty,
-# /pro.html says the subscription opens soon and shows no button (tested).
-BUY_PRO = ""
+# Atlas Pro, $49 a month: the Polar checkout for the product whose license key opens /pro.
+# Set it to "" and /pro.html says the subscription opens soon and shows no button (tested).
+BUY_PRO = "https://buy.polar.sh/polar_cl_lJhAOVU7EHynszEyW3pSoPuEuMkbPKORYjVqJ1d7MBP"   # Atlas Pro, $49/mo; its key opens /pro (2026-09-30)
 
 CAVEATS = [
     "Source: the public x402 discovery registry, photographed once a day. A seller missing from "
