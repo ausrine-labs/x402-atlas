@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Copied from the Aušrinė lab (commit 54e8506). Edit it there, not here.
+# Copied from the Aušrinė lab (commit defb6e9). Edit it there, not here.
 """relationships.py — who came back, what is bought alongside, who left for whom:
 relationship facts read from the x402 payments we observe on Base.
 
@@ -27,6 +27,11 @@ Bought alongside and switches leave out busy wallets, the ones that paid more th
 sellers in the window, and say how many: a wallet that pays everyone says nothing about
 what goes together or who moved. A seller paid on fewer than 2 days keeps its facts with
 a note that came-back facts need more days.
+
+The window also keeps the ledger the facts were counted from, read-only, for the seller
+report (x402/seller_report.py): ledger["paid"][seller][buyer][date] = [payments, usdc],
+ledger["bought"][buyer] = the sellers it paid, ledger["busy"] = the busy wallets, all plain
+JSON. So a report is read from the same window, computed once, as the facts beside it.
 
 A wallet is not an agent, and nothing here says who holds or runs one. Deterministic,
 no model calls, standard library only.
@@ -126,6 +131,7 @@ def window(folder):
     dates = [d for d, _ in days]
     wallet_hosts = collections.defaultdict(set)
     pair = {}                                               # (buyer, seller) -> [days, payments, usdc]
+    paid = {}                                               # seller -> buyer -> date -> [payments, usdc]
     daily = collections.defaultdict(lambda: collections.defaultdict(set))   # seller -> date -> buyers
     skipped = 0
     for day, d in days:
@@ -154,6 +160,12 @@ def window(folder):
             p[1] += n
             p[2] += usdc
             daily[s][day].add(b)
+            per = paid.setdefault(s, {}).setdefault(b, {})
+            if day in per:
+                per[day][0] += n
+                per[day][1] += usdc
+            else:
+                per[day] = [n, usdc]
     if skipped:
         problems.append("%d edges were not in the shape chain_flows writes and were left out" % skipped)
 
@@ -249,7 +261,9 @@ def window(folder):
                        "pairs_3_or_more_days": sum(1 for p in pair.values() if len(p[0]) >= 3),
                        "switched_buyers": switched},
             "sellers": sellers, "hosts": {k: sorted(v) for k, v in hosts.items()},
-            "wallet_hosts": named}
+            "wallet_hosts": named,
+            "ledger": {"paid": paid, "bought": {b: sorted(ss) for b, ss in sellers_of.items()},
+                       "busy": sorted(busy)}}
 
 
 def for_host(win, host):
