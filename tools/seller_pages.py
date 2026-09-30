@@ -1,15 +1,17 @@
 #!/usr/bin/env python3
-# Copied from the Aušrinė lab (commit a0d9190). Edit it there, not here.
+# Copied from the Aušrinė lab (commit 54e8506). Edit it there, not here.
 """seller_pages.py — a public page for every seller in the agent economy.
 
 Roughly 2,000 teams sell to agents over x402. Each of them wants to know how
 it is doing, and none of them has a day-by-day record. We do. This writes one
-static page per seller — rank, paid calls, payers, price, rivals, and the
-replay — plus a searchable index, from the radar's own snapshots.
+static page per seller — rank, paid calls, payers, price, rivals, the replay,
+and, given the on-chain window (--flows-dir), its relationships with its buyers —
+plus a searchable index, from the radar's own snapshots.
 
 Why static HTML: a seller searching for its own name should find its page.
 
     seller_pages.py --out /path/to/site        # writes site/s/..., site/claim.html
+    seller_pages.py --out site --whales flows/whales-<date>.json --flows-dir flows
 
 Every word that comes from the registry was written by a stranger. It is
 escaped on the way out, always (see esc()). Numbers carry their caveats.
@@ -34,6 +36,7 @@ import front_door  # noqa: E402
 import map_page  # noqa: E402
 import atlas_style  # noqa: E402
 import site_pages  # noqa: E402
+import relationships  # noqa: E402
 
 SITE = "https://ausrine-labs.github.io/x402-atlas"
 API = "https://ausrine-who.onrender.com"
@@ -107,6 +110,8 @@ def slug(host):
 
 
 def money(x):
+    if 0 < x < 0.01:                  # a sub-cent total is not $0.00
+        return "$%s" % ("{:.6f}".format(x).rstrip("0"))
     return "$%s" % ("{:,.0f}".format(x) if x >= 100 else "{:,.2f}".format(x))
 
 
@@ -255,6 +260,143 @@ def paid_section(host, me, chain):
     return "".join(p)
 
 
+REL_NOTE = ("Relationships are patterns in the x402 payments we observe on Base over the window: a buyer is a wallet "
+            "that paid this seller’s payTo wallet, and came back means it paid on two or more different days. A wallet "
+            "is not an agent, and a relationship is a pattern of payments, not a claim about who anyone is or who runs "
+            "a wallet. Bought alongside and the switches leave out wallets that paid more than %d sellers in the window: "
+            "a wallet that pays everyone says nothing about what goes together." % relationships.BUSY)
+
+
+def _n(x):
+    return "{:,}".format(x)
+
+
+def _s(n, word, plural=None):
+    return "%s %s" % (_n(n), word if n == 1 else (plural or word + "s"))
+
+
+def wallet_link(w, chain):
+    """A buyer wallet: to its buyer page when one was written, else to the explorer."""
+    short = w[:6] + "…" + w[-4:]
+    if buyer_pages.slug(w) in ((chain or {}).get("buyer_pages") or {}):
+        return '<a href="%s"><code>%s</code></a>' % (esc(buyer_pages.link(w, SITE)), esc(short))
+    return '<a rel="nofollow noopener" href="https://basescan.org/address/%s"><code>%s</code></a>' % (esc(w), esc(short))
+
+
+def seller_link(wallet, rel, known, here):
+    """Another seller, linked to the page of one of its wallet's hosts: the most particular (a host
+    listed on many wallets names none of them well), then the busiest, and not this page's own host
+    when there is another. Plain text when none of its hosts has a page here."""
+    hs = rel["wallet_hosts"].get(wallet) or []
+    paged = [h for h in hs if h in known and h != here] or [h for h in hs if h in known]
+    if paged:
+        h = min(paged, key=lambda x: (len(rel["hosts"].get(x, ())), -known[x], x))
+        out = '<a href="%s/s/%s/">%s</a>' % (SITE, esc(slug(h)), esc(h))
+    else:
+        out = esc(hs[0] if hs else wallet[:6] + "…" + wallet[-4:])
+    if len(hs) > 1:
+        out += " and %s on its wallet" % _s(len(hs) - 1, "more host")
+    return out
+
+
+def _days(ds):
+    ds = [atlas_style.short_date(d) for d in ds]
+    return ds[0] if len(ds) == 1 else "%s – %s" % (ds[0], ds[-1]) if ds else "—"
+
+
+def wallet_facts(f, rel, known, chain, it, here):
+    """One payTo wallet's relationship facts as plain sentences, the numbers behind each shown."""
+    b, cb = f["buyers"], f["came_back"]
+    p = ["<p><b>%s</b> paid %s over x402 on %d of the window’s %s: %s, %s.</p>"
+         % (_s(b["count"], "buyer"), it, f["days"]["paid"], _s(f["days"]["window"], "day"),
+            _s(b["payments"], "payment"), money(b["usdc"]))]
+    for note in f["notes"]:
+        p.append('<p class="muted">%s.</p>' % esc(note[:1].upper() + note[1:]))
+    p.append("<p><b>%s of %s came back</b> on another day (%.0f%%).</p>"
+             % (_n(cb["buyers"]), _s(cb["of"], "buyer"), cb["rate_pct"]))
+    if f["loyal"]:
+        p.append('<p class="muted">The buyers that paid on the most days, then the most times:</p><ul class="cav">%s</ul>'
+                 % "".join("<li>%s paid on %s (%s)</li>" % (wallet_link(x["wallet"], chain), _s(x["days"], "day"),
+                                                             _s(x["payments"], "payment")) for x in f["loyal"]))
+    along, busy = f["bought_alongside"]["sellers"], f["bought_alongside"]["busy_buyers_left_out"]
+    if along:
+        p.append('<ul class="cav">%s</ul>' % "".join(
+            "<li>Bought alongside: %s (%s, %.0f%% of %s’s buyers)</li>"
+            % (seller_link(x["wallet"], rel, known, here), _s(x["shared_buyers"], "shared buyer"), x["share_pct"], it) for x in along))
+    else:
+        p.append('<p class="muted">Bought alongside: no other seller shares a buyer with %s in the window%s.</p>'
+                 % (it, ", busy wallets left out" if busy else ""))
+    sw = f["switches"]
+    if sw["left_for"] or sw["came_from"]:
+        p.append('<ul class="cav">%s%s</ul>' % (
+            "".join("<li>%s left for %s</li>" % (_s(x["buyers"], "buyer"), seller_link(x["wallet"], rel, known, here)) for x in sw["left_for"]),
+            "".join("<li>%s came from %s</li>" % (_s(x["buyers"], "buyer"), seller_link(x["wallet"], rel, known, here)) for x in sw["came_from"])))
+    if rel["halves"]["first"] and f["days"]["paid"] >= 2:
+        p.append('<p class="muted">Left for: buyers who paid %s only on %s and started paying the other only on %s. '
+                 "Came from: the reverse.%s%s</p>"
+                 % (it, esc(_days(rel["halves"]["first"])), esc(_days(rel["halves"]["second"])),
+                    "" if sw["left_for"] or sw["came_from"] else " No buyer did either in this window.",
+                    (" %s of its buyers paid more than %d sellers and %s left out of bought alongside and the switches."
+                     % (_n(busy), relationships.BUSY, "is" if busy == 1 else "are")) if busy else ""))
+    e = f["early_buyers"]
+    if e:
+        p.append("<p><b>Early buyers:</b> %s paid it on %s, before its daily buyers went from %s on the first day of the "
+                 "window to %s on the last.</p>"
+                 % (_s(e["wallets"], "wallet"), esc(" and ".join(atlas_style.short_date(d) for d in e["days"])),
+                    _n(e["first_day_buyers"]), _n(e["last_day_buyers"])))
+    return "".join(p)
+
+
+def relationships_section(host, me, rel, known, chain):
+    """'Relationships': who came back, what was bought alongside, who left for whom, the early
+    buyers. Read from the flows window, per payTo wallet; every number shown."""
+    p = ["<h2>Relationships</h2>"]
+    if rel is None:
+        p.append('<p class="muted">The on-chain window was not loaded for this build, so the relationships between this '
+                 "seller and its buyers are not shown.</p>")
+        return "".join(p)
+    if not rel["dates"]:
+        p.append('<p class="muted">The on-chain window was loaded but held no day that could be read, so the relationships '
+                 "between this seller and its buyers are not shown.</p>")
+        return "".join(p)
+    p.append('<p class="dateline">x402 payments on Base · %s · %s</p>'
+             % (esc(atlas_style.chain_day({"dates": rel["dates"]})), _s(len(rel["dates"]), "day")))
+    if rel.get("problems"):
+        p.append('<p class="muted">Part of the window could not be read, so these facts may be short: %s.</p>'
+                 % esc("; ".join(str(x) for x in rel["problems"][:3])))
+    view = relationships.for_host(rel, host)
+    if view is None:
+        if "Base" not in me["chains"]:
+            p.append('<p class="muted">This seller takes payment on %s. The window reads Base only, so it has no '
+                     "relationships to show here yet.</p>" % esc(", ".join(me["chains"]) or "another chain"))
+        else:
+            p.append('<p class="muted">This seller’s wallet is not in the window’s sellers map, so no payment to it was read.</p>')
+        return "".join(p)
+    if not view["wallets"]:
+        p.append('<p class="muted">No x402 payment reached this seller’s wallet%s on Base in the window, so it has no '
+                 "buyers to read relationships from.</p>" % ("s" if len(view["unpaid_wallets"]) != 1 else ""))
+        p.append('<p class="muted">%s</p>' % esc(REL_NOTE))
+        return "".join(p)
+    ws = view["wallets"]
+    if len(ws) > 1:
+        p.append('<p class="muted">This host is paid into %s that were paid in the window. Each wallet is read on its own, '
+                 "across every host paid into it%s.</p>"
+                 % (_s(len(ws), "wallet"), "; the three with the most buyers are shown here, and the paid answer carries all %d"
+                    % len(ws) if len(ws) > 3 else ""))
+    for f in ws[:3]:
+        shared = f["hosts_total"] > 1
+        if len(ws) > 1:
+            p.append('<h3 style="margin-top:22px">Wallet <code>%s</code></h3>' % esc(f["wallet"][:6] + "…" + f["wallet"][-4:]))
+        if shared:
+            others = [h for h in rel["wallet_hosts"].get(f["wallet"], []) if h != host.lower()]
+            p.append('<p class="muted">This wallet also takes payment for %s%s; the facts below are the wallet’s, across %s.</p>'
+                     % (", ".join(esc(h) for h in others[:6]), " and %d more" % (len(others) - 6) if len(others) > 6 else "",
+                        "both hosts" if f["hosts_total"] == 2 else "all %d hosts" % f["hosts_total"]))
+        p.append(wallet_facts(f, rel, known, chain, "this wallet" if shared or len(ws) > 1 else "this seller", host.lower()))
+    p.append('<p class="muted">%s</p>' % esc(REL_NOTE))
+    return "".join(p)
+
+
 def endpoints_section(me):
     """What is actually bought, at what price: the seller's busiest endpoints, from the
     registry's own per-endpoint counts. Absent for snapshots made before this was kept."""
@@ -274,13 +416,14 @@ def endpoints_section(me):
     return "".join(p)
 
 
-def build(out, store=None, site=None, claims=None, whales=None, operators=None, flows=None):
+def build(out, store=None, site=None, claims=None, whales=None, operators=None, flows=None, flows_dir=None):
     global SITE
     if site:
         SITE = site.rstrip("/")      # a local address, for looking at the pages before they are public
     if store:
         radar.STORE = store
     chain = load_chain(whales)
+    rel = relationships.window(flows_dir) if flows_dir else None     # the flows window, read once for every page
     claimed_ops = operator_pages.load_operators(operators if operators is not None else os.path.join(HERE, "operators.json"))
     snaps = radar.snapshots()
     if not snaps:
@@ -297,6 +440,7 @@ def build(out, store=None, site=None, claims=None, whales=None, operators=None, 
     total = sum(s["calls"] for s in A.values()) or 1
     words = {h: set(re.findall(r"[a-z]{4,}", s["sells"].lower())) - STOP for h, s in A.items()}
     rivals_of = rival_scores(words)
+    known = {h.lower(): s["calls"] for h, s in A.items()}               # hosts with a page here, for the relationships' links
 
     claimed = load_claims(claims if claims is not None else os.path.join(HERE, "claims.json"))
     sdir = os.path.join(out, "s")
@@ -383,6 +527,7 @@ def build(out, store=None, site=None, claims=None, whales=None, operators=None, 
                     money(me["take"]), rank_t[host], chg))
         p.append('<div class="cols"><div>')
         p.append(paid_section(host, me, chain))
+        p.append(relationships_section(host, me, rel, known, chain))
         p.append(endpoints_section(me))
         p.append('<h2>The replay</h2><p class="dateline">Paid calls, rolling 30 days · %s</p>%s'
                  % (esc(" to ".join(atlas_style.long_date(d) for d in sorted({hist[0][0], hist[-1][0]}))), spark(hist)))
@@ -420,8 +565,8 @@ def build(out, store=None, site=None, claims=None, whales=None, operators=None, 
                          "<b>claimed operator</b>." % group["hosts"]) if group else "",
                         SITE, esc(host)))
         p.append('<div class="box"><p class="eyebrow" style="margin:0">For AI agents</p><h3 style="margin-top:6px">This page, as an '
-                 'answer your agent can pay for</h3><p class="muted">The same report card as JSON — rivals, the full replay, and who '
-                 "actually paid this seller — over x402 on Base: <code>GET %s/who/%s</code>, a cent a call, paid in USDC "
+                 'answer your agent can pay for</h3><p class="muted">The same report card as JSON — rivals, the full replay, who '
+                 "actually paid this seller, and its relationships — over x402 on Base: <code>GET %s/who/%s</code>, a cent a call, paid in USDC "
                  "by the agent itself. A refusal is never charged.</p>"
                  '<pre class="code"><span class="c">$</span> curl %s/who/%s\n<span class="p">402</span> Payment Required '
                  '<span class="c">→ the agent pays $0.01 in USDC on Base</span>\n<span class="k">200</span> '
@@ -649,8 +794,10 @@ def main():
     ap.add_argument("--whales", default=None, help="the day's whales.py rollup, for 'Who actually paid' and the operator pages")
     ap.add_argument("--operators", default=None, help="operators.json (default: beside this file, if it exists)")
     ap.add_argument("--flows", default=None, help="the day's flows-<date>.json, for the map (default: beside the rollup)")
+    ap.add_argument("--flows-dir", default=None, help="the on-chain window, a folder of flows-<date>.json "
+                    "(flows_handoff.py fetch keeps one), for each seller's Relationships")
     a = ap.parse_args()
-    r = build(a.out, a.store, a.site, a.claims, a.whales, a.operators, a.flows)
+    r = build(a.out, a.store, a.site, a.claims, a.whales, a.operators, a.flows, a.flows_dir)
     print("wrote %d seller pages and %d operator pages, as of %s, into %s" % (r["sellers"], r["groups"], r["as_of"], r["out"]))
 
 

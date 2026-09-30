@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Copied from the Aušrinė lab (commit 116e747). Edit it there, not here.
+# Copied from the Aušrinė lab (commit 54e8506). Edit it there, not here.
 """seller_pages_test.py — the public pages, from a synthetic store. No network.
 
     python3 seller_pages_test.py
@@ -139,7 +139,8 @@ class Pages(unittest.TestCase):
 
     def test_the_pro_page_exists_and_names_what_it_sells(self):
         html = self.page("pro.html")
-        self.assertIn("<h1>Atlas Pro</h1>", html)
+        self.assertIn('<p class="eyebrow">Atlas Pro</p>', html)
+        self.assertIn("<h1>The whole record, as data, every morning.</h1>", html)
         self.assertIn("$49", html)
         self.assertIn("a month", html)
         self.assertIn('curl -H "X-Atlas-Key: YOUR-KEY" https://ausrine-who.onrender.com/pro/export/sellers.csv', html)
@@ -173,10 +174,10 @@ class Pages(unittest.TestCase):
         self.assertEqual(re.findall(r"(?i)verif", self.page("pro.html")), [])
 
     def test_pro_is_in_the_nav_and_the_rooms(self):
-        link = '<a href="https://example.test/atlas/pro.html">'
-        self.assertIn(link + "Pro</a>", self.page("s", "evil.example", "index.html"))
-        self.assertIn(link + "Atlas Pro</a>", self.page("index.html"))
-        self.assertIn(link + "Pro</a>", self.page("pro.html"))
+        nav = '<a class="pro" href="https://example.test/atlas/pro.html">Pro</a>'
+        self.assertIn(nav, self.page("s", "evil.example", "index.html"))
+        self.assertIn('<a href="https://example.test/atlas/pro.html">Atlas Pro</a>', self.page("index.html"))
+        self.assertIn(nav, self.page("pro.html"))
 
     def test_the_tell_us_link_opens_the_correction_form_with_the_page_named(self):
         self.assertIn('issues/new?template=correct.yml&amp;title=Correction:+evil.example', self.page("s", "evil.example", "index.html"))
@@ -325,18 +326,149 @@ class WhoActuallyPaid(unittest.TestCase):
         self.assertNotIn("<h2>Who actually paid</h2>", open(os.path.join(out, "s", "rng.example", "index.html")).read())
 
 
+def wallet(tag):
+    return "0x" + (tag.encode().hex() + "0" * 40)[:40]
+
+
+PLAIN, RIVAL, SHARED, NOPAGE = wallet("plain"), wallet("rival"), wallet("shared"), wallet("nopage")
+FLOW_SELLERS = {PLAIN: ["plain.example"], RIVAL: ["rival.example:8443"], SHARED: ["evil.example", "filler1.example"],
+                NOPAGE: ["<b>nopage</b>.example"]}
+
+
+def flows_window(days=4):
+    """A window of `days` flows files for store()'s sellers. plain.example: 12 buyers, 3 of them on
+    two days; 3 of them also buy from rival; two leave it for the shared wallet, one comes from it;
+    its last day has 10 buyers, 3 times its first."""
+    d = tempfile.mkdtemp()
+    ds = ["2026-01-0%d" % i for i in range(1, days + 1)]
+    pays = {x: [] for x in ds}
+    first = [wallet("p%d" % i) for i in range(3)]
+    for b in first:                                          # day one: 3 buyers
+        pays[ds[0]].append((b, PLAIN))
+    if days >= 4:
+        pays[ds[1]].append((wallet("p0"), PLAIN))            # p0 comes back on day two
+        pays[ds[2]].append((wallet("p1"), SHARED))           # p1, p2 leave for the shared wallet
+        pays[ds[3]].append((wallet("p2"), SHARED))
+        pays[ds[0]].append((wallet("s0"), SHARED))           # s0 comes to plain from it
+        pays[ds[3]].append((wallet("s0"), PLAIN))
+        for i in range(9):                                   # the last day: 10 buyers, two of them back again
+            pays[ds[3]].append((wallet("q%d" % i) if i > 1 else wallet("p%d" % (i + 3)), PLAIN))
+        pays[ds[1]] += [(wallet("p3"), PLAIN), (wallet("p4"), PLAIN)]
+        for b in (wallet("q2"), wallet("q3"), wallet("q4")):  # three of plain's buyers also paid rival
+            pays[ds[3]].append((b, RIVAL))
+        pays[ds[3]].append((wallet("q5"), NOPAGE))
+    for x in ds:
+        edges = [{"from": b, "to": s, "n": 1, "usdc": 0.01, "n_x402": 1, "usdc_x402": 0.01} for b, s in pays[x]]
+        json.dump({"date": x, "day": x, "hours": 24.0, "edges": edges, "sellers": FLOW_SELLERS},
+                  open(os.path.join(d, "flows-%s.json" % x), "w"))
+    return d
+
+
+class Relationships(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.out = tempfile.mkdtemp()
+        sp.build(cls.out, store(), site="https://example.test/atlas", claims="/nonexistent/claims.json",
+                 flows_dir=flows_window())
+
+    def page(self, host):
+        return open(os.path.join(self.out, "s", sp.slug(host), "index.html")).read()
+
+    def section(self, host):
+        html = self.page(host)
+        i = html.index("<h2>Relationships</h2>")
+        return html[i:html.index("<h2>", i + 5)]
+
+    def test_the_facts_are_plain_sentences_with_their_numbers(self):
+        s = self.section("plain.example")
+        self.assertIn("x402 payments on Base · 1 January 2026 – 4 January 2026 · 4 days", s)
+        self.assertIn("<b>13 buyers</b> paid this seller over x402 on 3 of the window’s 4 days: 16 payments, $0.16.", s)
+        self.assertIn("<b>3 of 13 buyers came back</b> on another day (23%).", s)
+        self.assertIn("paid on 2 days (2 payments)", s)
+        self.assertIn('Bought alongside: <a href="https://example.test/atlas/s/rival.example-8443/">rival.example:8443</a> '
+                      "(3 shared buyers, 23% of this seller’s buyers)", s)
+        self.assertIn('2 buyers left for <a href="https://example.test/atlas/s/evil.example/">evil.example</a> and 1 more host on its wallet', s)
+        self.assertIn('1 buyer came from <a href="https://example.test/atlas/s/evil.example/">evil.example</a>', s)
+        self.assertIn("only on 1 Jan 2026 – 2 Jan 2026 and started paying the other only on 3 Jan 2026 – 4 Jan 2026", s)
+        self.assertIn("<b>Early buyers:</b> 5 wallets paid it on 1 Jan 2026 and 2 Jan 2026, before its daily buyers went "
+                      "from 3 on the first day of the window to 10 on the last.", s)
+        self.assertIn("a relationship is a pattern of payments, not a claim about who anyone is", s)
+
+    def test_buyer_wallets_link_to_the_explorer_when_they_have_no_page(self):
+        self.assertIn('href="https://basescan.org/address/%s"><code>0x7030…0000</code>' % wallet("p0"), self.section("plain.example"))
+
+    def test_a_wallet_shared_by_several_hosts_says_whose_facts_these_are(self):
+        s = self.section("evil.example")
+        self.assertIn("This wallet also takes payment for filler1.example; the facts below are the wallet’s, across both hosts.", s)
+        self.assertIn("paid this wallet over x402", s)
+        self.assertEqual(s, self.section("filler1.example").replace("filler1.example", "evil.example")
+                         .replace("for evil.example;", "for filler1.example;"))
+
+    def test_a_host_with_no_page_is_named_not_linked_and_escaped(self):
+        html = self.page("filler2.example")
+        self.assertIn("not in the window’s sellers map", html)
+        plain = self.section("plain.example")
+        self.assertIn("<li>Bought alongside: &lt;b&gt;nopage&lt;/b&gt;.example (1 shared buyer, 8% of this seller’s buyers)</li>", plain)
+        self.assertNotIn("<b>nopage</b>", plain)
+        self.assertNotIn("/s/-b-nopage", plain)
+
+    def test_a_seller_nobody_paid_and_a_seller_on_one_day(self):
+        s = self.section("rival.example:8443")
+        self.assertIn("Paid on 1 day of the window: came-back facts need 2 or more days.", s)
+        self.assertNotIn("Left for: buyers who", s)
+
+    def test_never_the_forbidden_word_nor_a_score(self):
+        import re
+        for h in ("plain.example", "evil.example", "rival.example:8443"):
+            s = self.section(h)
+            self.assertEqual(re.findall(r"(?i)verif|score|rank", s), [], h)
+
+    def test_without_the_window_the_section_says_it_was_not_loaded(self):
+        out = tempfile.mkdtemp()
+        sp.build(out, store(), site="https://example.test/atlas", claims="/nonexistent/claims.json")
+        html = open(os.path.join(out, "s", "plain.example", "index.html")).read()
+        self.assertIn("<h2>Relationships</h2><p class=\"muted\">The on-chain window was not loaded for this build", html)
+        self.assertNotIn("came back", html)
+
+    def test_an_empty_window_folder_says_no_day_could_be_read(self):
+        out = tempfile.mkdtemp()
+        sp.build(out, store(), site="https://example.test/atlas", claims="/nonexistent/claims.json", flows_dir=tempfile.mkdtemp())
+        self.assertIn("held no day that could be read", open(os.path.join(out, "s", "plain.example", "index.html")).read())
+
+    def test_a_one_day_window(self):
+        out = tempfile.mkdtemp()
+        sp.build(out, store(), site="https://example.test/atlas", claims="/nonexistent/claims.json", flows_dir=flows_window(1))
+        html = open(os.path.join(out, "s", "plain.example", "index.html")).read()
+        self.assertIn("<b>3 buyers</b> paid this seller over x402 on 1 of the window’s 1 day", html)
+        self.assertIn("came-back facts need 2 or more days", html)
+        self.assertNotIn("Early buyers", html)
+
+
+class Money(unittest.TestCase):
+    def test_a_sub_cent_total_is_not_zero(self):
+        self.assertEqual(sp.money(0.001), "$0.001")
+        self.assertEqual(sp.money(0.0), "$0.00")
+        self.assertEqual(sp.money(1.5), "$1.50")
+
+
 class Cli(unittest.TestCase):
-    def test_flows_argument_reaches_build(self):
+    def run_main(self, *args):
         seen = []
         real, argv = sp.build, sys.argv
         sp.build = lambda *a: seen.append(a) or {"sellers": 0, "groups": 0, "as_of": "", "out": ""}
-        sys.argv = ["seller_pages.py", "--out", "o", "--whales", "store/whales-2026-01-02.json",
-                    "--flows", "store/flows-2026-01-02.json"]
+        sys.argv = ["seller_pages.py", "--out", "o"] + list(args)
         try:
             sp.main()
         finally:
             sp.build, sys.argv = real, argv
-        self.assertEqual(seen[0][4:], ("store/whales-2026-01-02.json", None, "store/flows-2026-01-02.json"))
+        return seen[0]
+
+    def test_flows_argument_reaches_build(self):
+        a = self.run_main("--whales", "store/whales-2026-01-02.json", "--flows", "store/flows-2026-01-02.json")
+        self.assertEqual(a[4:], ("store/whales-2026-01-02.json", None, "store/flows-2026-01-02.json", None))
+
+    def test_flows_dir_argument_reaches_build(self):
+        self.assertEqual(self.run_main("--flows-dir", "flows")[7], "flows")
 
 
 if __name__ == "__main__":
