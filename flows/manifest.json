@@ -43,6 +43,13 @@
    "sha256": "658b552e12afad16a4335b5c9c18186ea510b4867abf11bd14ccd5a870f4dec1"
   },
   {
+   "bytes": 119888,
+   "date": "2026-10-01",
+   "kind": "flows",
+   "name": "flows-2026-10-01.json.gz",
+   "sha256": "d15a8aef1b337c94640e17fd73827fddfb512f5ce84722b67baa5ac05be07e5a"
+  },
+  {
    "bytes": 161145,
    "date": "2026-09-26",
    "kind": "whales",
@@ -83,9 +90,16 @@
    "kind": "whales",
    "name": "whales-2026-10-01.json.gz",
    "sha256": "5ebdfd2d1e31e37fe63366580cd84c876bf75ab30c202a39c9cc55e97345ddf6"
+  },
+  {
+   "bytes": 189326,
+   "date": "2026-10-02",
+   "kind": "whales",
+   "name": "whales-2026-10-02.json.gz",
+   "sha256": "ac15582ce50ca442868aa3e5d03ea58084086b977ce7371fe1b281e1771be273"
   }
  ],
  "keep": 8,
- "published_at": "2026-10-01T14:42:18+00:00",
+ "published_at": "2026-10-02T14:05:54+00:00",
  "skipped": []
 }
