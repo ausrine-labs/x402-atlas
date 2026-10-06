@@ -62,19 +62,28 @@ if [ -f "flows/flows-$YESTERDAY.json" ]; then
     > "flows/whales-$DAY.txt" || echo "::warning::the whale rollup failed"
 fi
 
+# the rollup the pages are built from: today's, or when today's pull failed, the newest one in
+# the window (each page prints the day its rollup covers). Until 2026-10-06 a failed pull left
+# the site with no buyer, group or leaders pages at all (10-05 and 10-06, a 413 from the RPC).
+WHALES="flows/whales-$DAY.json"
+if [ ! -f "$WHALES" ]; then
+  WHALES=$(ls flows/whales-*.json 2>/dev/null | sort | tail -1)
+  [ -n "$WHALES" ] && echo "::warning::no rollup for $DAY; the pages use the newest in the window, $WHALES"
+fi
+
 # 5. the site
 for p in data LICENSE README.md robots.txt *.txt; do [ -e "$p" ] && cp -R "$p" _site/; done
 mkdir -p _site/map && cp index.html _site/map/index.html      # the 3D map moves to /map/; seller_pages.py writes the front door at /
 python3 tools/snapshot_handoff.py publish --store store --out _site/radar
-if [ -f "flows/whales-$DAY.json" ]; then
-  python3 tools/seller_pages.py --out _site --store store --whales "flows/whales-$DAY.json" --flows-dir flows
+if [ -n "$WHALES" ] && [ -f "$WHALES" ]; then
+  python3 tools/seller_pages.py --out _site --store store --whales "$WHALES" --flows-dir flows
 else
   python3 tools/seller_pages.py --out _site --store store --flows-dir flows
 fi
 # the pages that cover the whole market: live feed, where sellers are hosted, leaders, prices.
 # Best effort: a failure here leaves the rest of the site as built.
-if [ -f "flows/whales-$DAY.json" ]; then
-  python3 tools/coverage_build.py --whales "flows/whales-$DAY.json" --store store --flows flows/flows-*.json \
+if [ -n "$WHALES" ] && [ -f "$WHALES" ]; then
+  python3 tools/coverage_build.py --whales "$WHALES" --store store --flows flows/flows-*.json \
     --dbip-cache .dbip --site https://atlas.infoharmoni.com --out _site || echo "::warning::the coverage pages failed"
 fi
 mkdir -p _site/watch && python3 tools/spend_watch.py page --out _site/watch --seller https://ausrine-who.onrender.com || echo "::warning::the watch page failed"
