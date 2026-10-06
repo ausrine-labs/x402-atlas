@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Copied from the Aušrinė lab (commit 3b1fa65). Edit it there, not here.
+# Copied from the Aušrinė lab (commit 76ce7a3). Edit it there, not here.
 """chain_flows.py — who paid whom: x402 payments read straight off Base.
 
 The registry says how many calls a seller got. The chain says who paid.
@@ -30,6 +30,7 @@ import collections
 import json
 import sys
 import time
+import urllib.error
 import urllib.parse
 import urllib.request
 from datetime import date
@@ -42,6 +43,14 @@ CHUNK_BLOCKS = 2000          # ~1.1 h of Base
 CHUNK_WALLETS = 60
 
 
+class TooBig(Exception):
+    """The RPC refused the request for its size: asking again unchanged cannot help, asking
+    for less can. Raised at once, never retried."""
+
+
+SIZE_WORDS = ("too large", "too big", "response size", "query returned more than", "block range")
+
+
 def rpc(method, params, tries=4):
     body = json.dumps({"jsonrpc": "2.0", "id": 1, "method": method, "params": params}).encode()
     for i in range(tries):
@@ -49,9 +58,20 @@ def rpc(method, params, tries=4):
             req = urllib.request.Request(RPC, data=body, headers={"Content-Type": "application/json", "User-Agent": "ausrine-infoharmoni/1.0"})
             d = json.load(urllib.request.urlopen(req, timeout=90))
             if "error" in d:
-                raise RuntimeError(d["error"].get("message", "rpc error"))
+                msg = d["error"].get("message", "rpc error")
+                if any(w in msg.lower() for w in SIZE_WORDS):
+                    raise TooBig(msg)
+                raise RuntimeError(msg)
             return d["result"]
-        except Exception as e:
+        except urllib.error.HTTPError as e:
+            if e.code == 413:
+                raise TooBig("HTTP 413 Payload Too Large")
+            if i == tries - 1:
+                raise
+            time.sleep(2 * (i + 1))
+        except TooBig:
+            raise
+        except Exception:
             if i == tries - 1:
                 raise
             time.sleep(2 * (i + 1))
@@ -103,6 +123,29 @@ def authorized_txs(since, head, get_logs=None):
         txs.update(l["transactionHash"] for l in logs)
         b = e + 1
     return txs
+
+
+def transfer_logs(group, b, e, get_logs=None, min_blocks=125):
+    """Every USDC Transfer to the wallets in `group` over blocks [b, e]. The public RPC refuses
+    a payload that grows too big (413) as the market grows; then the block span halves, and
+    once it is small the wallet group splits, until each request fits. Logs are the same
+    whatever the split: each request covers a disjoint part of the same question."""
+    get_logs = get_logs or (lambda b, e, group: rpc("eth_getLogs", [{"fromBlock": hex(b), "toBlock": hex(e), "address": USDC,
+                                                                    "topics": [TRANSFER, None, [topic_addr(w) for w in group]]}]))
+    try:
+        return get_logs(b, e, group), 1
+    except TooBig:                    # only a size refusal is answered by asking for less
+        if e - b + 1 > min_blocks:
+            mid = (b + e) // 2
+            left, n1 = transfer_logs(group, b, mid, get_logs, min_blocks)
+            right, n2 = transfer_logs(group, mid + 1, e, get_logs, min_blocks)
+            return left + right, n1 + n2 + 1
+        if len(group) > 1:
+            half = len(group) // 2
+            left, n1 = transfer_logs(group[:half], b, e, get_logs, min_blocks)
+            right, n2 = transfer_logs(group[half:], b, e, get_logs, min_blocks)
+            return left + right, n1 + n2 + 1
+        raise
 
 
 def block_ts(n):
@@ -192,12 +235,11 @@ def main():
     n_calls = 0
     for wi in range(0, len(wallets), CHUNK_WALLETS):
         group = wallets[wi:wi + CHUNK_WALLETS]
-        topics = [TRANSFER, None, [topic_addr(w) for w in group]]
         b = since
         while b < until:
             e = min(b + CHUNK_BLOCKS, until)
-            logs = rpc("eth_getLogs", [{"fromBlock": hex(b), "toBlock": hex(e), "address": USDC, "topics": topics}])
-            n_calls += 1
+            logs, calls = transfer_logs(group, b, e)
+            n_calls += calls
             tally(logs, authorized, seen_tx, edges, usdc, n_x402, usdc_x402)
             b = e + 1
         print("  wallets %d-%d done · %d payments so far · %d rpc calls" % (wi, wi + len(group), sum(edges.values()), n_calls), file=sys.stderr)
