@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Copied from the Aušrinė lab (commit a0d9190). Edit it there, not here.
+# Copied from the Aušrinė lab (commit f04f064). Edit it there, not here.
 """operator_pages.py — a page for every wallet group: the hosts paid into one wallet.
 
 The registry counts hosts; the chain shows which of them are paid into the same
@@ -13,6 +13,13 @@ appears without the sentence that says what it does not mean (tested).
 Usually a group is one operator; sometimes it is a platform collecting for
 several. The page says so and never says more than the wallet shows.
 Stranger text is escaped on the way out. Standard library only.
+
+In the free tier (tiers.py, since 2026-10-05) the list shows the top TOP groups and
+says how many more are in the full record; a page is built for those TOP, without
+the names of the wallets that paid them, and every other group keeps one small page
+at the same address saying it is in the record and where to get it. The tier arrives
+as an argument, the tiers module itself, so this file imports none: the paid seller's
+deploy bundle carries operator_pages without it.
 """
 
 import collections
@@ -31,6 +38,9 @@ MARK = "Claimed by operator"
 DISCLAIMER = ("“Claimed by operator” means the operator proved control of the hosts the registry lists under "
               "this wallet. It is not an endorsement, a safety check, or a judgement that any of these services "
               "is good or real. The numbers on these pages are never for sale.")
+# The same, where the full record is sold (tiers.py): the last sentence says what it always meant.
+DISCLAIMER_FREE = DISCLAIMER.replace("The numbers on these pages are never for sale.",
+                                     "No operator can pay to change these numbers or its place.")
 UNCLAIMED = ("Hosts paid into one wallet are usually one operator, sometimes a platform collecting for several. "
              "Nobody has put a name on this group yet.")
 NAMED_FOR = ("Named for the host that took %d%% of this group’s x402 payments in the window; "
@@ -156,17 +166,31 @@ def wallet_link(w, n, buyers, site=""):
             % (esc(w), esc(w[:6]), esc(w[-4:]), "{:,}".format(n)))
 
 
-def build(out, chain, A, ctx, as_of, n_sellers, operators=None, site="", head="", foot="", issues="", buy_url="", buyers=None):
+def built_slugs(listing, top=None):
+    """The groups with a page of their own, in the list's order: every one, or the top `top`
+    (tiers.TOP in the free tier) and every claimed group. The sitemap names these and no stub."""
+    if not top:
+        return [r[0] for r in listing]
+    # a claimed group keeps its page whatever its rank: the operator pays for that page
+    return [r[0] for i, r in enumerate(listing) if i < top or r[5]]
+
+
+def build(out, chain, A, ctx, as_of, n_sellers, operators=None, site="", head="", foot="", issues="", buy_url="", buyers=None,
+          tier=None):
     """Write /o/<group>/index.html for every group and /o/ for the list. The address comes
     from the group's usual domain (group_slug), never from the day's earner, so a link
     made today still works tomorrow; the earner names only the page. Returns
     {host: {"slug", "name", "claimed"}} for the seller pages to link to. buyers holds the
-    slugs of the buyer pages already written (buyer_pages.build), so a wallet links there."""
+    slugs of the buyer pages already written (buyer_pages.build), so a wallet links there.
+    tier: the tiers module when the free tier is on (seller_pages passes it), else None;
+    then the top tier.TOP groups get their page and the rest a small page saying where
+    the record is."""
+    free = tier is not None
     operators = operators or {}
     groups = chain.get("groups") or []
     odir = os.path.join(out, "o")
     os.makedirs(odir, exist_ok=True)
-    by_host, listing, seen = {}, [], {}
+    by_host, listing, seen, prepared = {}, [], {}, []
     for g in groups:
         auto, share = naming(g["hosts"], chain)
         base = group_slug(g["hosts"])
@@ -177,6 +201,18 @@ def build(out, chain, A, ctx, as_of, n_sellers, operators=None, site="", head=""
         f = group_facts(g, chain, A)
         for h in g["hosts"]:
             by_host[h] = {"slug": sl, "name": name, "claimed": bool(mine)}
+        listing.append((sl, name, f["hosts"], f["x402"], f["usdc"], bool(mine)))
+        prepared.append((g, sl, share, mine, name, f))
+    listing.sort(key=lambda r: (-r[2], -r[3]))
+    keep = set(built_slugs(listing, tier.TOP if free else None))
+    for g, sl, share, mine, name, f in prepared:
+        if sl not in keep:
+            d = os.path.join(odir, sl)
+            os.makedirs(d, exist_ok=True)
+            with open(os.path.join(d, "index.html"), "w") as fh:
+                fh.write(tier.stub_page("group", name, "", "%s/o/%s/" % (site, sl), site, head, foot, ctx, as_of, n_sellers,
+                                        "%s?template=correct.yml&title=%s" % (issues, "Correction:+group+" + sl), hosts=f["hosts"]))
+            continue
         title = "%s — %d hosts paid into one wallet · %s" % (name, f["hosts"], market.BRAND)
         desc = "%d x402 hosts paid into one wallet: %s x402 payments in the window, %s. As of %s." % (
             f["hosts"], "{:,}".format(f["x402"]), money(f["usdc"]), as_of)
@@ -190,7 +226,7 @@ def build(out, chain, A, ctx, as_of, n_sellers, operators=None, site="", head=""
         if mine:
             p.append('<p><span class="tag mark">%s</span><span class="tag">%d hosts · %d wallet%s</span><span class="tag">as of %s</span></p>'
                      % (esc(MARK), f["hosts"], f["wallets"], "s" if f["wallets"] != 1 else "", esc(atlas_style.long_date(as_of))))
-            p.append('<p class="muted disclaimer">%s</p>' % esc(DISCLAIMER))
+            p.append('<p class="muted disclaimer">%s</p>' % esc(DISCLAIMER if not free else DISCLAIMER_FREE))
             o = mine[1]
             p.append('<div class="owner"><h2>In the operator’s words</h2>%s<p class="sells">%s</p>%s</div>' % (
                 '<img class="logo-owner" src="%s" alt="%s logo, as the operator supplied it" loading="lazy" referrerpolicy="no-referrer">' % (esc(o["logo"]), esc(name)) if o["logo"] else "",
@@ -215,7 +251,11 @@ def build(out, chain, A, ctx, as_of, n_sellers, operators=None, site="", head=""
         day = atlas_style.chain_day(chain, as_of)
         p.append('<div class="cols"><div>')
         p.append('<h2>Who actually paid the group</h2><p class="dateline">x402 payments on Base · %s</p>' % esc(day))
-        if f["x402"]:
+        if f["x402"] and free:
+            p.append('<p class="muted">Across the group, %s x402 payments in the last %s; payer wallets summed per host: %d.</p>'
+                     % ("{:,}".format(f["x402"]), esc(span_words(chain["hours"])), f["payer_wallets_summed"]))
+            p.append(tier.locked_html("the wallets that paid this group, each with its payments", site, tier.OPERATOR_WAYS))
+        elif f["x402"]:
             p.append('<p class="muted">Across the group, %s x402 payments in the last %s; payer wallets summed per host: %d. '
                      "The busiest wallets, among each host’s busiest three: %s.</p>"
                      % ("{:,}".format(f["x402"]), esc(span_words(chain["hours"])), f["payer_wallets_summed"],
@@ -253,9 +293,8 @@ def build(out, chain, A, ctx, as_of, n_sellers, operators=None, site="", head=""
         os.makedirs(d, exist_ok=True)
         with open(os.path.join(d, "index.html"), "w") as fh:
             fh.write("".join(p))
-        listing.append((sl, name, f["hosts"], f["x402"], f["usdc"], bool(mine)))
 
-    listing.sort(key=lambda r: (-r[2], -r[3]))
+    shown = listing[:tier.TOP] if free else listing
     page = [head % dict(ctx, title="Operators: the hosts paid into one wallet · " + market.BRAND,
                         desc="%d groups of x402 hosts paid into one wallet, with a page each. As of %s." % (len(listing), as_of),
                         canon=site + "/o/")]
@@ -263,19 +302,23 @@ def build(out, chain, A, ctx, as_of, n_sellers, operators=None, site="", head=""
                 "the same wallet — usually one operator, sometimes a platform collecting for several. %d groups hold %d of the "
                 "hosts with a known wallet.</p>" % (len(listing), sum(r[2] for r in listing)))
     page.append('<div class="tw"><table><tr><th>group</th><th class="n">hosts</th><th class="n">x402 payments</th><th class="n">USDC</th><th></th></tr>')
-    for sl, name, hosts, x402, usdc, claimed in listing:
+    for sl, name, hosts, x402, usdc, claimed in shown:
         page.append('<tr><td class="h"><a href="%s/o/%s/">%s</a></td><td class="n">%d</td><td class="n">%s</td><td class="n">%s</td><td>%s</td></tr>'
                     % (site, esc(sl), esc(name), hosts, "{:,}".format(x402), money(usdc) if usdc else "—",
                        '<span class="tag mark">%s</span>' % esc(MARK) if claimed else '<span class="tag">unclaimed</span>'))
     page.append("</table></div>")
-    if any(r[5] for r in listing):
-        page.append('<p class="muted disclaimer">%s</p>' % esc(DISCLAIMER))
+    if free and len(shown) < len(listing):
+        page.append('<p class="muted">The %d largest of %s groups are shown.</p>' % (len(shown), "{:,}".format(len(listing))))
+        page.append(tier.more_line(len(shown), len(listing), "groups, each with its hosts, what they were paid and who paid them",
+                                   site, tier.OPERATOR_WAYS))
+    if any(r[5] for r in shown):
+        page.append('<p class="muted disclaimer">%s</p>' % esc(DISCLAIMER if not free else DISCLAIMER_FREE))
     page.append("</main>" + foot % {"root": site, "issue": esc(issues), "as_of": esc(as_of), "n": "{:,}".format(n_sellers)})
     with open(os.path.join(odir, "index.html"), "w") as fh:
         fh.write("".join(page))
     with open(os.path.join(odir, "index.json"), "w") as fh:        # the front door's search reads this
         json.dump({"as_of": as_of, "groups": [{"slug": r[0], "name": r[1], "hosts": r[2], "x402": r[3], "claimed": r[5]}
-                                              for r in listing]}, fh, separators=(",", ":"))
+                                              for r in shown]}, fh, separators=(",", ":"))
     return by_host, listing
 
 

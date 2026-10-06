@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Copied from the Aušrinė lab (commit a0d9190). Edit it there, not here.
+# Copied from the Aušrinė lab (commit f04f064). Edit it there, not here.
 """buyer_pages.py — a page for every buyer wallet: what one wallet paid for, and to whom.
 
 Sellers have pages, wallet groups have pages; the wallets that pay them did not.
@@ -12,6 +12,13 @@ is said to be an agent at work, and nothing more is said about who holds it.
 
 A wallet, a host and an amount are public facts. A name is not, and none is given.
 Host names come from the registry and are escaped on the way out. Standard library only.
+
+In the free tier (tiers.py, since 2026-10-05) the list shows the top TOP wallets and says
+how many more are in the full record; a page is built for those TOP, and every other
+wallet keeps one small page at the same address saying it is in the record and where
+to get it. Nothing a page does not show is in it. The tier arrives as an argument, the
+tiers module itself, so this file imports none: the paid seller's deploy bundle carries
+buyer_pages without it.
 """
 
 import collections
@@ -78,20 +85,54 @@ def bought(sellers, b=None):
     return [c for c, _ in n.most_common()]
 
 
-def build(out, chain, A, ctx, as_of, n_sellers, site="", head="", foot="", issues=""):
+def listing_rows(chain):
+    """Every wallet with an x402 payment, as the /b/ list orders it: agents at work first,
+    then by x402 payments, USDC and address. One row per wallet, what the list shows."""
+    agents = {slug(b["wallet"]) for b in (chain.get("agents") or [])}
+    rows = []
+    for b in (chain.get("buyers") or []):
+        if not b.get("payments_x402"):
+            continue
+        sl = slug(b["wallet"])
+        rows.append({"wallet": sl, "short": b["short"], "x402": b["payments_x402"], "usdc_x402": round(b.get("usdc_x402") or 0.0, 2),
+                     "sellers": b.get("sellers_paid_x402") or 0, "agent": sl in agents})
+    rows.sort(key=lambda r: (not r["agent"], -r["x402"], -r["usdc_x402"], r["wallet"]))
+    return rows
+
+
+def kept(chain, top=None):
+    """The wallets with a page of their own: every one, or the top `top` (tiers.TOP in the free tier)."""
+    rows = listing_rows(chain)
+    return {r["wallet"] for r in (rows[:top] if top else rows)}
+
+
+def build(out, chain, A, ctx, as_of, n_sellers, site="", head="", foot="", issues="", tier=None):
     """Write /b/<wallet>/index.html for every wallet with an x402 payment, /b/ for the list
     and /b/index.json for search. Returns ({wallet_slug: {"agent": bool}}, listing) so the
-    seller pages and the front door link only to pages that exist."""
+    seller pages and the front door link only to pages that exist. tier: the tiers module
+    when the free tier is on (seller_pages passes it), else None. In the free tier the
+    top tier.TOP wallets get their page; the rest get a small page saying where the record
+    is, and are not in the returned dict, so nothing links to them as a record."""
+    free = tier is not None
     buyers = [b for b in (chain.get("buyers") or []) if b.get("payments_x402")]
     agents = {slug(b["wallet"]) for b in (chain.get("agents") or [])}
     hours = chain.get("hours") or 24
     window, day = span_words(hours), day_words(chain)
     bdir = os.path.join(out, "b")
     os.makedirs(bdir, exist_ok=True)
-    pages, listing = {}, []
+    pages, listing = {}, listing_rows(chain)
+    keep = kept(chain, tier.TOP if free else None)
     for b in buyers:
         sl = slug(b["wallet"])
         agent = sl in agents
+        if sl not in keep:
+            d = os.path.join(bdir, sl)
+            os.makedirs(d, exist_ok=True)
+            with open(os.path.join(d, "index.html"), "w") as fh:
+                fh.write(tier.stub_page("wallet", b["short"], b["wallet"], link(b["wallet"], site), site, head, foot, ctx, as_of,
+                                        n_sellers, "%s?template=correct.yml&title=%s" % (issues, "Correction:+buyer+" + sl),
+                                        explorer=b.get("explorer")))
+            continue
         other = max((b.get("usdc") or 0.0) - (b.get("usdc_x402") or 0.0), 0.0)
         sellers = sorted(b.get("sellers") or [], key=lambda s: (-(s.get("payments_x402") or 0), -(s.get("payments") or 0),
                                                                   -(s.get("usdc") or 0.0), s.get("host") or ""))
@@ -146,12 +187,12 @@ def build(out, chain, A, ctx, as_of, n_sellers, site="", head="", foot="", issue
         with open(os.path.join(d, "index.html"), "w") as fh:
             fh.write("".join(p))
         pages[sl] = {"agent": agent}
-        listing.append({"wallet": sl, "short": b["short"], "x402": b["payments_x402"], "usdc_x402": round(b.get("usdc_x402") or 0.0, 2),
-                        "sellers": b.get("sellers_paid_x402") or 0, "agent": agent})
 
-    listing.sort(key=lambda r: (not r["agent"], -r["x402"], -r["usdc_x402"], r["wallet"]))
     at_work = [r for r in listing if r["agent"]]
     rest = [r for r in listing if not r["agent"]]
+    shown = listing[:tier.TOP] if free else listing            # the free tier's list: the top TOP, and how many more
+    at_work_shown = [r for r in shown if r["agent"]]
+    rest_shown = [r for r in shown if not r["agent"]]
     page = [head % dict(ctx, title="Buyers: the wallets that paid over x402 · " + market.BRAND,
                         desc="%d wallets paid x402 sellers in the last %s, %d of them three or more sellers. As of %s."
                         % (len(listing), window, len(at_work), as_of), canon=site + "/b/")]
@@ -169,15 +210,26 @@ def build(out, chain, A, ctx, as_of, n_sellers, site="", head="", foot="", issue
         return "".join(t)
 
     page.append("<h2>Agents at work · %s</h2>" % "{:,}".format(len(at_work)))
-    page.append(table(at_work) if at_work else '<p class="muted">No wallet’s x402 payments reached three or more sellers in the window.</p>')
+    page.append(table(at_work_shown) if at_work_shown else
+                ('<p class="muted">The %s are in the full record.</p>' % ("{:,}".format(len(at_work)) if len(at_work) != 1 else "one")) if at_work else
+                '<p class="muted">No wallet’s x402 payments reached three or more sellers in the window.</p>')
+    if at_work_shown and len(at_work_shown) < len(at_work):
+        page.append('<p class="muted">The %d busiest of %s are shown.</p>' % (len(at_work_shown), "{:,}".format(len(at_work))))
     page.append("<h2>Every other buyer · %s</h2>" % "{:,}".format(len(rest)))
-    page.append(table(rest) if rest else '<p class="muted">None.</p>')
+    page.append(table(rest_shown) if rest_shown else
+                ('<p class="muted">The %s are in the full record.</p>' % ("{:,}".format(len(rest)) if len(rest) != 1 else "one")) if rest else
+                '<p class="muted">None.</p>')
+    if rest_shown and len(rest_shown) < len(rest):
+        page.append('<p class="muted">The %d busiest of %s are shown.</p>' % (len(rest_shown), "{:,}".format(len(rest))))
+    if free:
+        page.append(tier.more_line(len(shown), len(listing), "wallets, each with its payments, USDC, the sellers it paid and what it bought",
+                                   site, tier.BUYER_WAYS))
     page.append('<h2>How to read this</h2><ul class="cav">%s</ul></main>' % "".join("<li>%s</li>" % esc(c) for c in CAVEATS))
     page.append(foot % {"root": site, "issue": esc(issues), "as_of": esc(as_of), "n": "{:,}".format(n_sellers)})
     with open(os.path.join(bdir, "index.html"), "w") as fh:
         fh.write("".join(page))
     with open(os.path.join(bdir, "index.json"), "w") as fh:        # the front door's search will read this
         json.dump({"as_of": as_of, "buyers": [{"wallet": r["wallet"], "x402": r["x402"], "usdc_x402": r["usdc_x402"],
-                                               "sellers": r["sellers"], "agent": r["agent"]} for r in listing]},
+                                               "sellers": r["sellers"], "agent": r["agent"]} for r in shown]},
                   fh, separators=(",", ":"))
     return pages, listing

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Copied from the Aušrinė lab (commit a0d9190). Edit it there, not here.
+# Copied from the Aušrinė lab (commit f04f064). Edit it there, not here.
 """coverage_page.py — the small shared parts of the four coverage pages.
 
 /live/, /where/, /leaders/ and /prices/ each expose a body function (data in, an
@@ -20,6 +20,7 @@ import tempfile
 import urllib.parse
 
 import market  # the product's name
+import tiers  # the free tier's switch, TOP and locked line
 
 # The Atlas never says this word in any form (map_page.py keeps the same rule). A host
 # that contains it is shown by its shortened wallet and gets no link.
@@ -174,17 +175,35 @@ def site_path(site):
     return urllib.parse.urlparse(site or "").path.rstrip("/")
 
 
-def page(title, body, as_of, desc="", room="", root=""):
+def page(title, body, as_of, desc="", room="", root="", free=None):
     """A coverage page in the house shell (atlas_style): the shared stylesheet, header and footer.
     root is the site's path (site_path), so every link stays on the page's own origin; room is
-    the page's folder, for its canonical address."""
+    the page's folder, for its canonical address; free the tier (tiers.py), for the footer's line."""
     import atlas_style
     ctx = {"root": root, "css": root + "/atlas.css", "title": esc("%s · %s" % (title, market.BRAND)),
            "desc": esc(desc or title), "canon": esc("%s/%s/" % (root, room) if room else root + "/")}
     return (atlas_style.HEAD % ctx + '<main id="main"><div class="cov">' + body + "</div>"
             '<p class="muted asof">%s · %s · as of <span class="dated">%s</span></p></main>'
             % (esc(market.BRAND), esc(market.BRAND_WHAT), esc(as_of))
-            + atlas_style.footer(root, esc(atlas_style.ISSUES), esc(as_of)))
+            + atlas_style.footer(root, esc(atlas_style.ISSUES), esc(as_of), free=bool(free)))
+
+
+def top(data):
+    """How many rows a table shows: every one the page was given, or tiers.TOP in the free tier."""
+    return tiers.TOP if data.get("free") else None
+
+
+def cut(rows, data):
+    """(the rows shown, how many there were)."""
+    n = top(data)
+    return (rows[:n] if n else rows), len(rows)
+
+
+def shown_line(shown, total, what):
+    """Under a cut table: how many of how many are shown. Nothing when nothing was cut."""
+    if total <= shown:
+        return ""
+    return '<p class="muted">The %d %s of %s are shown.</p>' % (shown, what, "{:,}".format(total))
 
 
 def write(out, room, html_text, extra=None):

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Copied from the Aušrinė lab (commit a0d9190). Edit it there, not here.
+# Copied from the Aušrinė lab (commit f04f064). Edit it there, not here.
 """atlas_mcp.py — the Infoharmoni Atlas as an MCP server, so an agent can ask the
 public record of the x402 market on Base from inside its own tools.
 
@@ -37,6 +37,13 @@ seller carries ?via=mcp, so the seller can count, in aggregate, how many
 offers began here. Explorer links to basescan.org are third-party and carry
 nothing.
 
+Since 2026-10-05 the site keeps the full record for Pro (tiers.py): a seller's
+payer wallets, the buyers and operators past the top 20. This server answers in
+the same tier: a tool that would return locked data returns the free part and one
+field, `locked`, saying what is held back and how to get it. It reads the
+published data files, never a page of the site, so nothing here depends on what
+a page shows. `--full` answers whole, as before, for a site built with --full.
+
 No dependencies. Standard library only, JSON-RPC 2.0 over stdio.
 
     uvx --from git+https://github.com/ausrine-labs/x402-atlas infoharmoni-atlas-mcp
@@ -50,8 +57,8 @@ Claude Desktop, Cursor, or any MCP client:
 The old console script, x402-atlas-mcp, still runs the same server, so installs made
 before the rename keep working.
 
-The numbers are never for sale; this server is free and reads only what the
-site publishes. MIT. Made by an AI agent, openly and by design.
+No seller can pay to change its numbers or its place; this server is free and
+reads only what the site publishes. MIT. Made by an AI agent, openly and by design.
 """
 
 import json
@@ -70,6 +77,8 @@ import whales  # noqa: E402
 import flows_handoff  # noqa: E402
 import snapshot_handoff  # noqa: E402
 import spend_watch  # noqa: E402
+import tiers  # noqa: E402
+import buyer_pages  # noqa: E402
 from operator_pages import group_name, group_slug, slug  # noqa: E402
 
 VERSION = "0.2.0"
@@ -95,6 +104,7 @@ POST_PRICE = "$0.01"
 POST_KINDS = ("seller", "operator", "wallet", "market")
 MAX_POSTS_JSON = 512 * 1024
 FILE_PRICES = {"sellers.csv": "$0.25", "buyers.csv": "$0.25", "operators.csv": "$0.25", "day.json": "$1.00"}
+FREE = tiers.free(tiers.from_argv(sys.argv[1:]))      # the tier this server answers in: the switch, or --full / --free
 
 NOTE_WALLET = "A wallet is not an agent, and one operator can appear as many wallets."
 NOTE_X402 = ("x402 payments are USDC transfers on Base that a facilitator settled on a signed authorization; "
@@ -247,6 +257,10 @@ def data():
             g["usdc_x402"] = round(sum((s or {}).get("on_chain_usdc_x402", 0.0) for s in xs), 2)
             g["hosts_paid"] = sum(1 for s in xs if s and s.get("on_chain_payments_x402"))
         chain["_groups"] = groups
+        # the groups and wallets with a record on the site, as its lists order them (operator_pages, buyer_pages)
+        ranked = sorted(groups, key=lambda g: (-len(g["hosts"]), -g["payments_x402"]))
+        chain["_open_groups"] = {g["slug"] for g in (ranked[:tiers.TOP] if FREE else ranked)}
+        chain["_open_wallets"] = buyer_pages.kept(chain, tiers.TOP if FREE else None)
     _DATA.update({"loaded": loaded, "chain": chain, "problems": problems, "sources": sources})
     return _DATA
 
@@ -284,6 +298,11 @@ def paid_watch(wallet):
     return {"what": "this wallet's full watch report: per day and seller, paid against list and going rate, "
                     "seller status and findings; refusals are free",
             "price": WATCH_PRICE, "pay": PAY, "url": watch_url(wallet)}
+
+
+def locked(what, ways):
+    """What an answer holds back in the free tier, and how to get it: one plain field."""
+    return tiers.locked_json(what, SITE, ways, link=via)
 
 
 def paid_files(first):
@@ -417,6 +436,12 @@ def t_seller(args):
     card["on_chain"] = on_chain(card["host"], chain)
     card["page"] = seller_url(card["host"])
     card["notes"] = [NOTE_X402, NOTE_CONC, NOTE_OPERATOR]
+    if FREE and card["on_chain"].get("available"):
+        oc = card["on_chain"]
+        held = bool(oc.pop("top_payers", None)) | bool(oc.pop("operator_other_hosts", None))
+        if held or oc.get("payer_wallets"):
+            card["locked"] = locked("the wallets that paid this seller, each with its payments, and the other hosts paid "
+                                    "into its wallet", tiers.SELLER_WAYS)
     card["paid_next"] = paid_one(card["host"])
     card["problems"] = d["problems"]
     return card
@@ -448,31 +473,44 @@ def t_operator(args):
     hosts = [{"host": h, "x402_payments": by.get(h, {}).get("on_chain_payments_x402", 0),
               "x402_usdc": by.get(h, {}).get("on_chain_usdc_x402", 0.0), "page": seller_url(h)} for h in g["hosts"]]
     hosts.sort(key=lambda h: -h["x402_payments"])
-    return {"operator": g["name"], "hosts": len(g["hosts"]), "wallets": g.get("wallets"),
-            "hosts_paid_newest_day": g["hosts_paid"], "x402_payments_newest_day": g["payments_x402"],
-            "x402_usdc_newest_day": g["usdc_x402"], "day": chain.get("_day"),
-            "hosts_list": hosts, "page": operator_url(g),
-            "claim": "whether the operator has claimed this group is shown on the page, not here",
-            "notes": [NOTE_OPERATOR, NOTE_X402], "paid_next": paid_files("operators.csv"), "problems": d["problems"]}
+    out = {"operator": g["name"], "hosts": len(g["hosts"]), "wallets": g.get("wallets"),
+           "hosts_paid_newest_day": g["hosts_paid"], "x402_payments_newest_day": g["payments_x402"],
+           "x402_usdc_newest_day": g["usdc_x402"], "day": chain.get("_day"),
+           "hosts_list": hosts, "page": operator_url(g),
+           "claim": "whether the operator has claimed this group is shown on the page, not here",
+           "notes": [NOTE_OPERATOR, NOTE_X402], "paid_next": paid_files("operators.csv"), "problems": d["problems"]}
+    if FREE and g["slug"] not in chain["_open_groups"]:
+        del out["hosts_list"]
+        out["locked"] = locked("the hosts in this group, what each was paid over x402, and the wallets that paid them: "
+                               "the group is past the top %d the site shows" % tiers.TOP, tiers.OPERATOR_WAYS)
+    return out
 
 
 def t_agents(args):
-    limit = max(1, min(int(args.get("limit") or 12), 50))
+    asked = max(1, min(int(args.get("limit") or 12), 50))
+    limit = min(asked, tiers.TOP) if FREE else asked
     d = data()
     chain = d["chain"]
     if not chain:
         return {"available": False, "say": "no classified on-chain day in the store", "problems": d["problems"]}
     out = []
-    for b in (chain.get("agents") or [])[:limit]:
+    every = chain.get("agents") or []
+    if FREE:                          # the same wallets the site gives a page to, and no others
+        shown = chain.get("_open_wallets") or set()
+        every = [b for b in every if buyer_pages.slug(b.get("wallet") or "") in shown]
+    for b in every[:limit]:
         out.append({"wallet": b["wallet"], "explorer": b.get("explorer"),
                     "sellers_paid_x402": b.get("sellers_paid_x402"), "x402_payments": b.get("payments_x402"),
                     "x402_usdc": b.get("usdc_x402"), "categories": b.get("categories"),
                     "sellers": [{"host": s["host"], "x402_payments": s.get("payments_x402", 0),
                                  "x402_usdc": s.get("usdc_x402", 0.0)} for s in (b.get("sellers") or [])[:8]]})
+    total = len(chain.get("agents") or [])
     return {"day": chain.get("_day"), "chain": "Base", "agents_3plus": (chain.get("totals") or {}).get("agents_3plus"),
             "shown": len(out), "agents": out,
             "notes": ["an agent at work is a wallet whose x402-settled payments reached three or more sellers",
                       NOTE_WALLET],
+            **({"locked": locked("%d more agents at work, past the top %d" % (total - len(out), tiers.TOP), tiers.BUYER_WAYS)}
+               if FREE and asked > len(out) and total > len(out) else {}),
             **({"paid_next": paid_files("buyers.csv")} if out else {}), "problems": d["problems"]}
 
 
@@ -571,6 +609,10 @@ def t_agent_spend(args):
         out["notes"].append("%d of these days come from a pull that did not tell x402 payments from other "
                             "transfers; there every transfer to a seller's wallet is counted" % (w["days"] - w["classified_days"]))
     if t["payments"]:
+        if FREE and ws[0].lower() not in ((d["chain"] or {}).get("_open_wallets") or set()):
+            del out["top_sellers"]
+            out["locked"] = locked("the sellers this wallet paid, each with its payments and USDC: the wallet is past the "
+                                   "top %d the site shows" % tiers.TOP, tiers.BUYER_WAYS)
         out["paid_next"] = paid_watch(ws[0])
     else:
         out["say"] = "no x402 payment from this wallet reached a seller the registry names in these days"

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Copied from the Aušrinė lab (commit defb6e9). Edit it there, not here.
+# Copied from the Aušrinė lab (commit f04f064). Edit it there, not here.
 """site_pages.py — the company pages of the Infoharmoni Atlas: pricing, docs, about, contact.
 
 seller_pages.py calls build() after the data pages are written. Four pages, each at its
@@ -17,6 +17,10 @@ own folder so the address reads cleanly:
 Nothing here invents a number: prices come from x402/pro.py, x402/sell-who.py,
 x402/seller_report.py and atlas_mcp.py; examples are the ones those files already publish.
 Standard library only.
+
+Since 2026-10-05 the site is built in the free tier (tiers.py): where a page said the
+Atlas or every page is free, it says what is now true, that the basic record is free
+and the full record is paid; with --full the old words come back with the old site.
 """
 
 import html
@@ -29,6 +33,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 import atlas_style  # noqa: E402
 import market  # noqa: E402
+import tiers  # noqa: E402
 
 EMAIL = atlas_style.EMAIL
 MCP_REPO = "https://github.com/ausrine-labs/x402-atlas"
@@ -151,7 +156,8 @@ def feature(words, state):
     return "<li>%s</li>" % esc(words)
 
 
-def pricing(site, buy_pro, api):
+def pricing(site, buy_pro, api, free=None):
+    free = tiers.free(free)
     cards = []
     for key, t in PRICING.items():
         word = not t["price"].startswith("$")
@@ -161,8 +167,7 @@ def pricing(site, buy_pro, api):
                         " <small>%s</small>" % (esc(t["per"]) or "&nbsp;"), esc(t["for"]),
                         "".join(feature(w, st) for w, st in t["features"]), tier_cta(t, site, buy_pro), tier_also(t, site)))
     return ('<main id="main"><p class="eyebrow">Pricing</p><h1>Free to read. Paid when you want it all.</h1>'
-            '<p class="sells">Every seller has a free page, and the numbers are the same for everyone. Pro is the whole record; '
-            'sellers can claim their page; institutions license the data; agents pay per call.</p>'
+            '<p class="sells">%s</p>'
             '<div class="tiers">%s</div>'
             '<p class="muted">Features marked <span class="coming">coming</span> are being built and are not part of any plan yet.</p>'
             '<h2>Questions</h2><dl class="kv" style="max-width:760px">'
@@ -171,10 +176,16 @@ def pricing(site, buy_pro, api):
             '<dt>What does an agent need?</dt><dd>An x402 client and USDC on Base. It asks, gets a 402 with the price, pays, and '
             'gets the answer. A refusal is never charged.</dd>'
             '<dt>Where do the prices come from?</dt><dd>From the service that charges them: <code>%s</code>.</dd></dl></main>'
-            % ("".join(cards), esc(api)))
+            % ("Every seller has a free page with its basic card, and the numbers are the same for everyone. Pro is the full "
+               "record: every buyer wallet and every operator, the whole day as files; sellers can claim their page; institutions "
+               "license the data; agents pay per call." if free else
+               "Every seller has a free page, and the numbers are the same for everyone. Pro is the whole record; "
+               "sellers can claim their page; institutions license the data; agents pay per call.",
+               "".join(cards), esc(api)))
 
 
-def docs(site, api):
+def docs(site, api, free=None):
+    free = tiers.free(free)
     sw, pro, sr = _sell_who(), _pro(), _seller_report()
     import atlas_mcp
     who = json.dumps(sw.WHO_EXAMPLE, indent=2, ensure_ascii=False)
@@ -235,21 +246,27 @@ each went, where new buyers came from, what is bought alongside, and its closest
 <h2 id="free">Free JSON, rebuilt every morning</h2>
 <div class="tw"><table><tr><th>address</th><th>what it holds</th></tr>
 <tr><td class="h"><a href="%(site)s/s/index.json"><code>/s/index.json</code></a></td><td>Every seller: host, page, self-reported calls and payers, price, category, x402 payments on the newest day.</td></tr>
-<tr><td class="h"><a href="%(site)s/o/index.json"><code>/o/index.json</code></a></td><td>Every group of hosts paid into one wallet.</td></tr>
-<tr><td class="h"><a href="%(site)s/b/index.json"><code>/b/index.json</code></a></td><td>Every wallet that made an x402 payment in the window, and whether it paid three or more sellers.</td></tr>
+<tr><td class="h"><a href="%(site)s/o/index.json"><code>/o/index.json</code></a></td><td>%(o_json)s</td></tr>
+<tr><td class="h"><a href="%(site)s/b/index.json"><code>/b/index.json</code></a></td><td>%(b_json)s</td></tr>
 <tr><td class="h"><a href="%(site)s/map/graph.json"><code>/map/graph.json</code></a></td><td>The day’s network: every x402-settled line between a wallet and a seller.</td></tr></table></div>
 <p class="muted">A wallet is not a person, and nothing in any of these files says who holds one.</p></main>""" % {
         "who_price": esc(sw.PRICE), "api": esc(api), "who_json": esc(who), "header": esc(pro.HEADER),
         "per_hour": pro.PER_HOUR, "x402_path": esc(pro.X402_PATH), "exports": exports, "sample": esc(sample),
         "site": site, "install": esc(atlas_mcp.INSTALL), "desktop": esc(desktop), "tools": tools,
         "sellers": esc(sr.PRODUCT), "key_path": esc(sr.KEY_PATH), "sellers_price": esc(sr.PRICE),
-        "report_path": esc(sr.X402_PATH), "report_price": esc(sr.X402_PRICES["report"])}
+        "report_path": esc(sr.X402_PATH), "report_price": esc(sr.X402_PRICES["report"]),
+        "o_json": ("The %d largest groups of hosts paid into one wallet. Every group is in Pro, in operators.csv." % tiers.TOP) if free
+        else "Every group of hosts paid into one wallet.",
+        "b_json": ("The top %d wallets by x402 payments in the window, agents at work first, and whether each paid three or "
+                   "more sellers. Every wallet is in Pro, in buyers.csv." % tiers.TOP) if free
+        else "Every wallet that made an x402 payment in the window, and whether it paid three or more sellers."}
 
 
-def about(site):
+def about(site, free=None):
+    free = tiers.free(free)
     return """<main id="main"><p class="eyebrow">About %(company)s</p><h1>%(company)s makes public records of the agent economy.</h1>
 <p class="sells">%(company)s is a small company building open, dated records of what software agents actually do, read
-from public sources and never for sale. Its first product is %(product)s.</p>
+from public sources%(sources)s. Its first product is %(product)s.</p>
 <h2>What we make</h2>
 <div class="cards">
 <div class="card"><p class="eyebrow" style="margin:0 0 6px">Product</p><h3>%(product)s</h3><p>The public record of agent
@@ -273,14 +290,20 @@ placement, and no one is paid to appear.</p></div>
 <div class="card"><h3>We never sell in the market we measure</h3><p>We do not run a service in the categories we rank.
 The one thing we sell is the record itself; where our own paid answers appear in the registry, they are counted by the
 same rules as everyone else’s.</p></div>
-<div class="card"><h3>The numbers are never for sale</h3><p>Claiming a page adds the owner’s words beside the numbers,
-never changes them. Every correction is free, and every page says how to read it.</p></div>
+<div class="card"><h3>%(numbers_h)s</h3><p>%(numbers_p)s</p></div>
 <div class="card"><h3>A wallet is not a person</h3><p>We show hosts and addresses, the public facts. We never say who is
 behind a wallet.</p></div></div>
 <div class="band"><div><p class="eyebrow" style="margin:0">Talk to us</p><h2>Questions, corrections, a licence.</h2>
 <p class="muted" style="margin:0">Read by Aušrinė and by a person.</p></div>
 <div class="actions" style="margin:0"><a class="btn" href="%(site)s/contact/">Contact</a><a class="btn ghost" href="%(site)s/docs/">Read the docs</a></div></div></main>""" % {
-        "company": esc(market.COMPANY), "product": esc(market.PRODUCT), "site": site}
+        "company": esc(market.COMPANY), "product": esc(market.PRODUCT), "site": site,
+        "sources": ". The basic record is free; the full record is paid" if free else " and never for sale",
+        "numbers_h": esc(tiers.PLACE.rstrip(".")) if free else "The numbers are never for sale",
+        "numbers_p": ("Claiming a page adds the owner’s words beside the numbers, never changes them. What is sold is the "
+                      "full record, the same for everyone who buys it. Every correction is free, and every page says how to "
+                      "read it.") if free else
+                     ("Claiming a page adds the owner’s words beside the numbers,\nnever changes them. Every correction is free, "
+                      "and every page says how to read it.")}
 
 
 COPY_JS = """<script>
@@ -420,19 +443,25 @@ payment and never charged. <a href="%(site)s/docs/#sellers">The docs</a>.</p>
         + SELLERS_JS % {"api": json.dumps(api)})
 
 
-def build(out, ctx, as_of, n, site="", api="", head="", foot="", issues="", buy_pro="", sample=None, buy_sellers=None):
+def build(out, ctx, as_of, n, site="", api="", head="", foot="", issues="", buy_pro="", sample=None, buy_sellers=None, free=None):
     """Write /pricing/, /docs/, /about/, /contact/ and /sellers/. Returns the folders written.
     `sample` is seller_report.sample_from()'s blurred wallet, or None; `buy_sellers` the Atlas
-    for Sellers checkout (default: SELLERS_CHECKOUT_URL, when it is set)."""
+    for Sellers checkout (default: SELLERS_CHECKOUT_URL, when it is set); `free` the tier
+    (tiers.py), for the words."""
     site = (site or "").rstrip("/")
+    free = tiers.free(free)
     brand = market.BRAND
     pages = [
-        ("pricing", "Pricing · " + brand, "The %s is free to read. Pro $49 a month, sellers $29 a month, institutions "
-         "from $500 a month; agents pay per call over x402." % brand, pricing(site, buy_pro, api)),
+        ("pricing", "Pricing · " + brand, ("The %s’s basic record is free to read; the full record is Pro, $49 a month. Sellers "
+         "$29 a month, institutions from $500 a month; agents pay per call over x402." % brand) if free else
+         ("The %s is free to read. Pro $49 a month, sellers $29 a month, institutions "
+          "from $500 a month; agents pay per call over x402." % brand), pricing(site, buy_pro, api, free)),
         ("docs", "Docs: the paid API, exports and MCP server · " + brand, "How to read the %s from code: the who report "
-         "over x402, the Pro exports, the MCP server and the free JSON files." % brand, docs(site, api)),
+         "over x402, the Pro exports, the MCP server and the free JSON files." % brand, docs(site, api, free)),
         ("about", "About %s" % market.COMPANY, "%s makes %s, the public record of agent commerce. Made by Aušrinė, an AI agent, "
-         "with Vilija Jurgutis. Independent; the numbers are never for sale." % (market.COMPANY, market.PRODUCT), about(site)),
+         "with Vilija Jurgutis. Independent; %s" % (market.COMPANY, market.PRODUCT,
+                                                   tiers.PLACE[0].lower() + tiers.PLACE[1:] if free else "the numbers are never for sale."),
+         about(site, free)),
         ("contact", "Contact · " + brand, "Write to %s: claims, Atlas Pro, data licences, corrections." % EMAIL,
          contact(site, issues)),
         ("sellers", "Atlas for Sellers: see who your buyers are · " + brand, "A report for an x402 seller about its own "

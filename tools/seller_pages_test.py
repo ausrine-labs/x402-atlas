@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Copied from the Aušrinė lab (commit defb6e9). Edit it there, not here.
+# Copied from the Aušrinė lab (commit f04f064). Edit it there, not here.
 """seller_pages_test.py — the public pages, from a synthetic store. No network.
 
     python3 seller_pages_test.py
@@ -292,8 +292,9 @@ class WhoActuallyPaid(unittest.TestCase):
         s = json.load(open(snap))
         s["sellers"]["spread.example"]["chains"] = ["Solana"]           # a seller the Base pull cannot see
         json.dump(s, open(snap, "w"))
+        # the whole record public (free=False): the free tier's trimmed sections are tested in free_tier_test.py
         sp.build(cls.out, store, site="https://example.test/atlas", claims="/nonexistent/claims.json",
-                 whales=whales_file(tempfile.mkdtemp()))
+                 whales=whales_file(tempfile.mkdtemp()), free=False)
 
     def page(self, host):
         return open(os.path.join(self.out, "s", host, "index.html")).read()
@@ -381,8 +382,9 @@ class Relationships(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.out = tempfile.mkdtemp()
+        # the whole record public (free=False): the free tier's one line is tested in free_tier_test.py
         sp.build(cls.out, store(), site="https://example.test/atlas", claims="/nonexistent/claims.json",
-                 flows_dir=flows_window())
+                 flows_dir=flows_window(), free=False)
 
     def page(self, host):
         return open(os.path.join(self.out, "s", sp.slug(host), "index.html")).read()
@@ -468,7 +470,8 @@ class Cli(unittest.TestCase):
     def run_main(self, *args):
         seen = []
         real, argv = sp.build, sys.argv
-        sp.build = lambda *a: seen.append(a) or {"sellers": 0, "groups": 0, "as_of": "", "out": ""}
+        sp.build = lambda *a, **k: seen.append((a, k)) or {"sellers": 0, "groups": 0, "groups_built": 0, "as_of": "", "out": "",
+                                                           "free": k.get("free")}
         sys.argv = ["seller_pages.py", "--out", "o"] + list(args)
         try:
             sp.main()
@@ -477,11 +480,16 @@ class Cli(unittest.TestCase):
         return seen[0]
 
     def test_flows_argument_reaches_build(self):
-        a = self.run_main("--whales", "store/whales-2026-01-02.json", "--flows", "store/flows-2026-01-02.json")
+        a, _k = self.run_main("--whales", "store/whales-2026-01-02.json", "--flows", "store/flows-2026-01-02.json")
         self.assertEqual(a[4:], ("store/whales-2026-01-02.json", None, "store/flows-2026-01-02.json", None))
 
     def test_flows_dir_argument_reaches_build(self):
-        self.assertEqual(self.run_main("--flows-dir", "flows")[7], "flows")
+        self.assertEqual(self.run_main("--flows-dir", "flows")[0][7], "flows")
+
+    def test_the_tier_flags_reach_build(self):
+        self.assertIsNone(self.run_main()[1]["free"])                    # the switch decides
+        self.assertIs(self.run_main("--full")[1]["free"], False)         # the whole record public
+        self.assertIs(self.run_main("--free")[1]["free"], True)
 
 
 if __name__ == "__main__":

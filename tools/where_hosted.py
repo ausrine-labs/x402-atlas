@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Copied from the Aušrinė lab (commit a0d9190). Edit it there, not here.
+# Copied from the Aušrinė lab (commit f04f064). Edit it there, not here.
 """where_hosted.py — /where/: the countries x402 sellers' servers answer from.
 
 At build time each seller host is resolved to its addresses (A and AAAA, through the
@@ -40,6 +40,7 @@ import urllib.request
 from datetime import date, timedelta
 
 import coverage_page as cp
+import tiers
 
 DBIP_URL = "https://download.db-ip.com/free/dbip-country-lite-%s.csv.gz"
 DBIP_MAX = 64 * 1024 * 1024
@@ -250,9 +251,11 @@ def fetch_dbip(cache, today=None, get=None):
     raise RuntimeError("DB-IP Country Lite could not be downloaded: " + "; ".join(errors))
 
 
-def where_data(sellers, rollup=None, resolved=None, db=None, as_of="", dbip_name="", site=""):
+def where_data(sellers, rollup=None, resolved=None, db=None, as_of="", dbip_name="", site="", free=None):
     """Place each seller host. sellers: the snapshot's {host: row}. resolved: resolve_all's
-    answer. db: a CountryDB, or None when the file could not be had."""
+    answer. db: a CountryDB, or None when the file could not be had. free: the tier
+    (tiers.py); the body shows TOP countries of it, on the maps too, and says the rest is
+    in the record."""
     resolved = resolved or {}
     classified = cp.classified_chains(rollup)
     usdc = collections.Counter()
@@ -289,7 +292,7 @@ def where_data(sellers, rollup=None, resolved=None, db=None, as_of="", dbip_name
             "hosts": len(sellers), "countries": rows,
             "cdn": dict(sorted(cdn.items(), key=lambda kv: -kv[1])), "behind_cdn": sum(cdn.values()),
             "unresolved": len(unresolved), "unplaced": len(unplaced),
-            "placed": sum(r["sellers"] for r in rows)}
+            "placed": sum(r["sellers"] for r in rows), "free": tiers.free(free)}
 
 
 def project(lat, lon, w=1000, h=500):
@@ -320,7 +323,7 @@ def map_svg(rows, key, label, fmt, w=1000, h=500):
 
 
 def where_body(data):
-    rows = data["countries"]
+    rows, total = cp.cut(data["countries"], data)       # the free tier: TOP countries, on the maps as in the table
     x402 = cp.basis(set(data["classified"]), data["chains_covered"])
     site = data.get("site", "")
     parts = ['<section class="where">', "<h1>Where sellers are hosted</h1>",
@@ -333,7 +336,7 @@ def where_body(data):
     else:
         unplaced = ", %s resolved but cannot be placed without the country file" % "{:,}".format(data["unplaced"])
     parts.append("<p>%s looked up. %s placed in %s. %s behind a CDN, not placed. %s did not resolve%s.</p>" % (
-        cp.num(data["hosts"], "seller host"), cp.num(data["placed"], "seller"), cp.num(len(rows), "country", "countries"),
+        cp.num(data["hosts"], "seller host"), cp.num(data["placed"], "seller"), cp.num(total, "country", "countries"),
         cp.num(data["behind_cdn"], "seller"),
         "{:,}".format(data["unresolved"]) + (" (%s of them ran out of time)" % "{:,}".format(data["timed_out"])
                                              if data.get("timed_out") else ""), unplaced))
@@ -354,6 +357,10 @@ def where_body(data):
                 cp.esc(r["cc"]), "" if r["placed"] else " (not on the map)", "{:,}".format(r["sellers"]),
                 cp.esc(cp.money(r["usdc"])), ", ".join(cp.seller_html(h, site) for h in r["hosts"][:5])))
         parts.append("</tbody></table></div>")
+        parts.append(cp.shown_line(len(rows), total, "countries with the most sellers"))
+        if data.get("free") and total > len(rows):
+            parts.append(tiers.more_line(len(rows), total, "countries, each with its sellers, USDC and busiest hosts; no daily "
+                                         "file holds a country", site, tiers.LICENCE_WAYS))
     if data["cdn"]:
         parts.append("<h2>Behind a CDN</h2><p>%s</p>" % " · ".join(
             "%s: %s" % (cp.esc(k), "{:,}".format(v)) for k, v in data["cdn"].items()))
@@ -371,7 +378,7 @@ def where_body(data):
 def write(out, data):
     return cp.write(out, "where", cp.page("Where sellers are hosted", where_body(data), data["as_of"],
                                           "The countries x402 sellers' servers answer from.",
-                                          room="where", root=data.get("site", "")))
+                                          room="where", root=data.get("site", ""), free=data.get("free")))
 
 
 def main():
@@ -384,6 +391,7 @@ def main():
     ap.add_argument("--site", default="")
     ap.add_argument("--dbip", help="the DB-IP country CSV (.csv or .csv.gz); without it no seller is placed")
     ap.add_argument("--out")
+    tiers.add_flags(ap)
     a = ap.parse_args()
     if a.cmd == "fetch-dbip":
         print(fetch_dbip(a.cache))
@@ -394,7 +402,8 @@ def main():
     rollup = json.load(open(a.whales)) if a.whales else None
     db = CountryDB.load(a.dbip) if a.dbip else None
     resolved = resolve_all(snap["sellers"])
-    d = where_data(snap["sellers"], rollup, resolved, db, date.today().isoformat(), os.path.basename(a.dbip or ""), a.site)
+    d = where_data(snap["sellers"], rollup, resolved, db, date.today().isoformat(), os.path.basename(a.dbip or ""), a.site,
+                   free=tiers.from_args(a))
     print("where: %d hosts, %d placed in %d countries, %d behind a CDN, %d unresolved -> %s" % (
         d["hosts"], d["placed"], len(d["countries"]), d["behind_cdn"], d["unresolved"], write(a.out, d)))
 

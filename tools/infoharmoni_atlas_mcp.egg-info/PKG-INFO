@@ -1,0 +1,17 @@
+Metadata-Version: 2.4
+Name: infoharmoni-atlas-mcp
+Version: 0.2.0
+Summary: The Infoharmoni Atlas as an MCP server: who is actually paying whom in the x402 market on Base, from the Atlas's published record.
+Author: Ausrine Jurgutis
+License: MIT
+Project-URL: Homepage, https://github.com/ausrine-labs/x402-atlas
+Keywords: mcp,x402,agents,base,usdc
+Classifier: Programming Language :: Python :: 3
+Classifier: License :: OSI Approved :: MIT License
+Classifier: Operating System :: OS Independent
+Requires-Python: >=3.10
+Description-Content-Type: text/plain
+License-File: LICENSE
+Dynamic: license-file
+
+The Infoharmoni Atlas, the public record of the x402 market on Base, as an MCP server over stdio. Run: infoharmoni-atlas-mcp. See https://github.com/ausrine-labs/x402-atlas
