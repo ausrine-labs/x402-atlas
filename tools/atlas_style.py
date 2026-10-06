@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Copied from the Aušrinė lab (commit defb6e9). Edit it there, not here.
+# Copied from the Aušrinė lab (commit f04f064). Edit it there, not here.
 """atlas_style.py — the one look of the Infoharmoni Atlas: stylesheet, header, footer.
 
 Every page the site build writes carries the same three things, written here once:
@@ -270,23 +270,56 @@ FOOT = """<footer class="site"><div class="fwrap">
 <div><h2>Company</h2><a href="%(root)s/about/">About """ + market.COMPANY + """</a><a href="%(root)s/claim.html">For sellers</a><a href="%(issue)s">Report an error</a></div>
 <div><h2>Contact</h2><a href="%(root)s/contact/">Contact us</a><a href="mailto:""" + EMAIL + """">""" + EMAIL + """</a><a href="https://x.com/""" + X_HANDLE + """">@""" + X_HANDLE + """ on X</a></div>
 </nav></div>
-<div class="small"><p>© %(as_of).4s """ + market.COMPANY + """. """ + market.PRODUCT + """ is an """ + market.COMPANY + """ product, made by Aušrinė, an AI agent, openly and by design. The numbers are never for sale.
+<div class="small"><p>© %(as_of).4s """ + market.COMPANY + """. """ + market.PRODUCT + """ is an """ + market.COMPANY + """ product, made by Aušrinė, an AI agent, openly and by design. %(line)s
 Public registry and chain data only; a wallet is not a person, and nothing here says who holds one.</p>
 %(stamp)s</div></footer></html>
 """
+# The sentence after "openly and by design". The whole record public: the numbers are never for
+# sale. The free tier (tiers.py), where the full record is sold: that sentence would be misread,
+# so it says what it always meant, that no seller can pay to change its numbers or its place.
+# (The same words as tiers.PLACE, tested equal; this file imports no tiers, because the paid
+# seller's deploy bundle carries it without one.)
+LINE_FULL = "The numbers are never for sale."
+LINE_FREE = "No seller can pay to change its numbers or its place."
 # The dated line at the very foot. Every page built with the registry says how many sellers it holds;
 # a page built from the chain alone (the coverage pages) says only when.
 STAMP = '<p class="mono">As of %(as_of)s · %(n)s sellers · rebuilt when the daily scan runs.</p>'
 STAMP_DAY = '<p class="mono">As of %(as_of)s · rebuilt when the daily scan runs.</p>'
-FOOT_OPEN = FOOT.replace("%(stamp)s", "")[:-len("</div></footer></html>\n")]
-FOOT = FOOT.replace("%(stamp)s", STAMP)
+_FOOT_TEMPLATE = FOOT
+FOOT_FREE = _FOOT_TEMPLATE.replace("%(line)s", LINE_FREE).replace("%(stamp)s", STAMP)
+FOOT = _FOOT_TEMPLATE.replace("%(line)s", LINE_FULL).replace("%(stamp)s", STAMP)
+FOOT_OPEN = _FOOT_TEMPLATE.replace("%(line)s", LINE_FULL).replace("%(stamp)s", "")[:-len("</div></footer></html>\n")]
 ISSUES = "https://github.com/ausrine-labs/x402-atlas/issues/new"
 
 
-def footer(root, issue, as_of, n=None):
+def foot_line(free=False):
+    return LINE_FREE if free else LINE_FULL
+
+
+def foot(free=False):
+    """FOOT for the mode a build runs in (tiers.free() decides; the caller passes it): the same
+    footer, one sentence apart."""
+    return FOOT_FREE if free else FOOT
+
+
+def footer(root, issue, as_of, n=None, free=False):
     """The house footer, filled in; without a seller count it carries STAMP_DAY."""
     d = {"root": root, "issue": issue, "as_of": as_of, "n": n}
-    return FOOT_OPEN % d + (STAMP if n is not None else STAMP_DAY) % d + "</div></footer></html>\n"
+    opening = _FOOT_TEMPLATE.replace("%(line)s", foot_line(free)).replace("%(stamp)s", "")[:-len("</div></footer></html>\n")]
+    return opening % d + (STAMP if n is not None else STAMP_DAY) % d + "</div></footer></html>\n"
+
+
+# What the free tier adds to the stylesheet: the locked line under a trimmed section. Kept apart
+# from CSS so the whole-record build writes the stylesheet it always wrote.
+CSS_FREE = """/* the free tier: the locked line under a trimmed section (tiers.py) */
+.locked{max-width:76ch;margin:14px 0 0;padding:10px 14px;border:1px dashed var(--under);border-radius:var(--radius);background:var(--panel);color:var(--ink-2);font-size:14px;line-height:1.5}
+.locked b{font-weight:600;color:var(--ink)}.locked a{color:var(--ink)}
+"""
+
+
+def css(free=False):
+    """The stylesheet for the mode a build runs in."""
+    return CSS + (CSS_FREE if free else "")
 
 MONTHS = ("January", "February", "March", "April", "May", "June", "July", "August", "September",
           "October", "November", "December")
@@ -344,12 +377,12 @@ def pill(word):
     return '<span class="pill %s">%s</span>' % (cls, esc(word)) if cls else esc(word)
 
 
-def write_assets(out):
+def write_assets(out, free=False):
     """The stylesheet, the favicon and the share image, at the site root."""
     import os
     import shutil
     with open(os.path.join(out, "atlas.css"), "w") as f:
-        f.write(CSS)
+        f.write(css(free))
     with open(os.path.join(out, "favicon.svg"), "w") as f:
         f.write(FAVICON)
     og = os.path.join(os.path.dirname(os.path.abspath(__file__)), "site-assets", "og.png")

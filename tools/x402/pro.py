@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
-# Copied from the Aušrinė lab (commit defb6e9). Edit it there, not here.
+# Copied from the Aušrinė lab (commit f04f064). Edit it there, not here.
 """pro.py — Atlas Pro: the Atlas's record as working data, for a license key.
 
-The Atlas is a free public record, and every page of it stays free. Pro sells the
-same record as data a program can use: the newest window, whole, in four files.
+The Atlas is a public record: every seller's basic card is free, and the full record,
+every buyer wallet and every operator, is paid (tiers.py, since 2026-10-05). Pro sells
+that record as data a program can use: the newest window, whole, in four files.
 
     GET /pro                       free: what Pro holds and how to call it
     GET /pro/export/sellers.csv    every seller in the newest snapshot, with the chain beside it
@@ -307,8 +308,8 @@ def describe():
     return {
         "ok": True, "name": market.BRAND_SHORT + " Pro", "price": PRICE,
         "what": "The " + market.BRAND + "'s newest window of the x402 market on Base, as working data: every seller, every paying wallet and every "
-                "wallet group, with the on-chain facts beside the registry's own counts. The Atlas's pages stay free; "
-                "Pro is the same record as files a program can use.",
+                "wallet group, with the on-chain facts beside the registry's own counts. Every seller's basic card on the "
+                "Atlas is free; Pro is the full record, as files a program can use.",
         "ways_to_pay": [
             "a subscription, %s: a Polar license key in the %s header opens every file at %s<file>"
             % (PRICE, HEADER, "/pro/export/"),

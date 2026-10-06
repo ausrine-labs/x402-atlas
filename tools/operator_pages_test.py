@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Copied from the Aušrinė lab (commit 507dd4a). Edit it there, not here.
+# Copied from the Aušrinė lab (commit f04f064). Edit it there, not here.
 """operator_pages_test.py — a page for every wallet group, from a synthetic rollup. No network.
 
     python3 operator_pages_test.py
@@ -96,8 +96,9 @@ class Unclaimed(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.out = tempfile.mkdtemp()
+        # the whole record public (free=False): the free tier's pages are tested in free_tier_test.py
         cls.r = sp.build(cls.out, store(), site="https://example.test/atlas", claims="/nonexistent.json",
-                         whales=whales(tempfile.mkdtemp()), operators="/nonexistent-operators.json")
+                         whales=whales(tempfile.mkdtemp()), operators="/nonexistent-operators.json", free=False)
 
     def page(self, *parts):
         return open(os.path.join(self.out, *parts)).read()
@@ -141,7 +142,7 @@ class Unclaimed(unittest.TestCase):
     def test_the_host_page_links_to_its_group(self):
         html = self.page("s", "gamma.aslan.example", "index.html")
         self.assertIn('The group’s page: <a href="https://example.test/atlas/o/aslan.example/">aslan.example</a>', html)
-        self.assertIn("operators</a>", html)                                          # the nav has the room
+        self.assertIn("Operators</a>", html)                                          # the nav has the room
 
     def test_the_sitemap_lists_the_group_pages(self):
         sm = self.page("sitemap-sellers.xml")
@@ -239,7 +240,7 @@ class BuyerLinks(unittest.TestCase):
                         "sellers": [{"host": "alpha.aslan.example", "payments": 600, "usdc": 45.0, "payments_x402": 600, "usdc_x402": 45.0}]}]
         json.dump(d, open(rollup, "w"))
         sp.build(cls.out, store(), site="https://example.test/atlas", claims="/nonexistent.json",
-                 whales=rollup, operators="/nonexistent-operators.json")
+                 whales=rollup, operators="/nonexistent-operators.json", free=False)
         cls.html = open(os.path.join(cls.out, "o", "aslan.example", "index.html")).read()
 
     def test_a_wallet_with_a_page_links_there(self):

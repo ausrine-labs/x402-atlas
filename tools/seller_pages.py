@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Copied from the Aušrinė lab (commit defb6e9). Edit it there, not here.
+# Copied from the Aušrinė lab (commit f04f064). Edit it there, not here.
 """seller_pages.py — a public page for every seller in the agent economy.
 
 Roughly 2,000 teams sell to agents over x402. Each of them wants to know how
@@ -12,6 +12,11 @@ Why static HTML: a seller searching for its own name should find its page.
 
     seller_pages.py --out /path/to/site        # writes site/s/..., site/claim.html
     seller_pages.py --out site --whales flows/whales-<date>.json --flows-dir flows
+    seller_pages.py --out site ... --full      # the whole record public, as before tiers.py
+
+Since 2026-10-05 the site is built in the free tier (tiers.FREE_TIER_ONLY): the basic
+card is free, the full record is paid, and what a page does not show it does not carry.
+--full builds the old, everything-public site, byte for byte.
 
 Every word that comes from the registry was written by a stranger. It is
 escaped on the way out, always (see esc()). Numbers carry their caveats.
@@ -38,6 +43,7 @@ import map_page  # noqa: E402
 import atlas_style  # noqa: E402
 import site_pages  # noqa: E402
 import relationships  # noqa: E402
+import tiers  # noqa: E402
 
 SITE = "https://ausrine-labs.github.io/x402-atlas"
 API = "https://ausrine-who.onrender.com"
@@ -200,7 +206,7 @@ def load_chain(path):
             "dates": d.get("dates") or []}
 
 
-def operator_line(host, chain):
+def operator_line(host, chain, free=False):
     op = chain["operators"].get(host)
     if not op:
         return ""
@@ -209,6 +215,9 @@ def operator_line(host, chain):
     if g and g["claimed"]:
         return ('<p class="muted">Payments to <b>%d hosts</b> land in this same wallet. The group is claimed by its operator, '
                 "%s (that mark means the operator proved control of the hosts; it is not an endorsement).</p>" % (op["hosts"], link))
+    if free:        # the other hosts are the group's record: on its page, in the full record
+        return ('<p class="muted">Payments to <b>%d hosts</b> land in this same wallet — usually one operator, sometimes a '
+                "platform collecting for several. The group’s page: %s.</p>" % (op["hosts"], link))
     return ('<p class="muted">Payments to <b>%d hosts</b> land in this same wallet — usually one operator, sometimes a '
             "platform collecting for several: %s%s. The group’s page: %s.</p>"
             % (op["hosts"], ", ".join(esc(h) for h in op["others"][:6]),
@@ -224,10 +233,15 @@ def payer_link(w, chain):
             % (esc(w["wallet"]), esc(w["short"]), "{:,}".format(w["payments"])))
 
 
-def paid_section(host, me, chain):
+PAID_LOCKED = "the wallets that paid it, each with its payments, and the share the busiest three sent"
+
+
+def paid_section(host, me, chain, free=False):
     """'Who actually paid': the seller's x402 payments in the window, from how many wallets,
     how concentrated, the wallets named — and the operator its wallet belongs to. Facts with
-    their evidence; the word for concentration is defined on the page."""
+    their evidence; the word for concentration is defined on the page. In the free tier
+    (tiers.py) one summary line stays: the payments, the payer wallets, the concentration
+    label; the wallets and their shares are in the full record, and the page says where."""
     if chain is None:
         return ""
     p = ['<h2>Who actually paid</h2><p class="dateline">x402 payments on Base · %s</p>' % esc(atlas_style.chain_day(chain))]
@@ -236,20 +250,22 @@ def paid_section(host, me, chain):
     if "Base" not in me["chains"]:
         p.append('<p class="muted">This seller takes payment on %s. The daily pull reads Base only, so the chain '
                  "has nothing to say here yet.</p>" % esc(", ".join(me["chains"]) or "another chain"))
-        p.append(operator_line(host, chain))
+        p.append(operator_line(host, chain, free))
         return "".join(p)
     if not s or not s["on_chain_payments_x402"]:
         other = s["on_chain_usdc"] if s else 0
         p.append('<p class="muted">In the last %s on Base, no x402 payment reached this seller’s wallet%s.%s</p>'
                  % (span(hours), "s" if len(me["wallets"]) != 1 else "",
                     (" %s reached it by ordinary transfer, which is not a call being bought." % money(other)) if other else ""))
-        p.append(operator_line(host, chain))
+        p.append(operator_line(host, chain, free))
         return "".join(p)
     n, m, top3 = s["on_chain_payments_x402"], s["x402_payer_wallets"], s["x402_top3_share"]
     word = s["concentration"]
     tag = '<span class="tag">%s</span> ' % esc(word) if word in ("one payer", "concentrated") else ""
     if m == 1:
         spread = "all of them from one wallet"
+    elif free:
+        spread = "from %s wallets" % "{:,}".format(m)
     else:
         spread = "from %s wallets; the busiest three sent %d%%" % ("{:,}".format(m), top3)
     p.append("<p>%sIn the last %s on Base, <b>%s x402 payments</b> (%s) reached this seller’s wallet%s, %s.%s</p>"
@@ -257,9 +273,12 @@ def paid_section(host, me, chain):
                 (" Another %s reached the same wallet%s by ordinary transfer, which is not a call being bought."
                  % (money(s["on_chain_usdc"] - s["on_chain_usdc_x402"]), "s" if len(s["wallets"]) != 1 else ""))
                 if s["on_chain_usdc"] - s["on_chain_usdc_x402"] >= 1 else ""))
-    p.append('<p class="muted">The busiest wallets that paid it:</p><ul class="payers">%s</ul>'
-             % "".join("<li>%s payments</li>" % payer_link(w, chain) for w in s["x402_top_payers"]))
-    p.append(operator_line(host, chain))
+    if free:
+        p.append(tiers.locked_html(PAID_LOCKED, SITE))
+    else:
+        p.append('<p class="muted">The busiest wallets that paid it:</p><ul class="payers">%s</ul>'
+                 % "".join("<li>%s payments</li>" % payer_link(w, chain) for w in s["x402_top_payers"]))
+    p.append(operator_line(host, chain, free))
     return "".join(p)
 
 
@@ -268,6 +287,10 @@ REL_NOTE = ("Relationships are patterns in the x402 payments we observe on Base 
             "is not an agent, and a relationship is a pattern of payments, not a claim about who anyone is or who runs "
             "a wallet. Bought alongside and the switches leave out wallets that paid more than %d sellers in the window: "
             "a wallet that pays everyone says nothing about what goes together." % relationships.BUSY)
+# The free tier shows one line of the facts; the note keeps only what that line needs defined.
+REL_NOTE_FREE = REL_NOTE[:REL_NOTE.index(" Bought alongside")]
+REL_LOCKED = ("its most loyal buyers, what is bought alongside it, who left it for whom, who came to it from where, "
+              "and its early buyers, each with the counts behind it")
 
 
 def _n(x):
@@ -350,9 +373,23 @@ def wallet_facts(f, rel, known, chain, it, here):
     return "".join(p)
 
 
-def relationships_section(host, me, rel, known, chain):
+def wallet_line(f, it):
+    """The one line the free tier keeps of a wallet's relationship facts: buyers in the window,
+    how many came back, with the numbers behind each."""
+    b, cb = f["buyers"], f["came_back"]
+    p = ["<p><b>%s</b> paid %s over x402 on %d of the window’s %s: %s, %s. <b>%s of %s came back</b> on another day (%.0f%%).</p>"
+         % (_s(b["count"], "buyer"), it, f["days"]["paid"], _s(f["days"]["window"], "day"),
+            _s(b["payments"], "payment"), money(b["usdc"]), _n(cb["buyers"]), _s(cb["of"], "buyer"), cb["rate_pct"])]
+    for note in f["notes"]:
+        p.append('<p class="muted">%s.</p>' % esc(note[:1].upper() + note[1:]))
+    return "".join(p)
+
+
+def relationships_section(host, me, rel, known, chain, free=False):
     """'Relationships': who came back, what was bought alongside, who left for whom, the early
-    buyers. Read from the flows window, per payTo wallet; every number shown."""
+    buyers. Read from the flows window, per payTo wallet; every number shown. In the free
+    tier (tiers.py) one line stays, buyers and who came back; the lists are in the full
+    record, and the page says where."""
     p = ["<h2>Relationships</h2>"]
     if rel is None:
         p.append('<p class="muted">The on-chain window was not loaded for this build, so the relationships between this '
@@ -381,6 +418,14 @@ def relationships_section(host, me, rel, known, chain):
         p.append('<p class="muted">%s</p>' % esc(REL_NOTE))
         return "".join(p)
     ws = view["wallets"]
+    if free:
+        if len(ws) > 1:
+            p.append('<p class="muted">This host is paid into %s that were paid in the window; the line below is its '
+                     "busiest wallet’s, across every host paid into it.</p>" % _s(len(ws), "wallet"))
+        p.append(wallet_line(ws[0], "this wallet" if ws[0]["hosts_total"] > 1 or len(ws) > 1 else "this seller"))
+        p.append(tiers.locked_html(REL_LOCKED, SITE))
+        p.append('<p class="muted">%s</p>' % esc(REL_NOTE_FREE))
+        return "".join(p)
     if len(ws) > 1:
         p.append('<p class="muted">This host is paid into %s that were paid in the window. Each wallet is read on its own, '
                  "across every host paid into it%s.</p>"
@@ -419,12 +464,25 @@ def endpoints_section(me):
     return "".join(p)
 
 
-def build(out, store=None, site=None, claims=None, whales=None, operators=None, flows=None, flows_dir=None):
+def build(out, store=None, site=None, claims=None, whales=None, operators=None, flows=None, flows_dir=None, free=None):
+    """Write the whole site. free: None for the switch (tiers.FREE_TIER_ONLY), True for the free
+    tier, False for the whole record public, as the site was built before 2026-10-05."""
     global SITE
     if site:
         SITE = site.rstrip("/")      # a local address, for looking at the pages before they are public
     if store:
         radar.STORE = store
+    free = tiers.free(free)
+    tier = tiers if free else None          # the page builders read the switch through this, and import no tiers
+    if free:
+        # A free build writes only what the free tier shows, so it must not land on pages an
+        # earlier build left: a seller, wallet or group missing from today's data would keep
+        # its whole record at a public address. The Atlas builds into a fresh _site every day.
+        old = [d for d in ("s", "b", "o") if os.path.isdir(os.path.join(out, d))]
+        if old:
+            raise SystemExit("seller_pages: the free tier builds into a fresh folder; %s already holds %s/ from an "
+                             "earlier build" % (out, "/, ".join(old)))
+    foot = atlas_style.foot(free)
     chain = load_chain(whales)
     rel = relationships.window(flows_dir) if flows_dir else None     # the flows window, read once for every page
     claimed_ops = operator_pages.load_operators(operators if operators is not None else os.path.join(HERE, "operators.json"))
@@ -448,7 +506,7 @@ def build(out, store=None, site=None, claims=None, whales=None, operators=None, 
     claimed = load_claims(claims if claims is not None else os.path.join(HERE, "claims.json"))
     sdir = os.path.join(out, "s")
     os.makedirs(sdir, exist_ok=True)
-    atlas_style.write_assets(out)
+    atlas_style.write_assets(out, free)
     with open(os.path.join(sdir, "radar.css"), "w") as f:     # the old address, for pages cached before atlas.css
         f.write('@import url("../atlas.css");\n')
     ctx = {"root": SITE, "css": SITE + "/atlas.css"}
@@ -456,13 +514,13 @@ def build(out, store=None, site=None, claims=None, whales=None, operators=None, 
     group_slugs, groups_listing = [], []
     if chain is not None:
         # buyers first, so the operator pages link a wallet to its page only when it exists
-        chain["buyer_pages"], _buyers_listing = buyer_pages.build(out, chain, A, ctx, as_of, n, site=SITE, head=HEAD, foot=FOOT,
-                                                                   issues=ISSUES)
+        chain["buyer_pages"], _buyers_listing = buyer_pages.build(out, chain, A, ctx, as_of, n, site=SITE, head=HEAD, foot=foot,
+                                                                   issues=ISSUES, tier=tier)
         chain["by_host"], groups_listing = operator_pages.build(out, chain, A, ctx, as_of, n, operators=claimed_ops, site=SITE,
-                                                                 head=HEAD, foot=FOOT, issues=ISSUES, buy_url=BUY_OPERATOR,
-                                                                 buyers=chain["buyer_pages"])
-        group_slugs = [r[0] for r in groups_listing]
-    drew_map = build_map(out, whales, chain, flows, A, as_of)
+                                                                 head=HEAD, foot=foot, issues=ISSUES, buy_url=BUY_OPERATOR,
+                                                                 buyers=chain["buyer_pages"], tier=tier)
+        group_slugs = operator_pages.built_slugs(groups_listing, tiers.TOP if free else None)   # the sitemap names the pages with a record on them
+    drew_map = build_map(out, whales, chain, flows, A, as_of, foot)
 
     for host, me in A.items():
         sl = slug(host)
@@ -529,8 +587,8 @@ def build(out, store=None, site=None, claims=None, whales=None, operators=None, 
                     else "price per call, across %d endpoints" % me["endpoints"],
                     money(me["take"]), rank_t[host], chg))
         p.append('<div class="cols"><div>')
-        p.append(paid_section(host, me, chain))
-        p.append(relationships_section(host, me, rel, known, chain))
+        p.append(paid_section(host, me, chain, free))
+        p.append(relationships_section(host, me, rel, known, chain, free))
         # every seller page points its owner at the buyers report; a claimed page already has its owner
         p.append('<p class="box">%s <a href="%s/sellers/?host=%s">See who your buyers are</a>: every wallet that paid '
                  "you, day by day, and where the ones that left went, in one report.</p>"
@@ -583,7 +641,7 @@ def build(out, store=None, site=None, claims=None, whales=None, operators=None, 
         p.append('</aside></div>')
         p.append('<h2>How to read these numbers</h2><ul class="cav">%s</ul></main>'
                  % "".join("<li>%s</li>" % esc(c) for c in CAVEATS))
-        p.append(FOOT % {"root": SITE, "issue": esc("%s&title=%s" % (CORRECT, "Correction:+" + host)), "as_of": esc(as_of),
+        p.append(foot % {"root": SITE, "issue": esc("%s&title=%s" % (CORRECT, "Correction:+" + host)), "as_of": esc(as_of),
                          "n": "{:,}".format(n)})
         d = os.path.join(sdir, sl)
         os.makedirs(d, exist_ok=True)
@@ -621,7 +679,7 @@ tb.innerHTML=D.map((r,i)=>[r,i]).filter(([r])=>(r[0]+' '+r[6]).toLowerCase().inc
 .map(([r,i])=>`<tr><td class="n">${i+1}</td><td class="h"><a href="${e(r[1])}/">${e(r[0])}</a></td><td class="n">${r[2].toLocaleString()}</td><td class="n">${pr(r[5])}</td><td class="n">${mo(r[4])}</td><td>${e(r[6])}</td></tr>`).join('')
 ||'<tr><td colspan="6">No seller matches that.</td></tr>'});
 </script>""")
-    page.append(FOOT % {"root": SITE, "issue": esc(ISSUES), "as_of": esc(as_of), "n": "{:,}".format(n)})
+    page.append(foot % {"root": SITE, "issue": esc(ISSUES), "as_of": esc(as_of), "n": "{:,}".format(n)})
     with open(os.path.join(sdir, "index.html"), "w") as f:
         f.write("".join(page))
 
@@ -630,8 +688,8 @@ tb.innerHTML=D.map((r,i)=>[r,i]).filter(([r])=>(r[0]+' '+r[6]).toLowerCase().inc
                          canon=SITE + "/claim.html")]
     claim.append("""<main id="main"><p class="eyebrow">For sellers</p><h1 id="h">Your service already has a page here.</h1>
 <p class="sells">Every seller in the x402 registry does: rank, paid calls, payers, price, rivals, and the day-by-day
-replay. The numbers are never for sale. They come from the public registry and are the same for everyone.
-What you can buy is your own voice on your page, and a deeper look at your corner of the market.</p>
+replay. %(numbers)s They come from the public registry and are the same for everyone.
+What you can buy is your own voice on your page, %(deeper)s.</p>
 <p class="muted" id="which"></p>
 <form class="form" id="hostform" style="margin-top:18px"><div><label for="host">Your service’s host</label>
 <input id="host" type="text" inputmode="url" autocomplete="off" placeholder="api.example.com"></div>
@@ -667,8 +725,8 @@ settled, Base only, over the window; a wallet is not a person.</p>
 this by hand for now: allow up to 5 business days. If you have paid and heard nothing in 2 business days,
 <a href="%s?title=I+paid+and+heard+nothing">tell us here</a> and you go to the front. Refunds on request.
 This is business analytics about your own service, not financial advice.</p>
-<h2>Not a seller?</h2><p class="muted">Everyone can <a href="%s/s/">browse all sellers</a> for free. An agent
-gets the same report card, with who actually paid, over x402 at <code>%s/who/&lt;host&gt;</code> — a cent a call on
+<h2>Not a seller?</h2><p class="muted">Everyone can <a href="%(site)s/s/">browse %(browse)s</a> for free. An agent
+gets the same report card, with who actually paid, over x402 at <code>%(api)s/who/&lt;host&gt;</code> — a cent a call on
 Base, paid by the agent itself.</p></main>
 <script>const h=(new URLSearchParams(location.search).get('host')||'').toLowerCase().replace(/[^a-z0-9._:-]/g,'').slice(0,253);
 if(h){document.getElementById('h').textContent=h+' already has a page here.';
@@ -683,18 +741,22 @@ hi.value=h;arm(h);hi.addEventListener('input',()=>arm(hi.value));
 document.getElementById('hostform').addEventListener('submit',e=>e.preventDefault());
 document.querySelectorAll('a.buy').forEach(a=>a.addEventListener('click',e=>{if(!arm(hi.value)){e.preventDefault();hi.focus();
 note.textContent='Type your service’s host first, like api.example.com: the checkout needs it to know which page is yours.';}}));
-</script>"""
-                 % (esc(BUY_VERIFIED), esc(BUY_REPORT), esc(BUY_BUYERS), esc(BUY_OPERATOR), esc(ISSUES), SITE, API))
-    claim.append(FOOT % {"root": SITE, "issue": esc(ISSUES), "as_of": esc(as_of), "n": "{:,}".format(n)})
+</script>""".replace("%(numbers)s", tiers.PLACE if free else "The numbers are never for sale.")
+                 .replace("%(deeper)s", "a deeper look at your corner of the market, and the full record" if free
+                          else "and a deeper look at your corner of the market")
+                 .replace("%(browse)s", "every seller’s basic card" if free else "all sellers")
+                 .replace("%(site)s", SITE).replace("%(api)s", API)
+                 % (esc(BUY_VERIFIED), esc(BUY_REPORT), esc(BUY_BUYERS), esc(BUY_OPERATOR), esc(ISSUES)))
+    claim.append(foot % {"root": SITE, "issue": esc(ISSUES), "as_of": esc(as_of), "n": "{:,}".format(n)})
     with open(os.path.join(out, "claim.html"), "w") as f:
         f.write("".join(claim))
 
-    pro_page(out, ctx, as_of, n)
-    site_pages.build(out, ctx, as_of, n, site=SITE, api=API, head=HEAD, foot=FOOT, issues=ISSUES, buy_pro=BUY_PRO,
-                     sample=sellers_sample(rel, A, as_of), buy_sellers=BUY_SELLERS)
+    pro_page(out, ctx, as_of, n, foot=foot, free=free)
+    site_pages.build(out, ctx, as_of, n, site=SITE, api=API, head=HEAD, foot=foot, issues=ISSUES, buy_pro=BUY_PRO,
+                     sample=sellers_sample(rel, A, as_of), buy_sellers=BUY_SELLERS, free=free)
 
-    door = front_door.build(out, chain, A, loaded, ctx, as_of, SITE, HEAD, FOOT, ISSUES, API, groups_listing,
-                            buyers=(chain or {}).get("buyer_pages"), map_=drew_map)
+    door = front_door.build(out, chain, A, loaded, ctx, as_of, SITE, HEAD, foot, ISSUES, API, groups_listing,
+                            buyers=(chain or {}).get("buyer_pages"), map_=drew_map, free=free)
 
     with open(os.path.join(out, "sitemap-sellers.xml"), "w") as f:
         f.write('<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n')
@@ -709,7 +771,8 @@ note.textContent='Type your service’s host first, like api.example.com: the ch
         if drew_map:
             f.write("<url><loc>%s/map/</loc><lastmod>%s</lastmod></url>\n" % (SITE, as_of))
         f.write("</urlset>\n")
-    return {"as_of": as_of, "sellers": n, "groups": len(group_slugs), "door": door, "out": out, "map": drew_map}
+    return {"as_of": as_of, "sellers": n, "groups": len(groups_listing), "door": door, "out": out, "map": drew_map,
+            "free": free, "groups_built": len(group_slugs)}
 
 
 def sellers_sample(rel, A, as_of):
@@ -727,12 +790,26 @@ def sellers_sample(rel, A, as_of):
     return seller_report.sample_from(body, pick[1]) if body and body["wallets"] else None
 
 
-def pro_page(out, ctx, as_of, n):
+# The Free and Pro table on /pro.html, for the whole record public and for the free tier.
+PRO_TABLE = [("Every seller, operator and buyer page", "yes", "yes"),
+             ("Search, the map, the day’s numbers", "yes", "yes"),
+             ("The whole day as CSV and JSON", "—", "yes"),
+             ("Every payer wallet and operator group in one file", "—", "yes")]
+PRO_TABLE_FREE = [("Every seller’s basic card", "yes", "yes"),
+                  ("Search, the map, the live feed, the day’s numbers, the top %d lists" % tiers.TOP, "yes", "yes"),
+                  ("Every buyer wallet and every operator", "—", "yes"),
+                  ("The wallets that paid each seller, and its relationships, in full", "—", "yes"),
+                  ("The whole day as CSV and JSON", "—", "yes")]
+
+
+def pro_page(out, ctx, as_of, n, foot=None, free=None):
     """/pro.html: Atlas Pro, the same record as working data. The columns come from the
     service that serves them (x402/pro.py), so the page cannot promise a column the
     export does not have."""
     sys.path.insert(0, os.path.join(HERE, "x402"))
     import pro
+    free = tiers.free(free)
+    foot = foot if foot is not None else atlas_style.foot(free)
     p = [HEAD % dict(ctx, title="Atlas Pro: the record as data · " + market.BRAND,
                      desc="Atlas Pro: every x402 seller, buyer wallet and wallet group as CSV and JSON, refreshed "
                           "every morning. $49 a month.", canon=SITE + "/pro.html")]
@@ -742,15 +819,18 @@ def pro_page(out, ctx, as_of, n):
     p.append("""<main id="main"><div class="hero"><div><p class="eyebrow">Atlas Pro</p>
 <h1>The whole record, as data, every morning.</h1>
 <p class="sells">The same record the Atlas shows, as working data: every seller, every wallet that paid over x402,
-and every group of hosts paid into one wallet, in files a spreadsheet or a program can read. Every page of the Atlas
-stays free. Pro is for when you want the whole day at once, every morning, without scraping it.</p></div>
+and every group of hosts paid into one wallet, in files a spreadsheet or a program can read. %(free_line)s</p></div>
 <div class="tier feature"><div class="p">$49 <small>a month</small></div><p class="muted" style="margin:0">One license key. Cancel any time.</p>
 %s<p class="muted" style="margin:0">Need a licence for a team or a feed? <a href="%s/contact/">Contact us</a>. All plans: <a href="%s/pricing/">pricing</a>.</p></div></div>
 <div class="cards">
 <div class="card"><p class="eyebrow" style="margin:0 0 6px">01 · Daily</p><h3>Four exports, every morning</h3><p>%s, rebuilt when the daily scan lands.</p></div>
 <div class="card"><p class="eyebrow" style="margin:0 0 6px">02 · Honest</p><h3>Two sources, never blended</h3><p>What sellers report to the registry, beside what the chain shows they were paid.</p></div>
 <div class="card"><p class="eyebrow" style="margin:0 0 6px">03 · Simple</p><h3>One key, one header</h3><p>Polar issues the key when you subscribe. %d calls an hour per key, for scripts, agents and notebooks.</p></div>
-</div>""" % (buy, SITE, SITE, esc(", ".join(pro.EXPORTS)), pro.PER_HOUR))
+</div>""".replace("%(free_line)s", "Every seller’s basic card is free, as it was. Pro is the full record: every buyer wallet "
+                                 "and every operator, and the whole day at once, every morning, without scraping it."
+                                 if free else "Every page of the Atlas\nstays free. Pro is for when you want the whole day "
+                                 "at once, every morning, without scraping it.")
+             % (buy, SITE, SITE, esc(", ".join(pro.EXPORTS)), pro.PER_HOUR))
     import watch_service                        # the watch doors' own price
     p.append('<div class="box" id="watch"><p class="eyebrow" style="margin:0">With your Pro key</p>'
              '<h3 style="margin-top:6px"><a href="%s/watch/">Watch your agents</a></h3>'
@@ -773,19 +853,17 @@ more than %d days old the exports are refused rather than sold stale. The full r
 <h2>Who it is for</h2><ul class="cav"><li>Funds and analysts sizing agent commerce.</li><li>Sellers watching their rivals and their buyers.</li>
 <li>Builders whose agents choose which services to pay.</li><li>Institutions, platforms and facilitators: a data licence or feed, <a href="%s/contact/">talk to us</a>.</li></ul>
 <h2>Free and Pro</h2><div class="tw"><table><tr><th>What you get</th><th>Free</th><th>Pro</th></tr>
-<tr><td>Every seller, operator and buyer page</td><td>yes</td><td>yes</td></tr>
-<tr><td>Search, the map, the day’s numbers</td><td>yes</td><td>yes</td></tr>
-<tr><td>The whole day as CSV and JSON</td><td>—</td><td>yes</td></tr>
-<tr><td>Every payer wallet and operator group in one file</td><td>—</td><td>yes</td></tr></table></div>
+%s</table></div>
 <h2>What the numbers are, and are not</h2><ul class="cav">%s</ul></main>"""
              % (esc(pro.HEADER), esc(pro.HEADER), API, API, pro.who_service.MAX_AGE_DAYS, SITE, SITE,
+                "\n".join("<tr><td>%s</td><td>%s</td><td>%s</td></tr>" % r for r in (PRO_TABLE_FREE if free else PRO_TABLE)),
                 "".join("<li>%s</li>" % esc(c) for c in CAVEATS + [c[:1].upper() + c[1:] + "." for c in pro.CAVEATS[-2:]])))
-    p.append(FOOT % {"root": SITE, "issue": esc(ISSUES), "as_of": esc(as_of), "n": "{:,}".format(n)})
+    p.append(foot % {"root": SITE, "issue": esc(ISSUES), "as_of": esc(as_of), "n": "{:,}".format(n)})
     with open(os.path.join(out, "pro.html"), "w") as f:
         f.write("".join(p))
 
 
-def build_map(out, whales, chain, flows, A, as_of):
+def build_map(out, whales, chain, flows, A, as_of, foot=FOOT):
     """/map/ from the day's flows: the flows file for the rollup's own day, found beside the
     rollup in the store (or given as --flows). Without one the map is left as it was."""
     if chain is None:
@@ -800,7 +878,7 @@ def build_map(out, whales, chain, flows, A, as_of):
         print("map: no flows-%s.json beside the rollup; /map/ not rebuilt" % day)
         return None
     try:
-        r = map_page.build(out, path, whales, A, SITE, as_of, head=HEAD, foot=FOOT, issues=ISSUES)
+        r = map_page.build(out, path, whales, A, SITE, as_of, head=HEAD, foot=foot, issues=ISSUES)
     except (OSError, ValueError, KeyError, TypeError) as e:     # a bad day of flows costs the map, not the Atlas
         print("map: %s would not draw (%s: %s); /map/ not rebuilt" % (path, type(e).__name__, e))
         return None
@@ -820,9 +898,11 @@ def main():
     ap.add_argument("--flows", default=None, help="the day's flows-<date>.json, for the map (default: beside the rollup)")
     ap.add_argument("--flows-dir", default=None, help="the on-chain window, a folder of flows-<date>.json "
                     "(flows_handoff.py fetch keeps one), for each seller's Relationships")
+    tiers.add_flags(ap)
     a = ap.parse_args()
-    r = build(a.out, a.store, a.site, a.claims, a.whales, a.operators, a.flows, a.flows_dir)
-    print("wrote %d seller pages and %d operator pages, as of %s, into %s" % (r["sellers"], r["groups"], r["as_of"], r["out"]))
+    r = build(a.out, a.store, a.site, a.claims, a.whales, a.operators, a.flows, a.flows_dir, free=tiers.from_args(a))
+    print("wrote %d seller pages and %d operator pages (%d with a record on them), as of %s, into %s%s"
+          % (r["sellers"], r["groups"], r["groups_built"], r["as_of"], r["out"], ": the free tier" if r["free"] else ": the whole record"))
 
 
 if __name__ == "__main__":

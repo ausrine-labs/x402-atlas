@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Copied from the Aušrinė lab (commit a0d9190). Edit it there, not here.
+# Copied from the Aušrinė lab (commit f04f064). Edit it there, not here.
 """leaders.py — /leaders/: facilitators, new sellers, new buyer wallets, and the chain split.
 
     facilitators   who settled the day's x402 payments. An x402 'exact' payment is settled
@@ -39,8 +39,10 @@ import sys
 import urllib.request
 from datetime import date, timedelta
 
+import buyer_pages
 import chain_flows
 import coverage_page as cp
+import tiers
 
 WINDOW_DAYS = 7
 TOP = 25
@@ -230,22 +232,26 @@ def chain_split(rollup):
 
 
 def leaders_data(rollup, snapshots, flow_days, settlements=None, settlements_day=None, as_of=None, known=None, site="",
-                 wallet_hosts=None):
+                 wallet_hosts=None, free=None):
     """Everything /leaders/ shows. settlements: pull_settlements' list for one day, or None.
-    site: where the Atlas is served; links keep only its path (see coverage_page.site_path)."""
+    site: where the Atlas is served; links keep only its path (see coverage_page.site_path).
+    free: the tier (tiers.py). The free tier counts every row so the body can say how many
+    are past the TOP it shows, and links a wallet to its page only where one has a record."""
     rollup = rollup or {}
+    free = tiers.free(free)
+    cap = None if free else TOP
     as_of = as_of or rollup.get("as_of") or (max(d for d, _ in snapshots) if snapshots else "")
     wallet_host = {}
     for s in rollup.get("sellers") or []:
         for w in s.get("wallets") or []:
             wallet_host.setdefault(w.lower(), s["host"])
-    ns, ns_base = new_sellers(snapshots, rollup)
+    ns, ns_base = new_sellers(snapshots, rollup, top=cap)
     hosts = dict(wallet_hosts or {})
     hosts.update(wallet_host)                  # the rollup's naming wins: the busiest host of a shared wallet
-    nb, nb_base = new_buyers(flow_days, hosts=hosts)
+    nb, nb_base = new_buyers(flow_days, hosts=hosts, top=cap)
     split = chain_split(rollup)
-    buyer_pages = {b["wallet"].lower() for b in rollup.get("buyers") or [] if b.get("payments_x402")}
-    return {"as_of": as_of, "days": ", ".join(rollup.get("dates") or []), "site": cp.site_path(site),
+    pages = buyer_pages.kept(rollup, tiers.TOP) if free else {b["wallet"].lower() for b in rollup.get("buyers") or [] if b.get("payments_x402")}
+    return {"as_of": as_of, "days": ", ".join(rollup.get("dates") or []), "site": cp.site_path(site), "free": free,
             "classified": sorted(cp.classified_chains(rollup)), "chains_covered": cp.chains_of(rollup),
             "facilitators": facilitator_board(settlements, known, wallet_host) if settlements is not None else None,
             "settlements_day": settlements_day,
@@ -255,12 +261,14 @@ def leaders_data(rollup, snapshots, flow_days, settlements=None, settlements_day
             "sellers_window": [since_day(max(d for d, _ in snapshots)), max(d for d, _ in snapshots)] if snapshots else None,
             "new_buyers": nb, "buyers_baseline": nb_base,
             "buyers_window": [since_day(max(d for d, _ in flow_days)), max(d for d, _ in flow_days)] if flow_days else None,
-            "buyer_pages": sorted(buyer_pages), "chains": split}
+            "buyer_pages": sorted(pages), "chains": split}
 
 
 def leaders_body(data):
     pages = set(data.get("buyer_pages") or [])
     site = data.get("site", "")
+    free = bool(data.get("free"))
+    top = tiers.TOP if free else TOP
     x402 = cp.basis(set(data["classified"]), data["chains_covered"])
     p = ['<section class="leaders">', "<h1>Leaderboards</h1>",
          '<p class="muted">Built <span class="dated">%s</span>. Rollup of <span class="dated">%s</span>. '
@@ -279,7 +287,7 @@ def leaders_body(data):
                     cp.esc(cp.money(data["settlements_usdc"]))))
         p.append('<div class="wrap"><table><thead><tr><th>#</th><th>facilitator</th><th class="num">settlements</th>'
                  '<th class="num">USDC</th><th class="num">sellers</th><th class="num">payer wallets</th></tr></thead><tbody>')
-        for i, r in enumerate(data["facilitators"][:TOP], 1):
+        for i, r in enumerate(data["facilitators"][:top], 1):
             who = (cp.esc(r["name"]) + " " if r["name"] else "") + '<span class="addr" title="%s">%s</span>' % (
                 cp.esc(r["address"]), cp.esc(r["address"] if not r["name"] else cp.short(r["address"])))
             p.append('<tr><td class="num">%d</td><td>%s</td><td class="num">%s</td><td class="num">%s</td>'
@@ -287,6 +295,8 @@ def leaders_body(data):
                          i, who, "{:,}".format(r["settlements"]), cp.esc(cp.money(r["usdc"])),
                          "{:,}".format(r["sellers"]), "{:,}".format(r["payers"])))
         p.append("</tbody></table></div>")
+        if free:        # no daily file holds the board, so a cut says only what it is
+            p.append(cp.shown_line(min(top, len(data["facilitators"])), len(data["facilitators"]), "busiest facilitators"))
 
     p.append("<h2>New sellers</h2>")
     w = data["sellers_window"]
@@ -298,13 +308,18 @@ def leaders_body(data):
                  "a host already in it is never counted as new.</p>" % (cp.esc(w[0]), cp.esc(w[1]), cp.esc(x402),
                                                                         cp.esc(data["sellers_baseline"])))
         if data["new_sellers"]:
+            rows, total = cp.cut(data["new_sellers"], data)
             p.append('<div class="wrap"><table><thead><tr><th>#</th><th>seller</th><th>first seen</th>'
                      '<th class="num">USDC</th><th class="num">payments</th></tr></thead><tbody>')
-            for i, r in enumerate(data["new_sellers"], 1):
+            for i, r in enumerate(rows, 1):
                 p.append('<tr><td class="num">%d</td><td>%s</td><td class="dated">%s</td><td class="num">%s</td>'
                          '<td class="num">%s</td></tr>' % (i, cp.seller_html(r["host"], site), cp.esc(r["first_seen"]),
                                                            cp.esc(cp.money(r["usdc"])), "{:,}".format(r["payments"])))
             p.append("</tbody></table></div>")
+            p.append(cp.shown_line(len(rows), total, "busiest"))
+            if free:
+                p.append(tiers.more_line(len(rows), total, "sellers first seen in the window, each with its day and what it was paid",
+                                         site, ("who", "pro")))
         else:
             p.append("<p>None in the window.</p>")
 
@@ -318,14 +333,19 @@ def leaders_body(data):
                  "</span>; a wallet already paying then is never counted as new. A wallet is an address; the Atlas "
                  "does not say who holds it.</p>" % (cp.esc(w[0]), cp.esc(w[1]), cp.esc(data["buyers_baseline"])))
         if data["new_buyers"]:
+            rows, total = cp.cut(data["new_buyers"], data)
             p.append('<div class="wrap"><table><thead><tr><th>#</th><th>wallet</th><th>first seen</th>'
                      '<th class="num">sellers paid</th><th class="num">x402 USDC</th><th class="num">payments</th></tr></thead><tbody>')
-            for i, r in enumerate(data["new_buyers"], 1):
+            for i, r in enumerate(rows, 1):
                 p.append('<tr><td class="num">%d</td><td>%s</td><td class="dated">%s</td><td class="num">%s</td>'
                          '<td class="num">%s</td><td class="num">%s</td></tr>' % (
                              i, cp.wallet_html(r["wallet"], site, has_page=r["wallet"] in pages), cp.esc(r["first_seen"]),
                              "{:,}".format(r["sellers"]), cp.esc(cp.money(r["usdc"])), "{:,}".format(r["payments"])))
             p.append("</tbody></table></div>")
+            p.append(cp.shown_line(len(rows), total, "busiest"))
+            if free:
+                p.append(tiers.more_line(len(rows), total, "wallets first seen in the window, each with its day, the sellers it "
+                                         "paid and what it spent", site, tiers.BUYER_WAYS))
         else:
             p.append("<p>None in the window%s.</p>" % (
                 " (the store holds one day, so every wallet in it is the baseline)" if w and data["buyers_baseline"] == w[1] else ""))
@@ -349,7 +369,7 @@ def leaders_body(data):
 def write(out, data):
     return cp.write(out, "leaders", cp.page("Leaderboards", leaders_body(data), data["as_of"],
                                             "x402 facilitators, new sellers and new buyer wallets, ranked.",
-                                            room="leaders", root=data.get("site", "")))
+                                            room="leaders", root=data.get("site", ""), free=data.get("free")))
 
 
 # ── loading ──────────────────────────────────────────────────────────────────
@@ -397,6 +417,7 @@ def main():
     ap.add_argument("--settlements")
     ap.add_argument("--site", default="")
     ap.add_argument("--out")
+    tiers.add_flags(ap)
     a = ap.parse_args()
     if a.cmd == "pull":
         wallets = chain_flows.wallets_from_snapshot(json.load(open(a.snapshot)))
@@ -416,7 +437,7 @@ def main():
     st = json.load(open(a.settlements)) if a.settlements else None
     d = leaders_data(rollup, load_snapshots(a.store) if a.store else [], load_flow_days(a.flows),
                      st["settlements"] if st else None, st["date"] if st else None, site=a.site,
-                     wallet_hosts=load_wallet_hosts(a.flows))
+                     wallet_hosts=load_wallet_hosts(a.flows), free=tiers.from_args(a))
     print("leaders: %s facilitators, %d new sellers, %d new buyer wallets, %d chains -> %s" % (
         "no" if d["facilitators"] is None else len(d["facilitators"]), len(d["new_sellers"]), len(d["new_buyers"]),
         len(d["chains"]), write(a.out, d)))

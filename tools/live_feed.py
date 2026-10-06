@@ -1,5 +1,5 @@
-# Copied from the Aušrinė lab (commit 935dfef). Edit it there, not here.
 #!/usr/bin/env python3
+# Copied from the Aušrinė lab (commit f04f064). Edit it there, not here.
 """live_feed.py — /live/: x402 payments as they settle, read in the viewer's own browser.
 
 Every other Atlas page is a photograph of yesterday. This one is a window. The page
@@ -54,7 +54,7 @@ def base_day(flows):
             "sellers": len({host.get(e["to"].lower(), e["to"].lower()) for e in paid})}
 
 
-def live_data(rollup, snapshot=None, site="", base_flows=None):
+def live_data(rollup, snapshot=None, site="", base_flows=None, free=None):
     """What the page needs: {wallet: {"h": shown name, "s": page slug or ""}}, the wallets
     with a buyer page, and what to show when the RPC will not answer: the newest Base day
     (base_flows, a chain_flows.py file) when given, else the rollup's totals, labelled as
@@ -81,7 +81,8 @@ def live_data(rollup, snapshot=None, site="", base_flows=None):
                      if b.get("payments_x402") and cp.evm(b.get("wallet"))})
     t = (rollup or {}).get("totals") or {}
     dates = (rollup or {}).get("dates") or []
-    return {"as_of": (rollup or {}).get("as_of") or (dates[-1] if dates else ""),
+    import tiers
+    return {"as_of": (rollup or {}).get("as_of") or (dates[-1] if dates else ""), "free": tiers.free(free),
             "day": ", ".join(dates), "classified": bool((rollup or {}).get("classified")),
             "classified_chains": sorted(cp.classified_chains(rollup)), "chains": cp.chains_of(rollup),
             "base_day": base_day(base_flows),
@@ -247,7 +248,7 @@ def write(out, data):
     """out/live/index.html, and the wallet table beside it as wallets.json."""
     html_text = cp.page("Live payments", live_body(data), data["as_of"],
                         "x402 payments on Base as they settle, to sellers the Atlas knows.",
-                        room="live", root=data.get("site", ""))
+                        room="live", root=data.get("site", ""), free=data.get("free"))
     return cp.write(out, "live", html_text, {"wallets.json": table_json(data)})
 
 

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Copied from the Aušrinė lab (commit 507dd4a). Edit it there, not here.
+# Copied from the Aušrinė lab (commit f04f064). Edit it there, not here.
 """buyer_pages_test.py — a page for every buyer wallet, from a synthetic rollup. No network.
 
     python3 buyer_pages_test.py
@@ -69,8 +69,9 @@ class Pages(unittest.TestCase):
     def setUpClass(cls):
         cls.out = tempfile.mkdtemp()
         cls.whales, cls.rollup = rollup_file(tempfile.mkdtemp())
+        # the whole record public (free=False): the free tier's top 20 and stubs are tested in free_tier_test.py
         cls.r = sp.build(cls.out, store(), site="https://example.test/atlas", claims="/nonexistent.json",
-                         whales=cls.whales, operators="/nonexistent-operators.json")
+                         whales=cls.whales, operators="/nonexistent-operators.json", free=False)
         cls.agent = AGENT.lower()
 
     @staticmethod
@@ -96,7 +97,7 @@ class Pages(unittest.TestCase):
         html = self.page("b", self.agent, "index.html")
         self.assertIn("<h1><code>0xAbCd…a1a1</code></h1>", html)
         self.assertIn('href="https://basescan.org/address/%s"><code>%s</code></a> on Base' % (AGENT, AGENT), html)
-        self.assertIn("2026-01-02 · 24 h on-chain", html)
+        self.assertIn("2 January 2026 · 24 h on-chain", html)
         self.assertIn("This wallet paid three or more sellers in the window: an agent at work.", html)
         self.assertIn('<span class="tag">agent at work</span>', html)
         self.assertIn("<b>615</b><span>x402 payments, last 24 h</span>", html)
@@ -110,7 +111,7 @@ class Pages(unittest.TestCase):
         html = self.page("b", self.agent, "index.html")
         alpha = html.index('href="https://example.test/atlas/s/alpha.aslan.example/">alpha.aslan.example</a>')
         solo = html.index('href="https://example.test/atlas/s/solo.example/">solo.example</a>')
-        gone = html.index('<td class="h">gone.example</td>')                       # not in the registry: no link
+        gone = html.index('<td class="h"><span class="dot seller" aria-hidden="true"></span>gone.example</td>')                       # not in the registry: no link
         one = html.index('one.ninety.workers.dev</a>')
         self.assertLess(alpha, solo)
         self.assertLess(solo, gone)
@@ -172,12 +173,12 @@ class Pages(unittest.TestCase):
         self.assertIn('href="https://example.test/atlas/b/%s/"' % PLAIN, html)
 
     def test_the_nav_and_the_front_door_point_at_the_buyers(self):
-        self.assertIn('<a href="https://example.test/atlas/b/">buyers</a>', self.page("s", "solo.example", "index.html"))
-        self.assertIn('<a href="https://example.test/atlas/b/">buyers</a>', self.page("b", PLAIN, "index.html"))
+        self.assertIn('<a href="https://example.test/atlas/b/">Buyers</a>', self.page("s", "solo.example", "index.html"))
+        self.assertIn('<a href="https://example.test/atlas/b/">Buyers</a>', self.page("b", PLAIN, "index.html"))
         door = self.page("index.html")
         self.assertIn('<a href="https://example.test/atlas/b/%s/"><code>0xAbCd…a1a1</code></a>' % self.agent, door)
         self.assertIn('<a href="https://example.test/atlas/b/">agents at work</a>: wallets paying 3+ sellers', door)
-        self.assertIn('<a href="https://example.test/atlas/b/">Every buyer</a>', door)
+        self.assertIn('<a href="https://example.test/atlas/b/">All buyers</a>', door)
 
 
 class WhatItBought(unittest.TestCase):
@@ -196,7 +197,7 @@ class WhatItBought(unittest.TestCase):
         out = tempfile.mkdtemp()
         bp.build(out, r, {h: {} for h in snap}, {}, "2026-01-02", 2, head="%(title)s", foot="")
         html = open(os.path.join(out, "b", W, "index.html")).read()
-        line = re.search(r"<h2>What it bought</h2><p[^>]*>(.*?)</p>", html).group(1)
+        line = re.search(r"<h2>What it bought</h2>(?:<p class=\"dateline\">.*?</p>)?<p[^>]*>(.*?)</p>", html).group(1)
         self.assertEqual(line, "By category, most payments first: world data.")
         self.assertNotIn("crypto", line)
 
@@ -218,7 +219,7 @@ class WhatItBought(unittest.TestCase):
         out = tempfile.mkdtemp()
         bp.build(out, r, {h: {} for h in snap}, {}, "2026-01-02", 2, head="%(title)s", foot="")
         html = open(os.path.join(out, "b", W, "index.html")).read()
-        line = re.search(r"<h2>What it bought</h2><p[^>]*>(.*?)</p>", html).group(1)
+        line = re.search(r"<h2>What it bought</h2>(?:<p class=\"dateline\">.*?</p>)?<p[^>]*>(.*?)</p>", html).group(1)
         self.assertEqual(line, "By category, most payments first: world data.")
 
 
@@ -228,7 +229,7 @@ class NoBuyers(unittest.TestCase):
     def test_old_rollups_still_build(self):
         out = tempfile.mkdtemp()
         sp.build(out, opt.store(), site="https://example.test/atlas", claims="/nonexistent.json",
-                 whales=opt.whales(tempfile.mkdtemp()), operators="/nonexistent-operators.json")
+                 whales=opt.whales(tempfile.mkdtemp()), operators="/nonexistent-operators.json", free=False)
         self.assertEqual(json.load(open(os.path.join(out, "b", "index.json")))["buyers"], [])
         html = open(os.path.join(out, "s", "alpha.aslan.example", "index.html")).read()
         self.assertIn('href="https://basescan.org/address/0xc1c1', html)

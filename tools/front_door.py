@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Copied from the Aušrinė lab (commit a0d9190). Edit it there, not here.
+# Copied from the Aušrinė lab (commit f04f064). Edit it there, not here.
 """front_door.py — the Atlas's home page: the public record of agent commerce, read off the chain.
 
 Not a dashboard and not a table: one sentence about what this is, one search box that
@@ -19,6 +19,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import market  # noqa: E402
 import buyer_pages  # noqa: E402
 import atlas_style  # noqa: E402
+import tiers  # noqa: E402
 
 TAGLINE = "The public record of agent commerce, read off the chain."
 # What the Atlas is and who it is for, in one line: the first thing a visitor reads under the headline.
@@ -27,6 +28,15 @@ ONE_LINE = (market.BRAND + " shows every service that sells to AI agents over x4
 LEDE = ("Every service that sells to software agents over x402 has a page here: what it sells, what it "
         "charges, who actually paid it, and which hosts are one operator — rebuilt every morning from the "
         "public registry and the Base blockchain. The numbers are never for sale.")
+# The free tier's lede (tiers.py): the full record is sold, so the last sentence says what it always meant.
+LEDE_FREE = LEDE.replace("The numbers are never for sale.", tiers.PLACE)
+COSTS = ('Every page is free. <a href="%(site)s/pro.html">Atlas Pro</a> is the data as files. '
+         'Operators can <a href="%(site)s/claim.html">claim their page</a>. Agents pay a cent per <a href="%(site)s/docs/#who">answer</a>. '
+         'Institutions: <a href="%(site)s/contact/">write to us</a>.')
+COSTS_FREE = ('Every seller’s basic card is free, and so are today’s market, the map, the live feed and the top %d lists. '
+              'The full record, every buyer wallet and every operator and the whole day as files, is <a href="%%(site)s/pro.html">Atlas Pro</a>. '
+              'Operators can <a href="%%(site)s/claim.html">claim their page</a>. Agents pay a cent per <a href="%%(site)s/docs/#who">answer</a>. '
+              'Institutions: <a href="%%(site)s/contact/">write to us</a>.' % tiers.TOP)
 
 
 def esc(x):
@@ -84,7 +94,10 @@ def hero(map_, site, day):
                site, site, esc(day), esc(map_.get("lede") or "")))
 
 
-def build(out, chain, A, loaded, ctx, as_of, site, head, foot, issues, api, groups_listing=None, buyers=None, map_=None):
+def build(out, chain, A, loaded, ctx, as_of, site, head, foot, issues, api, groups_listing=None, buyers=None, map_=None,
+          free=None):
+    free = tiers.free(free)
+    lede = LEDE_FREE if free else LEDE
     n = len(A)
     born = []
     if len(loaded) > 1:
@@ -95,15 +108,20 @@ def build(out, chain, A, loaded, ctx, as_of, site, head, foot, issues, api, grou
     paid = sorted((s for s in sellers_chain.values() if s.get("on_chain_payments_x402")),
                   key=lambda s: -s["on_chain_payments_x402"])
     busiest = paid[:8]
-    agents = ((chain or {}).get("agents") or [])[:6]
+    # in the free tier only wallets with a page of their own (the top 20) may be named on this
+    # page: a payer list is locked on the seller pages, so it cannot come back through here
+    shown = buyer_pages.kept(chain, tiers.TOP) if free and chain else None
+    named = lambda w: shown is None or buyer_pages.slug(w or "") in shown
+    agents = [a for a in ((chain or {}).get("agents") or []) if named(a.get("wallet"))][:6]
     groups = (groups_listing or [])[:6]
     day = atlas_style.chain_day(chain, as_of)
     short = atlas_style.short_date((((chain or {}).get("dates") or [None])[-1]) or (chain or {}).get("as_of") or as_of)
     category = lambda h: market.cat((A.get(h) or {}).get("sells", "") + " " + h)[0]
 
-    p = [head % dict(ctx, title=market.BRAND + " — the public record of agent commerce on x402", desc=LEDE[:155], canon=site + "/")]
+    p = [head % dict(ctx, title=market.BRAND + " — the public record of agent commerce on x402", desc=lede[:155], canon=site + "/")]
     if busiest:        # the ledger: the day's busiest wallet-to-seller links, as the chain shows them
-        links = sorted(((w["payments"], w.get("short") or w["wallet"], s["host"]) for s in paid for w in (s.get("x402_top_payers") or [])),
+        links = sorted(((w["payments"], w.get("short") or w["wallet"], s["host"]) for s in paid for w in (s.get("x402_top_payers") or [])
+                        if named(w.get("wallet"))),
                        key=lambda r: -r[0])[:7]
         if links:
             p.append('<div class="ledger" aria-label="Busiest payment links, %s"><span class="lh">Ledger · %s · Base</span>%s</div>'
@@ -114,7 +132,7 @@ def build(out, chain, A, loaded, ctx, as_of, site, head, foot, issues, api, grou
              '<h1 id="h">Every agent payment, on the record.</h1><p class="oneline">%s</p></div>'
              '<div><p class="muted" style="margin:0">%s</p>'
              '<div class="actions"><a class="btn" href="%s/s/">Explore the market</a><a class="btn ghost" href="%s/pricing/">See pricing</a></div>'
-             '</div></section>' % (esc(TAGLINE), esc(ONE_LINE), esc(LEDE), site, site))
+             '</div></section>' % (esc(TAGLINE), esc(ONE_LINE), esc(lede), site, site))
     p.append('<label class="big" for="q">What does your agent need?</label>'
              '<input id="q" type="search" placeholder="A name, a wallet, or the job: weather, token prices, a web page as markdown…" autocomplete="off">'
              '<p class="chips">%s</p><p class="muted" id="intent"></p><div id="hits" aria-live="polite"></div>'
@@ -219,9 +237,7 @@ def build(out, chain, A, loaded, ctx, as_of, site, head, foot, issues, api, grou
              '<div class="card"><h3>How this is made</h3><p>The public x402 discovery registry is photographed once a day; the Base blockchain '
              "is read for every USDC transfer to the wallets it names, and an x402 payment is one a facilitator settled on a buyer’s "
              "signature. Self-reported and on-chain figures sit side by side and are never blended.</p></div>"
-             '<div class="card"><h3>What costs money</h3><p>Every page is free. <a href="%s/pro.html">Atlas Pro</a> is the data as files. '
-             'Operators can <a href="%s/claim.html">claim their page</a>. Agents pay a cent per <a href="%s/docs/#who">answer</a>. '
-             'Institutions: <a href="%s/contact/">write to us</a>.</p></div></div></section>' % (site, site, site, site))
+             '<div class="card"><h3>What costs money</h3><p>%s</p></div></div></section>' % ((COSTS_FREE if free else COSTS) % {"site": site}))
     p.append('<section aria-labelledby="ag"><p class="eyebrow">For AI agents</p><h2 id="ag">Built to be read by software, too</h2><div class="cards">'
              '<div class="card"><h3>Check before you pay</h3><p>Ask about any seller. Paid over x402, a cent a call; a refusal is never charged.</p>'
              '<pre class="code">GET %s/who/&lt;host-or-wallet&gt;\n<span class="p">402</span> Payment Required → pay $0.01\n<span class="k">200</span> {"rank_by_calls": …}</pre></div>'

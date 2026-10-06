@@ -1,8 +1,10 @@
-# The Atlas MCP server as a one-line install. This file is meant for the ROOT of the public
+# The Infoharmoni Atlas MCP server as a one-line install. This file is meant for the ROOT of the public
 # repository ausrine-labs/x402-atlas, where the modules live in tools/. It is kept here, in
 # the lab, beside the server it packages; copying it across is a step for that repository.
 #
-#   uvx --from git+https://github.com/ausrine-labs/x402-atlas x402-atlas-mcp
+#   uvx --from git+https://github.com/ausrine-labs/x402-atlas infoharmoni-atlas-mcp
+#
+# x402-atlas-mcp stays as a second script name, so installs from before the rename keep working.
 #
 # No dependencies: the server is standard library only.
 
@@ -11,10 +13,10 @@ requires = ["setuptools>=64"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "x402-atlas-mcp"
+name = "infoharmoni-atlas-mcp"
 version = "0.2.0"
-description = "The x402 Atlas as an MCP server: who is actually paying whom in the x402 market on Base, from the Atlas's published record."
-readme = { text = "The x402 Atlas as an MCP server over stdio. Run: x402-atlas-mcp. See https://github.com/ausrine-labs/x402-atlas", content-type = "text/plain" }
+description = "The Infoharmoni Atlas as an MCP server: who is actually paying whom in the x402 market on Base, from the Atlas's published record."
+readme = { text = "The Infoharmoni Atlas, the public record of the x402 market on Base, as an MCP server over stdio. Run: infoharmoni-atlas-mcp. See https://github.com/ausrine-labs/x402-atlas", content-type = "text/plain" }
 requires-python = ">=3.10"
 dependencies = []
 license = { text = "MIT" }
@@ -30,7 +32,8 @@ classifiers = [
 Homepage = "https://github.com/ausrine-labs/x402-atlas"
 
 [project.scripts]
-x402-atlas-mcp = "atlas_mcp:main"
+infoharmoni-atlas-mcp = "atlas_mcp:main"
+x402-atlas-mcp = "atlas_mcp:main"      # the name before the rename; kept for existing installs
 
 [tool.setuptools]
 package-dir = { "" = "tools" }
@@ -41,7 +44,11 @@ py-modules = [
     "radar",
     "operator_pages",
     "buyer_pages",
+    "atlas_style",
+    "tiers",
     "flows_handoff",
     "snapshot_handoff",
+    "spend_watch",
+    "whales",
 ]
 include-package-data = false

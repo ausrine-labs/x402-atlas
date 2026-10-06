@@ -1,0 +1,3 @@
+[console_scripts]
+infoharmoni-atlas-mcp = atlas_mcp:main
+x402-atlas-mcp = atlas_mcp:main

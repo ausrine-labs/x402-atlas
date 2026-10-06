@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Copied from the Aušrinė lab (commit a0d9190). Edit it there, not here.
+# Copied from the Aušrinė lab (commit f04f064). Edit it there, not here.
 """prices.py — /prices/: what a call costs in each kind of x402 service.
 
 Per category (market.py's categories, sorted the way whales.py sorts a seller):
@@ -26,15 +26,17 @@ import sys
 
 import coverage_page as cp
 import market
+import tiers
 
 
 def category(host, row):
     return market.cat((row.get("sells") or "") + " " + host)[0]
 
 
-def prices_data(sellers, rollup=None, listed_on="", as_of="", site=""):
+def prices_data(sellers, rollup=None, listed_on="", as_of="", site="", free=None):
     """sellers: the snapshot's {host: row}. Returns the rows /prices/ shows, busiest category first.
-    A seller counts as paid by its own chain's rule: x402-settled where that pull told it apart."""
+    A seller counts as paid by its own chain's rule: x402-settled where that pull told it apart.
+    free: the tier (tiers.py); the body shows TOP rows of it and says the rest is in the full record."""
     classified = cp.classified_chains(rollup)
     paid = {}
     for s in (rollup or {}).get("sellers") or []:
@@ -61,7 +63,7 @@ def prices_data(sellers, rollup=None, listed_on="", as_of="", site=""):
     out.sort(key=lambda r: (-r["sellers"], r["category"]))
     return {"as_of": as_of or listed_on, "listed_on": listed_on, "days": ", ".join((rollup or {}).get("dates") or []),
             "site": cp.site_path(site), "classified": sorted(classified), "chains_covered": cp.chains_of(rollup),
-            "categories": out, "sellers_priced": sum(r["sellers"] for r in out)}
+            "categories": out, "sellers_priced": sum(r["sellers"] for r in out), "free": tiers.free(free)}
 
 
 def price_text(x):
@@ -91,13 +93,18 @@ def prices_body(data):
          '<div class="wrap"><table><thead><tr><th>category</th><th class="num">sellers</th><th class="num">25th</th>'
          '<th class="num">median</th><th class="num">75th</th><th class="num">below median</th>'
          "<th>cheapest paid on chain</th><th>dearest paid on chain</th></tr></thead><tbody>"]
-    for r in data["categories"]:
+    rows, total = cp.cut(data["categories"], data)
+    for r in rows:
         p.append('<tr><td>%s</td><td class="num">%s</td><td class="num">%s</td><td class="num">%s</td><td class="num">%s</td>'
                  '<td class="num">%s</td><td>%s</td><td>%s</td></tr>' % (
                      cp.esc(r["category"]), "{:,}".format(r["sellers"]), cp.esc(price_text(r["p25"])),
                      cp.esc(price_text(r["median"])), cp.esc(price_text(r["p75"])), "{:,}".format(r["undercut"]),
                      paid_cell(r["cheapest_paid"], site), paid_cell(r["dearest_paid"], site)))
     p.append("</tbody></table></div>")
+    p.append(cp.shown_line(len(rows), total, "largest categories"))
+    if data.get("free"):
+        p.append(tiers.more_line(len(rows), total, "categories, each with its percentiles and its cheapest and dearest seller paid on chain",
+                                 site, tiers.LIST_WAYS))
     p.append('<p class="muted">Each seller counts once, at the median of the prices it lists. Percentiles interpolate between '
              "neighbouring sellers. \"Below median\" counts sellers listing less than their category's median. A category "
              "comes from what the seller says it sells, sorted by fixed rules; a seller can fit more than one and is put "
@@ -110,7 +117,7 @@ def prices_body(data):
 def write(out, data):
     return cp.write(out, "prices", cp.page("Price benchmarks", prices_body(data), data["as_of"],
                                            "Listed x402 prices per call by category, and what was paid on chain.",
-                                           room="prices", root=data.get("site", "")))
+                                           room="prices", root=data.get("site", ""), free=data.get("free")))
 
 
 def main():
@@ -119,10 +126,12 @@ def main():
     ap.add_argument("--whales")
     ap.add_argument("--site", default="")
     ap.add_argument("--out", required=True)
+    tiers.add_flags(ap)
     a = ap.parse_args()
     snap = json.load(open(a.snapshot))
     rollup = json.load(open(a.whales)) if a.whales else None
-    d = prices_data(snap["sellers"], rollup, snap.get("date", ""), (rollup or {}).get("as_of") or snap.get("date", ""), a.site)
+    d = prices_data(snap["sellers"], rollup, snap.get("date", ""), (rollup or {}).get("as_of") or snap.get("date", ""), a.site,
+                    free=tiers.from_args(a))
     print("prices: %d categories, %d sellers priced -> %s" % (len(d["categories"]), d["sellers_priced"], write(a.out, d)))
 
 
