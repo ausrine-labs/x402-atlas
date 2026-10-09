@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Copied from the Aušrinė lab (commit 400e511). Edit it there, not here.
+# Copied from the Aušrinė lab (commit b5871a0). Edit it there, not here.
 """solana_flows.py — who paid whom on Solana: every x402 payment a known payment
 processor settled, read in six-hour windows and assembled into UTC days.
 
@@ -119,7 +119,7 @@ class Rpc:
     `sleep` are arguments so a test can stand in for the network and the clock."""
 
     def __init__(self, urls=None, tries=5, post=None, sleep=time.sleep, timeout=60, depth=None):
-        self.urls = list(urls or RPCS)
+        self.urls = list(RPCS if urls is None else urls)      # [] stays empty: no endpoint, not the defaults
         self.depth = dict(DEPTH if depth is None else depth)
         self.tries = tries
         self.post = post or self._post
@@ -221,6 +221,30 @@ def due_windows(now, min_age=600, max_age=10 * 3600):
         out.append((end - step, end))
         end -= step
     return sorted(out)
+
+
+def backfill_windows(now, days, max_age=10 * 3600):
+    """The complete six-hour windows older than catchup's reach (ended more than `max_age`
+    ago) whose start is within `days` days of `now`, newest first. GitHub starts scheduled
+    jobs hours late and drops some (on 2026-10-09 one hourly run of twelve came), so a
+    window can age past publicnode's ~19 h before any run reads it; the archive endpoint
+    still has it."""
+    step = WINDOW_HOURS * 3600
+    end = (now - max_age) // step * step
+    if end >= now - max_age:
+        end -= step                                   # strictly older than catchup's oldest
+    out = []
+    while end - step >= now - days * 86400:
+        out.append((end - step, end))
+        end -= step
+    return out
+
+
+def archive_rpc(rpc, since, now):
+    """The same endpoints, only those whose history reaches back to `since` (DEPTH), and more
+    patient: mainnet-beta refuses most of a burst, so it gets eight tries a call."""
+    urls = [u for u in rpc.urls if rpc.depth.get(u) is None or since >= now - rpc.depth.get(u)]
+    return Rpc(urls, tries=max(rpc.tries, 8), post=rpc.post, sleep=rpc.sleep, timeout=rpc.timeout, depth=rpc.depth)
 
 
 # ── the processors and the sellers ───────────────────────────────────────────────────────
@@ -604,21 +628,33 @@ def cmd_read(rpc, processors, sellers, since, until, out_path, workers, log, now
     print("wrote", out_path)
 
 
-def cmd_catchup(rpc, processors, sellers, folder, workers, log, now=None):
+def cmd_catchup(rpc, processors, sellers, folder, workers, log, now=None, backfill_days=0, max_backfill=1,
+                backfill_workers=2):
     """Every due window (due_windows) not yet in `folder`, read and written one by one, the
-    oldest first. A window over 1% unread or with a page missing is reported and left for
-    the next run. Returns the names written and the names refused."""
+    oldest first; then, with backfill_days, at most `max_backfill` older missing windows
+    (backfill_windows, newest first), read slowly from the endpoints that still hold them.
+    A window over 1% unread or with a page missing is reported and left for the next run.
+    Returns the names written and the names refused."""
     now = time.time() if now is None else now
     os.makedirs(folder, exist_ok=True)
     written, refused = [], []
-    for since, until in due_windows(int(now)):
+    todo = [(s, u, rpc, workers, "catchup") for s, u in due_windows(int(now))]
+    late = [(s, u) for s, u in backfill_windows(int(now), backfill_days)
+            if not os.path.exists(os.path.join(folder, window_name(s) + ".json"))] if backfill_days else []
+    for since, until in late[:max(0, max_backfill)]:
+        old = archive_rpc(rpc, since, now)
+        if old.urls:
+            todo.append((since, until, old, backfill_workers, "backfill"))
+        else:
+            log("backfill · %s: no endpoint keeps it" % window_name(since))
+    for since, until, rpc_w, workers_w, how in todo:
         name = window_name(since)
         path = os.path.join(folder, name + ".json")
         if os.path.exists(path):
             continue
-        log("catchup · %s · %s → %s" % (name, iso(since), iso(until)))
+        log("%s · %s · %s → %s" % (how, name, iso(since), iso(until)))
         try:
-            tally = read_window(rpc, processors, since, until, workers, log)
+            tally = read_window(rpc_w, processors, since, until, workers_w, log)
         except RpcRefused as e:
             log("  %s: %s · not written" % (name, e))
             refused.append(name)
@@ -629,9 +665,11 @@ def cmd_catchup(rpc, processors, sellers, folder, workers, log, now=None):
             log("  %s: %d of %d unread (%.2f%%) · not written" % (name, tally.unread, tally.signatures, 100 * tally.unread_share()))
             refused.append(name)
             continue
-        write_atomic(path, tally.output(since, until, sellers, rpc.urls, {"window": name}))
+        write_atomic(path, tally.output(since, until, sellers, rpc_w.urls, {"window": name}))
         print("wrote", path)
         written.append(name)
+        if rpc_w is not rpc:
+            rpc.refusals.update(rpc_w.refusals)
     if rpc.refusals:
         log("  refusals: " + ", ".join("%s %d" % (u.split("//")[-1], n) for u, n in rpc.refusals.items()))
     print("catchup: %d written, %d not written%s" % (len(written), len(refused), (": " + ", ".join(refused)) if refused else ""))
@@ -690,6 +728,9 @@ def main(argv=None, rpc=None, now=None):
     r.add_argument("--out", required=True)
     c = sub.add_parser("catchup", parents=[common], help="every missing complete six-hour window ended 10 min to 10 h ago")
     c.add_argument("--dir", required=True, help="where the windows live: D/sol-YYYY-MM-DDTHH.json")
+    c.add_argument("--backfill-days", type=float, default=0,
+                   help="also read older missing windows from the last N days, from the endpoints that keep them")
+    c.add_argument("--max-backfill", type=int, default=1, help="at most this many older windows a run (they are slow)")
     s = sub.add_parser("assemble", parents=[common], help="the day file from its four windows")
     s.add_argument("--day", required=True, help="YYYY-MM-DD, UTC")
     s.add_argument("--dir", required=True)
@@ -720,7 +761,8 @@ def main(argv=None, rpc=None, now=None):
     if a.cmd == "read":
         cmd_read(rpc, processors, sellers, parse_iso(a.since), parse_iso(a.until), a.out, a.workers, log, now)
     elif a.cmd == "catchup":
-        _, refused = cmd_catchup(rpc, processors, sellers, a.dir, a.workers, log, now)
+        _, refused = cmd_catchup(rpc, processors, sellers, a.dir, a.workers, log, now,
+                                 backfill_days=a.backfill_days, max_backfill=a.max_backfill)
         if refused:
             sys.exit(1)
 

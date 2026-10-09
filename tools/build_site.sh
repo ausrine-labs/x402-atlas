@@ -55,6 +55,21 @@ for f in flows.site/*.json; do [ -f "$f" ] && [ ! -e "flows/${f#flows.site/}" ] 
 rm -rf flows.site
 YESTERDAY=$(date -u -d "$DAY -1 day" +%F)          # the last whole UTC day; pulled by block timestamp, so days tile exactly
 python3 tools/chain_flows.py --snapshot "$LATEST" --day "$YESTERDAY" --out "flows/flows-$YESTERDAY.json" || echo "::warning::the chain pull for $YESTERDAY failed; the window keeps what it has"
+# One missing day of the window a run, newest first: a night whose pull failed (2026-10-08 died
+# on a rate limit) is read the next time, while the window still holds its place. Written beside
+# and moved into place, so a pull cut short by the time limit leaves no half file.
+for back in 2 3 4 5 6 7; do
+  GAP=$(date -u -d "$DAY -$back day" +%F)
+  if [ ! -f "flows/flows-$GAP.json" ]; then
+    if timeout 1500 python3 tools/chain_flows.py --snapshot "$LATEST" --day "$GAP" --out "flows/.gap-$GAP.json"; then
+      mv "flows/.gap-$GAP.json" "flows/flows-$GAP.json"
+    else
+      rm -f "flows/.gap-$GAP.json"
+      echo "::warning::the missing day $GAP could not be read this run; the next run tries again"
+    fi
+    break
+  fi
+done
 if [ -f "flows/flows-$YESTERDAY.json" ]; then
   # yesterday only: every page says "yesterday", so the rollup is that one whole day, never the window;
   # when yesterday's pull failed there is no rollup and the pages go without "who actually paid"

@@ -5,14 +5,15 @@ name: solana-windows
 # branch, beside the Base files the daily build writes:
 #   flows/sol-windows/sol-YYYY-MM-DDTHH.json   one per window, written once
 #   flows/flows-sol-YYYY-MM-DD.json            the day, once all four of its windows are in
-# Hourly, because GitHub starts scheduled jobs hours late: each run reads whatever window is
-# due and missing. A window not read within ten hours of its end cannot be read for free any
-# more; its day is then never joined, and nothing pretends otherwise.
+# Every fifteen minutes, because GitHub starts scheduled jobs hours late and drops many (on
+# 2026-10-09 one hourly run of twelve came): each run reads whatever window is due and
+# missing. A window past the fast endpoint's ~19 h is filled in later from mainnet-beta, which
+# keeps everything but is slow: one such window a run (--backfill-days 3), up to ~90 minutes.
 # The Base pages do not read these files yet: until Solana has its own labelled view, the
 # Base figures stay Base alone.
 on:
   schedule:
-    - cron: "17 * * * *"
+    - cron: "*/15 * * * *"
   workflow_dispatch: {}
 permissions:
   contents: write           # only to push the data branch
@@ -22,7 +23,7 @@ concurrency:
 jobs:
   windows:
     runs-on: ubuntu-latest
-    timeout-minutes: 50
+    timeout-minutes: 180       # a filled-in window from mainnet-beta reads at ~0.7 a second
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
@@ -43,11 +44,12 @@ jobs:
           set -eu
           SNAP=$(ls data/radar/market-*.json.gz | sort | tail -1)
           gunzip -c "$SNAP" > "$RUNNER_TEMP/market.json"
-          python3 main/tools/solana_flows.py --snapshot "$RUNNER_TEMP/market.json" catchup --dir data/flows/sol-windows
+          python3 main/tools/solana_flows.py --snapshot "$RUNNER_TEMP/market.json" catchup --dir data/flows/sol-windows \
+            --backfill-days 3 --max-backfill 1
       - name: Join the last two days once their four windows are in
         run: |
           set -u
-          for Y in $(date -u -d '2 days ago' +%F) $(date -u -d yesterday +%F); do
+          for Y in $(date -u -d '3 days ago' +%F) $(date -u -d '2 days ago' +%F) $(date -u -d yesterday +%F); do
             OUT="data/flows/flows-sol-$Y.json"
             if [ -f "$OUT" ]; then echo "$OUT is already there"; continue; fi
             python3 main/tools/solana_flows.py assemble --day "$Y" --dir data/flows/sol-windows --out "$OUT" \
