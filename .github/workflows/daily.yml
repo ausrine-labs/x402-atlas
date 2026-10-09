@@ -62,7 +62,14 @@ jobs:
           if git diff --cached --quiet; then echo "the data branch already holds today's window"; exit 0; fi
           git -c user.name="Ausrine Jurgutis" -c user.email="ausrine@infoharmoni.com" \
             commit -qm "data: the window as published $(date -u +%FT%TZ) (run ${GITHUB_RUN_ID})"
-          git push -q origin HEAD:data
+          # the hourly Solana job pushes to this branch too (other files): on a race, rebase and retry
+          for i in 1 2 3 4 5; do
+            git push -q origin HEAD:data && exit 0
+            sleep $((i * 5))
+            git pull -q --rebase origin data
+          done
+          echo "::error::the data branch could not be pushed"
+          exit 1
   deploy:
     needs: build
     runs-on: ubuntu-latest

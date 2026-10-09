@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Copied from the Aušrinė lab (commit f04f064). Edit it there, not here.
+# Copied from the Aušrinė lab (commit 400e511). Edit it there, not here.
 """seller_pages_test.py — the public pages, from a synthetic store. No network.
 
     python3 seller_pages_test.py
@@ -166,7 +166,8 @@ class Pages(unittest.TestCase):
     def test_the_sellers_page_carries_the_sellers_checkout(self):
         self.assertTrue(sp.BUY_SELLERS.startswith("https://buy.polar.sh/polar_cl_"))
         html = self.page("sellers", "index.html")
-        self.assertIn(sp.BUY_SELLERS, html)
+        self.assertIn('data-go="%s"' % sp.checkout_id(sp.BUY_SELLERS), html)
+        self.assertNotIn(sp.BUY_SELLERS, html)                    # the address is built on a click
 
     def test_the_pro_checkout_is_the_polar_link_for_atlas_pro(self):
         self.assertTrue(sp.BUY_PRO.startswith("https://buy.polar.sh/polar_cl_"))
@@ -179,7 +180,8 @@ class Pages(unittest.TestCase):
         finally:
             sp.BUY_PRO = real
         html = open(os.path.join(out, "pro.html")).read()
-        self.assertIn('<a class="btn buy" href="https://buy.polar.sh/polar_cl_test">Subscribe</a>', html)
+        self.assertIn('<a class="btn buy" href="#checkout" rel="nofollow" data-go="polar_cl_test">Subscribe</a>', html)
+        self.assertNotIn("https://buy.polar.sh/polar_cl_test", html)
         self.assertNotIn("opens soon", html)
 
     def test_the_pro_page_never_says_verified(self):

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Copied from the Aušrinė lab (commit 263cdbb). Edit it there, not here.
+# Copied from the Aušrinė lab (commit 400e511). Edit it there, not here.
 """seller_pages.py — a public page for every seller in the agent economy.
 
 Roughly 2,000 teams sell to agents over x402. Each of them wants to know how
@@ -44,6 +44,7 @@ import atlas_style  # noqa: E402
 import site_pages  # noqa: E402
 import relationships  # noqa: E402
 import tiers  # noqa: E402
+import whales  # noqa: E402  (explorer: a wallet's public page on its own chain)
 
 SITE = "https://ausrine-labs.github.io/x402-atlas"
 API = "https://ausrine-who.onrender.com"
@@ -208,7 +209,11 @@ def load_chain(path):
     return {"hours": d.get("hours") or 24, "as_of": d.get("as_of") or "", "sellers": {s["host"]: s for s in d["sellers"]},
             "operators": d.get("operators") or {}, "groups": d.get("groups") or [],
             "totals": d.get("totals") or {}, "agents": d.get("agents") or [], "buyers": d.get("buyers") or [],
-            "dates": d.get("dates") or []}
+            "dates": d.get("dates") or [],
+            # the chains the rollup's pulls covered: Base alone before 2026-10-09. whales.py says so
+            # itself ("chains", read from the files, a quiet chain included); an older rollup has
+            # only the chains that took a payment
+            "chains": d.get("chains") or sorted((d.get("totals") or {}).get("by_chain") or {}) or ["Base"]}
 
 
 def operator_line(host, chain, free=False):
@@ -234,8 +239,8 @@ def payer_link(w, chain):
     b = buyer_pages.slug(w["wallet"])
     if b in (chain.get("buyer_pages") or {}):
         return '<a href="%s"><code>%s</code></a> %s' % (esc(buyer_pages.link(w["wallet"], SITE)), esc(w["short"]), "{:,}".format(w["payments"]))
-    return ('<a rel="nofollow noopener" href="https://basescan.org/address/%s"><code>%s</code></a> %s'
-            % (esc(w["wallet"]), esc(w["short"]), "{:,}".format(w["payments"])))
+    return ('<a rel="nofollow noopener" href="%s"><code>%s</code></a> %s'
+            % (esc(whales.explorer(w["wallet"])), esc(w["short"]), "{:,}".format(w["payments"])))
 
 
 PAID_LOCKED = "the wallets that paid it, each with its payments, and the share the busiest three sent"
@@ -249,18 +254,24 @@ def paid_section(host, me, chain, free=False):
     label; the wallets and their shares are in the full record, and the page says where."""
     if chain is None:
         return ""
-    p = ['<h2>Who actually paid</h2><p class="dateline">x402 payments on Base · %s</p>' % esc(atlas_style.chain_day(chain))]
     s = chain["sellers"].get(host)
     hours = chain["hours"]
-    if "Base" not in me["chains"]:
-        p.append('<p class="muted">This seller takes payment on %s. The daily pull reads Base only, so the chain '
-                 "has nothing to say here yet.</p>" % esc(", ".join(me["chains"]) or "another chain"))
+    pulled = chain.get("chains") or ["Base"]
+    # the chain this seller was paid on, else the pulled chain it lists: the one the words name
+    on = (s or {}).get("chain") or next((c for c in pulled if c in me["chains"]), pulled[0])
+    if len((s or {}).get("by_chain") or {}) > 1:
+        # paid on both chains: the figures below are the two together, and the words say so
+        on = " and ".join(sorted(s["by_chain"]))
+    p = ['<h2>Who actually paid</h2><p class="dateline">x402 payments on %s · %s</p>' % (esc(on), esc(atlas_style.chain_day(chain)))]
+    if not any(c in me["chains"] for c in pulled):
+        p.append('<p class="muted">This seller takes payment on %s. The daily pull reads %s only, so the chain '
+                 "has nothing to say here yet.</p>" % (esc(", ".join(me["chains"]) or "another chain"), esc(" and ".join(pulled))))
         p.append(operator_line(host, chain, free))
         return "".join(p)
     if not s or not s["on_chain_payments_x402"]:
         other = s["on_chain_usdc"] if s else 0
-        p.append('<p class="muted">In the last %s on Base, no x402 payment reached this seller’s wallet%s.%s</p>'
-                 % (span(hours), "s" if len(me["wallets"]) != 1 else "",
+        p.append('<p class="muted">In the last %s on %s, no x402 payment reached this seller’s wallet%s.%s</p>'
+                 % (span(hours), esc(on), "s" if len(me["wallets"]) != 1 else "",
                     (" %s reached it by ordinary transfer, which is not a call being bought." % money(other)) if other else ""))
         p.append(operator_line(host, chain, free))
         return "".join(p)
@@ -273,8 +284,8 @@ def paid_section(host, me, chain, free=False):
         spread = "from %s wallets" % "{:,}".format(m)
     else:
         spread = "from %s wallets; the busiest three sent %d%%" % ("{:,}".format(m), top3)
-    p.append("<p>%sIn the last %s on Base, <b>%s x402 payments</b> (%s) reached this seller’s wallet%s, %s.%s</p>"
-             % (tag, span(hours), "{:,}".format(n), money(s["on_chain_usdc_x402"]), "s" if len(s["wallets"]) != 1 else "", spread,
+    p.append("<p>%sIn the last %s on %s, <b>%s x402 payments</b> (%s) reached this seller’s wallet%s, %s.%s</p>"
+             % (tag, span(hours), esc(on), "{:,}".format(n), money(s["on_chain_usdc_x402"]), "s" if len(s["wallets"]) != 1 else "", spread,
                 (" Another %s reached the same wallet%s by ordinary transfer, which is not a call being bought."
                  % (money(s["on_chain_usdc"] - s["on_chain_usdc_x402"]), "s" if len(s["wallets"]) != 1 else ""))
                 if s["on_chain_usdc"] - s["on_chain_usdc_x402"] >= 1 else ""))
@@ -311,7 +322,7 @@ def wallet_link(w, chain):
     short = w[:6] + "…" + w[-4:]
     if buyer_pages.slug(w) in ((chain or {}).get("buyer_pages") or {}):
         return '<a href="%s"><code>%s</code></a>' % (esc(buyer_pages.link(w, SITE)), esc(short))
-    return '<a rel="nofollow noopener" href="https://basescan.org/address/%s"><code>%s</code></a>' % (esc(w), esc(short))
+    return '<a rel="nofollow noopener" href="%s"><code>%s</code></a>' % (esc(whales.explorer(w)), esc(short))
 
 
 def seller_link(wallet, rel, known, here):

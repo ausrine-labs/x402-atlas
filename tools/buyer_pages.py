@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Copied from the Aušrinė lab (commit f04f064). Edit it there, not here.
+# Copied from the Aušrinė lab (commit 400e511). Edit it there, not here.
 """buyer_pages.py — a page for every buyer wallet: what one wallet paid for, and to whom.
 
 Sellers have pages, wallet groups have pages; the wallets that pay them did not.
@@ -49,7 +49,15 @@ def esc(x):
     return html.escape(str(x if x is not None else ""), quote=True)
 
 
+BASE58 = re.compile(r"^[1-9A-HJ-NP-Za-km-z]{32,44}$")
+
+
 def slug(x):
+    """A wallet or host as a path segment. A 0x address is lowercased: EVM addresses are not
+    case-sensitive and the checksum spelling varies. A base58 Solana address keeps its case,
+    which is part of the address, and is never lowercased."""
+    if not x.startswith("0x") and BASE58.match(x):
+        return x[:200]
     return re.sub(r"[^a-z0-9._-]", "-", x.lower())[:200]
 
 
@@ -67,7 +75,7 @@ def day_words(chain):
 
 
 def link(wallet, site=""):
-    """Where a wallet's page lives: /b/<wallet, lowercased>/."""
+    """Where a wallet's page lives: /b/<wallet>/, a 0x wallet lowercased, a base58 one as is."""
     return "%s/b/%s/" % (site, slug(wallet))
 
 
@@ -141,7 +149,7 @@ def build(out, chain, A, ctx, as_of, n_sellers, site="", head="", foot="", issue
             b["short"], "{:,}".format(b["payments_x402"]), money(b.get("usdc_x402") or 0.0), b.get("sellers_paid_x402") or 0,
             "s" if (b.get("sellers_paid_x402") or 0) != 1 else "", window, as_of)
         p = [head % dict(ctx, title=esc(title), desc=esc(desc), canon=esc(link(b["wallet"], site)))]
-        hexes = re.sub(r"[^0-9a-f]", "", sl[2:])[:4] or "·"
+        hexes = (re.sub(r"[^0-9a-f]", "", sl[2:])[:4] if sl.startswith("0x") else sl[:4]) or "·"
         p.append('<main id="main"><p class="crumbs"><a href="%s/b/">Buyers</a> / %s / %s</p>'
                  '<div class="ident"><span class="avatar buyer" aria-hidden="true">%s</span><div><h1><code>%s</code></h1>'
                  % (site, "agents at work" if agent else "buyer wallets", esc(b["short"]), esc(hexes), esc(b["short"])))
@@ -165,7 +173,8 @@ def build(out, chain, A, ctx, as_of, n_sellers, site="", head="", foot="", issue
                     (" (%d by any means)" % b["sellers_paid"]) if b.get("sellers_paid", 0) != b.get("sellers_paid_x402") else ""))
         cats = bought(sellers, b)
         p.append('<h2>What it bought</h2>%s<p class="muted">By category, most payments first: %s.</p>'
-                 % (('<p class="dateline">x402 payments on Base · %s</p>' % esc(day)) if day else "", esc(", ".join(cats)) if cats else "—"))
+                 % (('<p class="dateline">x402 payments on %s · %s</p>' % (esc(b.get("chain") or "Base"), esc(day))) if day else "",
+                    esc(", ".join(cats)) if cats else "—"))
         p.append('<h2>The sellers it paid</h2><div class="tw"><table><tr><th>seller</th><th class="n">x402 payments</th>'
                  '<th class="n">USDC, x402</th><th class="n">USDC, other means</th><th>category</th></tr>')
         for s in sellers:

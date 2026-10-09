@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Copied from the Aušrinė lab (commit f04f064). Edit it there, not here.
+# Copied from the Aušrinė lab (commit 400e511). Edit it there, not here.
 """tiers.py — the one switch between the free tier and the whole record.
 
 Vilija, 2026-10-05: the Atlas stops giving its paid tiers away ("I don't want to keep
@@ -140,14 +140,17 @@ def stub_page(kind, name, address, canon, site, head, foot, ctx, as_of, n_seller
     as the page it stands for; told to search engines not to index it, since it says little."""
     import market
     if kind == "wallet":
+        # a 0x wallet is on Base, a base58 one on Solana; the address is shown as written
+        on = "Base" if address.startswith("0x") else "Solana"
+        explorer = explorer or ("https://basescan.org/address/" if on == "Base" else "https://solscan.io/account/") + address
         title = "%s — a buyer wallet in the record · %s" % (name, market.BRAND)
-        desc = "Wallet %s made an x402 payment on Base in the window. Its page is in the full record. As of %s." % (name, as_of)
+        desc = "Wallet %s made an x402 payment on %s in the window. Its page is in the full record. As of %s." % (name, on, as_of)
         crumbs = '<a href="%s/b/">Buyers</a> / %s' % (site, esc(name))
         h1 = "<h1><code>%s</code></h1>" % esc(name)
-        said = ('<p class="sells">This wallet made an x402 payment to a seller on Base in the window, and it is in the '
-                "record. Its page, with its payments, USDC, the sellers it paid and what it bought, is in the full record.</p>")
-        ident = ('<p class="muted">Wallet <a rel="nofollow noopener" href="%s"><code>%s</code></a> on Base. A wallet is '
-                 "not a person, and nothing here says who holds it.</p>" % (esc(explorer or "https://basescan.org/address/" + address), esc(address)))
+        said = ('<p class="sells">This wallet made an x402 payment to a seller on %s in the window, and it is in the '
+                "record. Its page, with its payments, USDC, the sellers it paid and what it bought, is in the full record.</p>" % esc(on))
+        ident = ('<p class="muted">Wallet <a rel="nofollow noopener" href="%s"><code>%s</code></a> on %s. A wallet is '
+                 "not a person, and nothing here says who holds it.</p>" % (esc(explorer), esc(address), esc(on)))
         locked = locked_html("this wallet’s payments, USDC, the sellers it paid and what it bought", site, BUYER_WAYS)
         avatar = "buyer"
     else:
@@ -164,7 +167,7 @@ def stub_page(kind, name, address, canon, site, head, foot, ctx, as_of, n_seller
         avatar = "seller"
     page = head % dict(ctx, title=esc(title), desc=esc(desc), canon=esc(canon))
     page = page.replace('<link rel="canonical"', '<meta name="robots" content="noindex,follow"><link rel="canonical"', 1)
-    initials = ("".join(c for c in name if c.isalnum())[:2] or "·") if kind == "group" else (address[2:6] if address.startswith("0x") else "·")
+    initials = ("".join(c for c in name if c.isalnum())[:2] or "·") if kind == "group" else (address[2:6] if address.startswith("0x") else address[:4])
     body = ('<main id="main"><p class="crumbs">%s</p><div class="ident"><span class="avatar %s" aria-hidden="true">%s</span>'
             '<div>%s%s</div></div><p><span class="tag">in the record</span><span class="tag">as of %s</span></p>%s%s</main>'
             % (crumbs, avatar, esc(initials), h1, ident, esc(_long_date(as_of)), said, locked))

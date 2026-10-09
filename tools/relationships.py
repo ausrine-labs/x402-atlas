@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Copied from the Aušrinė lab (commit defb6e9). Edit it there, not here.
+# Copied from the Aušrinė lab (commit 400e511). Edit it there, not here.
 """relationships.py — who came back, what is bought alongside, who left for whom:
 relationship facts read from the x402 payments we observe on Base.
 
@@ -117,6 +117,12 @@ def load(folder):
     return days, tuple(key), problems
 
 
+def _key(w):
+    """A wallet as a dictionary key: a 0x address lowercased (EVM spelling varies), any other
+    address as written — base58 is case-sensitive."""
+    return w.lower() if w.startswith("0x") else w
+
+
 def _hosts(ws, cap):
     return {"hosts": ws[:cap], "hosts_total": len(ws)}
 
@@ -139,7 +145,7 @@ def window(folder):
         for w, hs in d["sellers"].items():
             if not isinstance(w, str):
                 continue
-            w = w.lower()
+            w = _key(w)
             today.add(w)
             wallet_hosts[w].update(str(h).lower() for h in (hs if isinstance(hs, list) else []) if h)
         for e in d["edges"]:
@@ -150,7 +156,7 @@ def window(folder):
             if not (isinstance(b, str) and isinstance(s, str) and _num(n) and _num(usdc)):
                 skipped += 1
                 continue
-            b, s = b.lower(), s.lower()
+            b, s = _key(b), _key(s)
             if n <= 0 or s not in today:
                 continue
             p = pair.get((b, s))

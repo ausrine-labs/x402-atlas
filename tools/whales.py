@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Copied from the Aušrinė lab (commit a0d9190). Edit it there, not here.
+# Copied from the Aušrinė lab (commit 400e511). Edit it there, not here.
 """whales.py — the agent whales: which wallets pay a lot, for what, and which
 sellers are actually paid on-chain.
 
@@ -36,26 +36,64 @@ import market  # noqa: E402
 EXPLORER = {"Base": "https://basescan.org/address/", "Solana": "https://solscan.io/account/"}
 
 
+def chain_of_wallet(w):
+    """The chain an address is written for: 0x is Base (EVM), anything else is Solana (base58).
+    Base58 is case-sensitive, so a Solana address is never lowercased, here or anywhere."""
+    return "Base" if str(w).startswith("0x") else "Solana"
+
+
+def explorer(w):
+    """The public explorer page for a wallet, on its own chain."""
+    return EXPLORER[chain_of_wallet(w)] + w
+
+
 def short(w):
     return w[:6] + "…" + w[-4:] if len(w) > 14 else w
 
 
 def load_flows(paths):
-    """Merge pulls (days, chains) into one edge list. Windows add up; a wallet
-    keeps the chain it was first seen on."""
-    edges, sellers, chain_of, hours, dates = [], {}, {}, 0.0, []
+    """Merge pulls (days, chains, windows) into one edge list. The window is the time covered:
+    two chains pulled for the same day are one 24 h window, not 48 (until 2026-10-09 the hours
+    were summed over files, and a Base + Solana day halved every per-day figure); two days of
+    one chain are 48; the four six-hour windows of one chain's day add up to 24 (Codex). A
+    pull is known by its date, chain and since/until; the same pull given twice is read once,
+    edges and hours alike. A wallet keeps the chain it was first seen on."""
+    edges, sellers, chain_of, dates = [], {}, {}, []
+    seen = set()
+    covered = collections.defaultdict(float)         # (date, chain) -> hours of that chain's distinct pulls
     for p in paths:
-        fl = json.load(open(p))
+        with open(p) as f:
+            fl = json.load(f)
         chain = {"solana": "Solana"}.get(fl.get("chain", ""), "Base")
-        hours += fl.get("hours", 0) or 0
-        dates.append(fl.get("date", "?"))
+        d = fl.get("date", "?")
+        key = (d, chain, fl.get("since"), fl.get("until"))
+        if key in seen:
+            print("whales: %s repeats a pull already read (%s, %s); read once" % (p, d, chain), file=sys.stderr)
+            continue
+        seen.add(key)
+        covered[(d, chain)] += fl.get("hours", 0) or 0
+        dates.append(d)
         for w, hs in fl["sellers"].items():
             sellers.setdefault(w, hs)
             chain_of.setdefault(w, chain)
         for e in fl["edges"]:
             chain_of.setdefault(e["from"], chain)
+            chain_of.setdefault(e["to"], chain)
             edges.append(e)
-    return edges, sellers, chain_of, hours, sorted(set(dates))
+    hours_of = collections.defaultdict(float)        # date -> the longest any chain covered it
+    for (d, _chain), h in covered.items():
+        hours_of[d] = max(hours_of[d], h)
+    return edges, sellers, chain_of, sum(hours_of.values()), sorted(set(dates))
+
+
+def chains_pulled(paths):
+    """The chains the pulls cover, from the files themselves: a chain read and found quiet is
+    still a chain read. Not inferred from the payments, which leave a quiet chain out."""
+    out = set()
+    for p in paths:
+        with open(p) as f:
+            out.add({"solana": "Solana"}.get(json.load(f).get("chain", ""), "Base"))
+    return sorted(out)
 
 
 def load_snapshot(path):
@@ -167,6 +205,18 @@ def rollup(edges, sellers, chain_of, hours, snap):
         c["payments_x402"] += nx
         c["usdc_x402"] += ux
     classified = any("n_x402" in e for e in edges)
+    # the same figures per chain: Base and Solana are counted differently (see the notes), so
+    # a reader can keep them apart
+    by_chain = {}
+    for e in edges:
+        c = by_chain.setdefault(chain_of.get(e["to"]) or chain_of.get(e["from"], "Base"),
+                                {"payments": 0, "usdc": 0.0, "payments_x402": 0, "usdc_x402": 0.0, "buyers": set(), "payees": set()})
+        c["payments"] += e["n"]
+        c["usdc"] += e["usdc"]
+        c["payments_x402"] += e.get("n_x402", 0)
+        c["usdc_x402"] += e.get("usdc_x402", 0.0)
+        c["buyers"].add(e["from"])
+        c["payees"].add(e["to"])
     # a pull tells x402 apart per chain: Base does, an older or Solana pull may not
     classified_chains = sorted({chain_of.get(e["to"]) or chain_of.get(e["from"], "Base") for e in edges if "n_x402" in e})
 
@@ -236,7 +286,11 @@ def rollup(edges, sellers, chain_of, hours, snap):
                    "operators_paid": len({ops[h]["id"] for h in sold if h in ops}),
                    "sellers_one_payer": sum(1 for s in out_sellers if s["concentration"] == "one payer"),
                    "sellers_concentrated": sum(1 for s in out_sellers if s["concentration"] == "concentrated"),
-                   "agents_3plus": sum(1 for b in out_buyers if agent_sellers(b) >= 3)},
+                   "agents_3plus": sum(1 for b in out_buyers if agent_sellers(b) >= 3),
+                   "by_chain": {k: {"payments": v["payments"], "usdc": round(v["usdc"], 2),
+                                    "payments_x402": v["payments_x402"], "usdc_x402": round(v["usdc_x402"], 2),
+                                    "buyer_wallets": len(v["buyers"]), "payee_wallets": len(v["payees"])}
+                                for k, v in sorted(by_chain.items())}},
         "buyers": out_buyers,
         "agents": sorted([b for b in out_buyers if agent_sellers(b) >= 3],
                          key=lambda b: (-b["payments_x402"], -b["payments"], -b["usdc"])),
@@ -259,7 +313,13 @@ def rollup(edges, sellers, chain_of, hours, snap):
             "Hosts paid into the same wallet are grouped as one operator: usually that is one operator, "
             "sometimes a platform collecting for several. The registry's seller count is a count of hosts.",
             "Payments to a wallet shared by several hosts are credited to the busiest host the registry knows.",
-        ],
+        ] + ([
+            "The two chains are counted differently. Base counts payments into wallets the public registry lists, "
+            "and tells x402 from other transfers by the authorization. Solana counts every payment a known payment "
+            "processor settled, listed or not: the processor pays the fee, so the payment is found whoever the payee "
+            "is, and an unlisted payee shows as its short wallet. A Solana figure is therefore the whole of what "
+            "those processors settled that day; a Base figure is what reached listed sellers."
+        ] if "Solana" in by_chain else []),
     }
 
 
@@ -325,6 +385,7 @@ def main():
     snap = load_snapshot(a.snapshot)
     d = rollup(edges, sellers, chain_of, hours, snap)
     d["dates"] = dates
+    d["chains"] = chains_pulled(a.flows)              # what was read, quiet or not (seller_pages.load_chain)
     d["as_of"] = date.today().isoformat()
     report(d, dates, a.top)
     if a.out:

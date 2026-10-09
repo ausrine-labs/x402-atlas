@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Copied from the Aušrinė lab (commit f04f064). Edit it there, not here.
+# Copied from the Aušrinė lab (commit 400e511). Edit it there, not here.
 """operator_pages_test.py — a page for every wallet group, from a synthetic rollup. No network.
 
     python3 operator_pages_test.py
@@ -124,7 +124,8 @@ class Unclaimed(unittest.TestCase):
         self.assertIn("0xc1c1…c1c1</code></a> 660", html)                       # 600 + 60 across two hosts
         self.assertIn("Nobody has put a name on this group yet", html)
         self.assertIn("Name this group</a>", html)
-        self.assertIn("reference_id=o%3Aaslan.example", html.replace("reference_id=o:aslan.example", "reference_id=o%3Aaslan.example"))
+        self.assertIn('data-ref="o:aslan.example"', html)                   # the group travels with the checkout
+        self.assertNotIn("buy.polar.sh/polar_cl_", html)                     # built on a click, never a link in the page
         self.assertNotIn('class="tag mark"', html)
 
 
@@ -198,7 +199,7 @@ class StableAddress(unittest.TestCase):
         self.assertEqual(r2["name"], "aslan.example")
         h1 = open(os.path.join(out1, "o", "aslan.example", "index.html")).read()
         self.assertIn("<h1>earner.other</h1>", h1)
-        self.assertIn("reference_id=o:aslan.example", h1)
+        self.assertIn('data-ref="o:aslan.example"', h1)
         self.assertFalse(os.path.exists(os.path.join(out1, "o", "earner.other")))
         self.assertIn("<h1>aslan.example</h1>", open(os.path.join(out2, "o", "aslan.example", "index.html")).read())
         # a host page links to the group by its stable address, under the earner's name
