@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Copied from the Aušrinė lab (commit b5871a0). Edit it there, not here.
+# Copied from the Aušrinė lab (commit 0f48b70). Edit it there, not here.
 """chain_flows.py — who paid whom: x402 payments read straight off Base.
 
 The registry says how many calls a seller got. The chain says who paid.
@@ -28,6 +28,7 @@ n_x402,usdc_x402}],"sellers":{wallet:[hosts]}}. Standard library only. MIT.
 import argparse
 import collections
 import json
+import os
 import sys
 import time
 import urllib.error
@@ -35,7 +36,13 @@ import urllib.parse
 import urllib.request
 from datetime import date
 
-RPC = "https://mainnet.base.org"
+# The free public endpoint: the only Base address ever written into a page (live_feed.py's
+# browser script asks it). Since 2026-10-09 it refuses every eth_getLogs, from GitHub's runners
+# and the laptop alike ("request limit reached"), so the daily pull reads through a private
+# endpoint when BASE_RPC_URL is set (a GitHub secret; the key is part of the URL, so it is never
+# printed or put on a page), and falls back to the public one when it is not.
+PUBLIC_RPC = "https://mainnet.base.org"
+RPC = os.environ.get("BASE_RPC_URL", "").strip() or PUBLIC_RPC
 USDC = "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913"
 TRANSFER = "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef"
 AUTHORIZATION_USED = "0x98de503528ee59b575ef0c0a2576a82497bfc029a5685b209e9ec333479b10a5"   # EIP-3009, read off a real settlement
