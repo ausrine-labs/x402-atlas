@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Copied from the Aušrinė lab (commit f04f064). Edit it there, not here.
+# Copied from the Aušrinė lab (commit 263cdbb). Edit it there, not here.
 """atlas_style.py — the one look of the Infoharmoni Atlas: stylesheet, header, footer.
 
 Every page the site build writes carries the same three things, written here once:
@@ -15,6 +15,7 @@ HEAD takes %(title)s %(desc)s %(canon)s %(css)s %(root)s; FOOT takes %(root)s
 
 import html
 import re
+import urllib.parse
 
 import market
 
@@ -327,6 +328,32 @@ MONTHS = ("January", "February", "March", "April", "May", "June", "July", "Augus
 
 def esc(x):
     return html.escape(str(x if x is not None else ""), quote=True)
+
+
+# ── checkout buttons ──────────────────────────────────────────────────────────
+# On 2026-10-08 Polar listed dozens of empty checkouts, one every few minutes, for every
+# product. Robots made them: visiting a checkout address opens a checkout. The pages carried
+# those addresses as plain links (each group page's "Name this group", the Pro and Sellers
+# "Subscribe"), or the claim page filled them in on load when opened at ?host=. So a page now
+# carries only the checkout's id, and the address is put together when a person clicks.
+# Polar's own checkout needs script, so a reader without script loses nothing.
+POLAR = "https://buy.polar.sh/"
+# the address is split so that the page holds nothing a link-lifter would take for one
+CHECKOUT_JS = ("<script>if(!window.atlasCheckout){window.atlasCheckout=1;document.addEventListener('click',function(e){"
+               "var a=e.target.closest&&e.target.closest('a[data-go]');if(!a)return;e.preventDefault();"
+               "var r=a.getAttribute('data-ref');location.href='https://buy.'+'polar.sh/'+a.getAttribute('data-go')"
+               "+(r?'?reference_id='+encodeURIComponent(r):'');});}</script>")
+
+
+def checkout(url, label, cls="btn buy", ref=None):
+    """A checkout button. For a Polar checkout the page holds only the id (data-go) and the
+    reference (data-ref); CHECKOUT_JS, sent with every button and run once, builds the
+    address on a click. Any other address stays a plain link that asks robots not to follow."""
+    if url.startswith(POLAR) and "?" not in url and "#" not in url:
+        return ('<a class="%s" href="#checkout" rel="nofollow" data-go="%s"%s>%s</a>%s'
+                % (cls, esc(url[len(POLAR):]), ' data-ref="%s"' % esc(ref) if ref else "", esc(label), CHECKOUT_JS))
+    href = url + ("?reference_id=" + urllib.parse.quote(ref, safe="") if ref else "")
+    return '<a class="%s" href="%s" rel="nofollow">%s</a>' % (cls, esc(href), esc(label))
 
 
 def _parts(iso):
