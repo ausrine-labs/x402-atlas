@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Copied from the Aušrinė lab (commit f04f064). Edit it there, not here.
+# Copied from the Aušrinė lab (commit 263cdbb). Edit it there, not here.
 """operator_pages.py — a page for every wallet group: the hosts paid into one wallet.
 
 The registry counts hosts; the chain shows which of them are paid into the same
@@ -278,8 +278,7 @@ def build(out, chain, A, ctx, as_of, n_sellers, operators=None, site="", head=""
                      "logo and links; a “claimed by operator” mark on each of the %d host pages; your hosts’ buyers, concentration "
                      "and money read together, updated daily; a monthly note on what changed. $49 a month, cancel any time. "
                      "The numbers never change for money.</p>"
-                     '<a class="btn" href="%s?reference_id=%s">Name this group</a></div>'
-                     % (f["hosts"], esc(buy_url), esc("o:" + sl)))
+                     '%s</div>' % (f["hosts"], atlas_style.checkout(buy_url, "Name this group", cls="btn", ref="o:" + sl)))
         p.append("</aside></div>")
         p.append('<h2>How to read this</h2><ul class="cav"><li>%s</li><li>%s</li><li>%s</li></ul></main>' % (
             esc("Hosts are grouped because the registry lists the same payTo wallet for them. That is what the wallet shows, and nothing more: "

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Copied from the Aušrinė lab (commit f04f064). Edit it there, not here.
+# Copied from the Aušrinė lab (commit 263cdbb). Edit it there, not here.
 """seller_pages.py — a public page for every seller in the agent economy.
 
 Roughly 2,000 teams sell to agents over x402. Each of them wants to know how
@@ -60,6 +60,11 @@ BUY_OPERATOR = "https://buy.polar.sh/polar_cl_nabc7zipli1BLgwDkLh4tyEEPyrSE3rTIE
 BUY_PRO = "https://buy.polar.sh/polar_cl_lJhAOVU7EHynszEyW3pSoPuEuMkbPKORYjVqJ1d7MBP"   # Atlas Pro, $49/mo; its key opens /pro (2026-09-30)
 # Atlas for Sellers, $29 a month: the Polar checkout for "Your buyers", whose key opens the seller report.
 BUY_SELLERS = "https://buy.polar.sh/polar_cl_tKCkIdfx92wCN3i0rrY5cTCTzk3giBZADbkHk04KET8"
+
+
+def checkout_id(url):
+    """polar_cl_… from a Polar checkout address: the claim page carries only the id."""
+    return url[len(atlas_style.POLAR):] if url.startswith(atlas_style.POLAR) else url
 
 CAVEATS = [
     "Source: the public x402 discovery registry, photographed once a day. A seller missing from "
@@ -735,18 +740,21 @@ document.getElementById('which').innerHTML='Claiming: <a href="s/'+encodeURIComp
 // A checkout never leaves without the host it is for: Polar gets it as ?reference_id=<host>.
 const clean=v=>(v||'').toLowerCase().trim().replace(/^https?:\/\//,'').replace(/\/.*$/,'').replace(/[^a-z0-9._:-]/g,'').slice(0,253);
 const hi=document.getElementById('host'),note=document.getElementById('hostnote');
-function arm(v){const x=clean(v);const ok=/^[a-z0-9-]+(\.[a-z0-9-]+)+(:\d+)?$/.test(x);
-document.querySelectorAll('a.buy').forEach(a=>{a.href=ok?a.dataset.checkout+'?reference_id='+encodeURIComponent(x):'#host';});return ok;}
-hi.value=h;arm(h);hi.addEventListener('input',()=>arm(hi.value));
+// The page holds only each checkout's id: the address is put together on a click, never on load,
+// so a robot that opens this page at ?host= does not find live checkout links (2026-10-08).
+function arm(v){const x=clean(v);return /^[a-z0-9-]+(\.[a-z0-9-]+)+(:\d+)?$/.test(x)?x:'';}
+hi.value=h;
 document.getElementById('hostform').addEventListener('submit',e=>e.preventDefault());
-document.querySelectorAll('a.buy').forEach(a=>a.addEventListener('click',e=>{if(!arm(hi.value)){e.preventDefault();hi.focus();
-note.textContent='Type your service’s host first, like api.example.com: the checkout needs it to know which page is yours.';}}));
+document.querySelectorAll('a.buy').forEach(a=>a.addEventListener('click',e=>{e.preventDefault();const x=arm(hi.value);
+if(!x){hi.focus();note.textContent='Type your service’s host first, like api.example.com: the checkout needs it to know which page is yours.';return;}
+location.href='https://buy.'+'polar.sh/'+a.dataset.checkout+'?reference_id='+encodeURIComponent(x);}));
 </script>""".replace("%(numbers)s", tiers.PLACE if free else "The numbers are never for sale.")
                  .replace("%(deeper)s", "a deeper look at your corner of the market, and the full record" if free
                           else "and a deeper look at your corner of the market")
                  .replace("%(browse)s", "every seller’s basic card" if free else "all sellers")
                  .replace("%(site)s", SITE).replace("%(api)s", API)
-                 % (esc(BUY_VERIFIED), esc(BUY_REPORT), esc(BUY_BUYERS), esc(BUY_OPERATOR), esc(ISSUES)))
+                 % (esc(checkout_id(BUY_VERIFIED)), esc(checkout_id(BUY_REPORT)), esc(checkout_id(BUY_BUYERS)),
+                    esc(checkout_id(BUY_OPERATOR)), esc(ISSUES)))
     claim.append(foot % {"root": SITE, "issue": esc(ISSUES), "as_of": esc(as_of), "n": "{:,}".format(n)})
     with open(os.path.join(out, "claim.html"), "w") as f:
         f.write("".join(claim))
@@ -813,7 +821,7 @@ def pro_page(out, ctx, as_of, n, foot=None, free=None):
     p = [HEAD % dict(ctx, title="Atlas Pro: the record as data · " + market.BRAND,
                      desc="Atlas Pro: every x402 seller, buyer wallet and wallet group as CSV and JSON, refreshed "
                           "every morning. $49 a month.", canon=SITE + "/pro.html")]
-    buy = (('<a class="btn buy" href="%s">Subscribe</a>' % esc(BUY_PRO)) if BUY_PRO else
+    buy = (atlas_style.checkout(BUY_PRO, "Subscribe") if BUY_PRO else
            '<p class="muted"><b>The subscription opens soon.</b> The exports are built and served; the '
            'checkout is the last piece.</p>')
     p.append("""<main id="main"><div class="hero"><div><p class="eyebrow">Atlas Pro</p>
