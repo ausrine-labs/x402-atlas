@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Copied from the Aušrinė lab (commit 76ce7a3). Edit it there, not here.
+# Copied from the Aušrinė lab (commit b5871a0). Edit it there, not here.
 """chain_flows.py — who paid whom: x402 payments read straight off Base.
 
 The registry says how many calls a seller got. The chain says who paid.
@@ -51,9 +51,25 @@ class TooBig(Exception):
 SIZE_WORDS = ("too large", "too big", "response size", "query returned more than", "block range")
 
 
+RATE_LIMIT_TRIES = 12           # 429s waited out per call, on top of the ordinary tries
+
+
+def rate_limit_wait(err, n):
+    """Seconds to wait after the n-th 429: the RPC's Retry-After when it gives one (capped at
+    two minutes), else 2, 4, 8 ... up to 60."""
+    try:
+        after = float((err.headers or {}).get("Retry-After") or 0)
+    except (TypeError, ValueError):
+        after = 0
+    return min(120.0, after) if after > 0 else float(min(60, 2 ** n))
+
+
 def rpc(method, params, tries=4):
     body = json.dumps({"jsonrpc": "2.0", "id": 1, "method": method, "params": params}).encode()
-    for i in range(tries):
+    patience = 0
+    i = -1
+    while i < tries - 1:
+        i += 1
         try:
             req = urllib.request.Request(RPC, data=body, headers={"Content-Type": "application/json", "User-Agent": "ausrine-infoharmoni/1.0"})
             d = json.load(urllib.request.urlopen(req, timeout=90))
@@ -66,6 +82,15 @@ def rpc(method, params, tries=4):
         except urllib.error.HTTPError as e:
             if e.code == 413:
                 raise TooBig("HTTP 413 Payload Too Large")
+            if e.code == 429 and patience < RATE_LIMIT_TRIES:
+                # The public RPC rate-limits a busy runner (2026-10-09: the day's pull died on a
+                # 429 after ~15 s of retries, and the Atlas lost that day). A refusal for speed
+                # is waited out, as long as the RPC asks or up to a minute a time; it does not
+                # use up the tries kept for real failures.
+                patience += 1
+                time.sleep(rate_limit_wait(e, patience))
+                i -= 1                                # the same try again
+                continue
             if i == tries - 1:
                 raise
             time.sleep(2 * (i + 1))
