@@ -23,6 +23,10 @@ jobs:
         with:
           python-version: "3.11"
       - name: Photograph the market and build the site
+        env:
+          # a private Base endpoint (its key is in the URL): the public one refuses eth_getLogs since
+          # 2026-10-09. Unset, the pull uses the public endpoint as before. Never written into a page.
+          BASE_RPC_URL: ${{ secrets.BASE_RPC_URL }}
         run: sh tools/build_site.sh
       - uses: actions/upload-pages-artifact@56afc609e74202658d3ffba0e8f6dda462b719fa # v3
         with:

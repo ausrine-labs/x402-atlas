@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Copied from the Aušrinė lab (commit f04f064). Edit it there, not here.
+# Copied from the Aušrinė lab (commit 0f48b70). Edit it there, not here.
 """live_feed.py — /live/: x402 payments as they settle, read in the viewer's own browser.
 
 Every other Atlas page is a photograph of yesterday. This one is a window. The page
@@ -28,7 +28,7 @@ import sys
 import chain_flows
 import coverage_page as cp
 
-RPC = chain_flows.RPC
+RPC = chain_flows.PUBLIC_RPC     # never chain_flows.RPC: that may carry a private key, and this goes into a page
 POLL_MS = 15000
 BLOCKS = 200
 ROWS = 200
