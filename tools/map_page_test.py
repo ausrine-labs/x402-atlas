@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Copied from the Aušrinė lab (commit 116e747). Edit it there, not here.
+# Copied from the Aušrinė lab (commit 400e511). Edit it there, not here.
 """map_page_test.py — the live map, from a synthetic day of flows. No network.
 
     python3 map_page_test.py
@@ -108,13 +108,15 @@ class Map(unittest.TestCase):
 
     def test_the_lede_counts_x402_payments_wallets_and_sellers(self):
         # 600 + 10 + 4 + 1 + 2 x402 payments; AGENT and PLAIN paid; alpha, rival, evil and trustverify were paid
-        self.assertIn("Yesterday on Base: 617 x402 payments between 2 wallets and 4 sellers. "
-                      "Gold is a seller, pink a wallet that paid; a line is money.", self.page)
+        self.assertIn("On 2 January 2026 on Base: 617 x402 payments between 2 wallets and 4 sellers. "
+                      "Green is a seller, amber a wallet that paid; a line is money.", self.page)
+        self.assertIn("The network · 2 January 2026 · Base · x402", self.page)          # the network is always dated
+        self.assertIn("2 January 2026", self.embed)
         self.assertEqual(self.graph["totals"]["payments"], 617)
 
     def test_house_header_and_footer(self):
-        self.assertIn('<a href="%s/map/">the map</a>' % SITE, self.page)
-        self.assertIn('<a href="%s/b/">buyers</a>' % SITE, self.page)
+        self.assertIn('<a href="%s/map/">Map</a>' % SITE, self.page)
+        self.assertIn('<a href="%s/b/">Buyers</a>' % SITE, self.page)
         self.assertIn("As of %s" % DAY, self.page)
         self.assertIn('<link rel="canonical" href="%s/map/">' % SITE, self.page)
         self.assertLess(self.page.index("<header"), self.page.index('<canvas id="c">'))

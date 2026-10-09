@@ -1,0 +1,175 @@
+{
+ "credit": "Fee-payer addresses from x402scan's npm package `facilitators` (MIT; github.com/Merit-Systems/x402scan, packages/external/facilitators, version 0.0.10), read on 2026-10-09. The package is theirs; the reading is ours.",
+ "chain": "solana",
+ "what": "Each address is the wallet a payment processor (an x402 facilitator) pays Solana fees from. A transaction whose fee payer is one of these, with one stablecoin debit and one credit, is an x402 payment that processor settled.",
+ "states": {
+  "live": "listed as current in the package",
+  "deprecated": "marked deprecated there, kept because deprecated addresses still settle payments (PayAI's CjNFTjvB\u2026 did ~630 a day in October 2026)"
+ },
+ "facilitators": [
+  {
+   "id": "anyspend",
+   "address": "34DmdeSbEnng2bmbSj9ActckY49km2HdhiyAwyXZucqP",
+   "state": "deprecated",
+   "source": "packages/external/facilitators/src/facilitators/anyspend.ts"
+  },
+  {
+   "id": "aurracloud",
+   "address": "8x8CzkTHTYkW18frrTR7HdCV6fsjenvcykJAXWvoPQW",
+   "state": "deprecated",
+   "source": "packages/external/facilitators/src/facilitators/aurracloud.ts",
+   "note": "the whole facilitator is marked deprecated in the package"
+  },
+  {
+   "id": "bitrefill",
+   "address": "PcTZWki36z5Y82TAATKK48XUdfsgmS5oLkw2Ta7vWyK",
+   "state": "deprecated",
+   "source": "packages/external/facilitators/src/facilitators/bitrefill.ts"
+  },
+  {
+   "id": "cascade",
+   "address": "7NetKx8TuRMBpqYFKZCVetkNuvWCPTrgekmGrsJwTmfN",
+   "state": "live",
+   "source": "packages/external/facilitators/src/facilitators/cascade.ts"
+  },
+  {
+   "id": "codenut",
+   "address": "HsozMJWWHNADoZRmhDGKzua6XW6NNfNDdQ4CkE9i5wHt",
+   "state": "deprecated",
+   "source": "packages/external/facilitators/src/facilitators/codenut.ts",
+   "note": "the whole facilitator is marked deprecated in the package"
+  },
+  {
+   "id": "coinbase",
+   "address": "L54zkaPQFeTn1UsEqieEXBqWrPShiaZEPD7mS5WXfQg",
+   "state": "deprecated",
+   "source": "packages/external/facilitators/src/facilitators/coinbase.ts"
+  },
+  {
+   "id": "coinbase",
+   "address": "BENrLoUbndxoNMUS5JXApGMtNykLjFXXixMtpDwDR9SP",
+   "state": "live",
+   "source": "packages/external/facilitators/src/facilitators/coinbase.ts"
+  },
+  {
+   "id": "coinbase",
+   "address": "BFK9TLC3edb13K6v4YyH3DwPb5DSUpkWvb7XnqCL9b4F",
+   "state": "live",
+   "source": "packages/external/facilitators/src/facilitators/coinbase.ts"
+  },
+  {
+   "id": "coinbase",
+   "address": "D6ZhtNQ5nT9ZnTHUbqXZsTx5MH2rPFiBBggX4hY1WePM",
+   "state": "live",
+   "source": "packages/external/facilitators/src/facilitators/coinbase.ts"
+  },
+  {
+   "id": "coinbase",
+   "address": "GVJJ7rdGiXr5xaYbRwRbjfaJL7fmwRygFi1H6aGqDveb",
+   "state": "live",
+   "source": "packages/external/facilitators/src/facilitators/coinbase.ts"
+  },
+  {
+   "id": "coinbase",
+   "address": "Hc3sdEAsCGQcpgfivywog9uwtk8gUBUZgsxdME1EJy88",
+   "state": "live",
+   "source": "packages/external/facilitators/src/facilitators/coinbase.ts"
+  },
+  {
+   "id": "coinbase",
+   "address": "92QcYJZpkwYyacR3G69QNR2JfjadQxd16cp5d7x5GEzU",
+   "state": "deprecated",
+   "source": "packages/external/facilitators/src/facilitators/coinbase.ts"
+  },
+  {
+   "id": "corbits",
+   "address": "AepWpq3GQwL8CeKMtZyKtKPa7W91Coygh3ropAJapVdU",
+   "state": "live",
+   "source": "packages/external/facilitators/src/facilitators/corbits.ts"
+  },
+  {
+   "id": "daydreams",
+   "address": "DuQ4jFMmVABWGxabYHFkGzdyeJgS1hp4wrRuCtsJgT9a",
+   "state": "deprecated",
+   "source": "packages/external/facilitators/src/facilitators/daydreams.ts"
+  },
+  {
+   "id": "dexter",
+   "address": "DeXterR2kQm8AvRHnNPatWkE46TfAcMeBDjb6FySoAb8",
+   "state": "live",
+   "source": "packages/external/facilitators/src/facilitators/dexter.ts"
+  },
+  {
+   "id": "dexter",
+   "address": "DEXVS3su4dZQWTvvPnLDJLRK1CeeKG6K3QqdzthgAkNV",
+   "state": "live",
+   "source": "packages/external/facilitators/src/facilitators/dexter.ts"
+  },
+  {
+   "id": "figment-facilitator",
+   "address": "93syNmtT1tTd5ZtPwHqzGf6CM7fKhMmArpv4AM4FtyNX",
+   "state": "live",
+   "source": "packages/external/facilitators/src/facilitators/figment.ts"
+  },
+  {
+   "id": "openfacilitator",
+   "address": "Hbe1vdFs4EQVVAzcV12muHhr6DEKwrT9roMXGPLxLBLP",
+   "state": "live",
+   "source": "packages/external/facilitators/src/facilitators/openfacilitator.ts"
+  },
+  {
+   "id": "openx402",
+   "address": "5xvht4fYDs99yprfm4UeuHSLxMBRpotfBtUCQqM3oDNG",
+   "state": "live",
+   "source": "packages/external/facilitators/src/facilitators/openx402.ts"
+  },
+  {
+   "id": "payAI",
+   "address": "2wKupLR9q6wXYppw8Gr2NvWxKBUqm4PPJKkQfoxHDBg4",
+   "state": "live",
+   "source": "packages/external/facilitators/src/facilitators/payai.ts"
+  },
+  {
+   "id": "payAI",
+   "address": "CjNFTjvBhbJJd2B5ePPMHRLx1ELZpa8dwQgGL727eKww",
+   "state": "deprecated",
+   "source": "packages/external/facilitators/src/facilitators/payai.ts"
+  },
+  {
+   "id": "payAI",
+   "address": "8B5UKhwfAyFW67h58cBkQj1Ur6QXRgwWJJcQp8ZBsDPa",
+   "state": "deprecated",
+   "source": "packages/external/facilitators/src/facilitators/payai.ts"
+  },
+  {
+   "id": "relai",
+   "address": "4x4ZhcqiT1FnirM8Ne97iVupkN4NcQgc2YYbE2jDZbZn",
+   "state": "live",
+   "source": "packages/external/facilitators/src/facilitators/relai.ts"
+  },
+  {
+   "id": "three-ws",
+   "address": "WwwuGbqHrwF5RG89KhUbmRWEvjnRH9k5kVM5p7T3WwW",
+   "state": "live",
+   "source": "packages/external/facilitators/src/facilitators/threews.ts"
+  },
+  {
+   "id": "three-ws",
+   "address": "GGf9qBhJDCe1UUz4s4Vxq1uPPvcv7UW7sJTuj2Yo5XQj",
+   "state": "live",
+   "source": "packages/external/facilitators/src/facilitators/threews.ts"
+  },
+  {
+   "id": "ultravioletadao",
+   "address": "F742C4VfFLQ9zRQyithoj5229ZgtX2WqKCSFKgH2EThq",
+   "state": "live",
+   "source": "packages/external/facilitators/src/facilitators/ultravioletadao.ts"
+  },
+  {
+   "id": "x402jobs",
+   "address": "561oabzy81vXYYbs1ZHR1bvpiEr6Nbfd6PGTxPshoz4p",
+   "state": "live",
+   "source": "packages/external/facilitators/src/facilitators/x402jobs.ts"
+  }
+ ]
+}
