@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Copied from the Aušrinė lab (commit 263cdbb). Edit it there, not here.
+# Copied from the Aušrinė lab (commit 5da3472). Edit it there, not here.
 """operator_pages.py — a page for every wallet group: the hosts paid into one wallet.
 
 The registry counts hosts; the chain shows which of them are paid into the same
@@ -242,7 +242,7 @@ def build(out, chain, A, ctx, as_of, n_sellers, operators=None, site="", head=""
                  '<div class="tile"><b>%s</b><span>x402 payments, last %s</span></div>'
                  '<div class="tile"><b>%s</b><span>USDC, x402-settled</span></div>'
                  '<div class="tile"><b>%d</b><span>hosts that took an x402 payment</span></div>'
-                 '<div class="tile"><b>%s</b><span>self-reported calls, 30 days</span></div>'
+                 '<div class="tile"><b>%s</b><span>calls in 30 days, as the registry reports</span></div>'
                  '%s</div>'
                  % (f["hosts"], "{:,}".format(f["x402"]), esc(span_words(chain["hours"])), money(f["usdc"]) if f["usdc"] else "$0",
                     f["paid_hosts"], "{:,}".format(f["calls30"]),
@@ -263,7 +263,7 @@ def build(out, chain, A, ctx, as_of, n_sellers, operators=None, site="", head=""
         else:
             p.append('<p class="muted">No x402 payment reached any host of this group on Base in the last %s.</p>' % esc(span_words(chain["hours"])))
         p.append('<h2>The hosts</h2><div class="tw"><table><tr><th>host</th><th class="n">x402 payments</th>'
-                 '<th class="n">self-reported calls, 30 d</th><th>payers</th><th>sells</th></tr>')
+                 '<th class="n">registry calls, 30 d</th><th>payers</th><th>sells</th></tr>')
         for r in f["rows"]:
             p.append('<tr><td class="h"><a href="%s/s/%s/">%s</a></td><td class="n">%s</td><td class="n">%s</td><td>%s</td><td>%s</td></tr>'
                      % (site, esc(slug(r["host"])), esc(r["host"]), "{:,}".format(r["x402"]), "{:,}".format(r["calls30"]),

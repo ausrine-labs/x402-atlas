@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Copied from the Aušrinė lab (commit 400e511). Edit it there, not here.
+# Copied from the Aušrinė lab (commit 5da3472). Edit it there, not here.
 """seller_pages.py — a public page for every seller in the agent economy.
 
 Roughly 2,000 teams sell to agents over x402. Each of them wants to know how
@@ -592,9 +592,9 @@ def build(out, store=None, site=None, claims=None, whales=None, operators=None, 
                           money(s_chain.get("on_chain_usdc_x402") or 0.0), esc(day)))
         p.append('<section aria-label="The numbers"><div class="tiles">'
                  '<div class="tile"><b>#%d</b><span>of %s sellers, by paid calls</span></div>'
-                 '<div class="tile"><b>%s</b><span>paid calls in 30 days, self-reported</span></div>'
+                 '<div class="tile"><b>%s</b><span>paid calls in 30 days, as the registry reports</span></div>'
                  '%s'
-                 '<div class="tile"><b>%s</b><span>payers in 30 days, self-reported (see notes)</span></div>'
+                 '<div class="tile"><b>%s</b><span>payers in 30 days, as the registry reports (see notes)</span></div>'
                  '<div class="tile"><b>%s</b><span>%s</span></div>'
                  '<div class="tile"><b>%s</b><span>est. money at list price · rank #%d</span></div>%s</div></section>'
                  % (rank_c[host], "{:,}".format(n), "{:,}".format(me["calls"]), onchain, "{:,}".format(me["payers"]),

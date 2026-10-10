@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Copied from the Aušrinė lab (commit 400e511). Edit it there, not here.
+# Copied from the Aušrinė lab (commit 5da3472). Edit it there, not here.
 """operator_pages_test.py — a page for every wallet group, from a synthetic rollup. No network.
 
     python3 operator_pages_test.py
@@ -119,7 +119,7 @@ class Unclaimed(unittest.TestCase):
         self.assertIn("<b>669</b><span>x402 payments", html)
         self.assertIn("<b>$48.90</b><span>USDC, x402-settled</span>", html)
         self.assertIn("<b>2</b><span>hosts that took an x402 payment</span>", html)
-        self.assertIn("<b>950</b><span>self-reported calls, 30 days</span>", html)
+        self.assertIn("<b>950</b><span>calls in 30 days, as the registry reports</span>", html)
         self.assertIn("<b>$5,000</b><span>reached the wallet by ordinary transfer, not a call</span>", html)
         self.assertIn("0xc1c1…c1c1</code></a> 660", html)                       # 600 + 60 across two hosts
         self.assertIn("Nobody has put a name on this group yet", html)
