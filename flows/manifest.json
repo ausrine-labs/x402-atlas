@@ -1,13 +1,6 @@
 {
  "files": [
   {
-   "bytes": 119888,
-   "date": "2026-10-01",
-   "kind": "flows",
-   "name": "flows-2026-10-01.json.gz",
-   "sha256": "d15a8aef1b337c94640e17fd73827fddfb512f5ce84722b67baa5ac05be07e5a"
-  },
-  {
    "bytes": 126477,
    "date": "2026-10-02",
    "kind": "flows",
@@ -20,6 +13,13 @@
    "kind": "flows",
    "name": "flows-2026-10-03.json.gz",
    "sha256": "99613a16cb737f1fdf354f90bce88c941811eff9bd2dd17df5d911886f1565e0"
+  },
+  {
+   "bytes": 132806,
+   "date": "2026-10-04",
+   "kind": "flows",
+   "name": "flows-2026-10-04.json.gz",
+   "sha256": "d5f2112c13f6cd46d0df5729aaf91ab722db4761c9a38e37028bd0c02a497974"
   },
   {
    "bytes": 117848,
@@ -114,6 +114,6 @@
   }
  ],
  "keep": 8,
- "published_at": "2026-10-10T23:11:26+00:00",
+ "published_at": "2026-10-10T23:31:49+00:00",
  "skipped": []
 }
