@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Copied from the Aušrinė lab (commit 263cdbb). Edit it there, not here.
+# Copied from the Aušrinė lab (commit 0a16b98). Edit it there, not here.
 """site_pages.py — the company pages of the Infoharmoni Atlas: pricing, docs, about, contact.
 
 seller_pages.py calls build() after the data pages are written. Four pages, each at its
@@ -200,9 +200,22 @@ def docs(site, api, free=None):
         "--from", "git+" + MCP_REPO, atlas_mcp.INSTALL.split()[-1]]}}}, indent=2)
     return """<main id="main"><p class="eyebrow">Docs</p><h1>Read the record from code.</h1>
 <p class="sells">Three ways in: a paid answer per question over x402, the whole day as files with Atlas Pro, and a
-free MCP server for agents. Every example below is the one the serving code publishes.</p>
-<nav class="box" aria-label="On this page"><p style="margin:0"><a href="#who">The who report</a> · <a href="#exports">Exports</a> ·
+free MCP server for agents. Every paid route takes USDC on Base or on Solana, at the same price: your x402 client
+signs whichever it can. Every example below is the one the serving code publishes.</p>
+<nav class="box" aria-label="On this page"><p style="margin:0"><a href="#read">Page reader</a> · <a href="#who">The who report</a> · <a href="#exports">Exports</a> ·
 <a href="#sellers">Your buyers</a> · <a href="#mcp">MCP server</a> · <a href="#free">Free JSON</a></p></nav>
+
+<h2 id="read">Page reader, %(read_price)s a page over x402</h2>
+<p>Give a URL, get the page as clean text: its title, description, language and readable body as markdown. An HTML page,
+a plain-text or markdown file, or a PDF that has a text layer; scanned PDFs are not read yet. You pay only when text
+comes back. A bad address, a private or internal address, and anything that cannot be read are refused and never charged.</p>
+<pre class="code"><span class="c">$</span> curl -i "%(api)s/read?url=https://example.com/"
+<span class="p">HTTP/1.1 402 Payment Required</span>   <span class="c"># %(read_price)s in USDC, on Base or on Solana</span>
+<span class="c"># an x402 client signs the payment and asks again</span>
+<span class="k">HTTP/1.1 200 OK</span>
+{"ok": true, "title": "Example Domain", "text": "This domain is for use in documentation examples ...", "words": 25, ...}</pre>
+<p class="muted">At most 5 MB and 15 seconds a page, one page per call, links never followed. Requests come from
+<code>InfoharmoniReader/1.0</code>.</p>
 
 <h2 id="who">The who report, %(who_price)s a call over x402</h2>
 <p>One seller’s report card: what it sells, paid calls and payers in 30 days, price, rank, rivals, the day-by-day
@@ -250,7 +263,7 @@ each went, where new buyers came from, what is bought alongside, and its closest
 <tr><td class="h"><a href="%(site)s/b/index.json"><code>/b/index.json</code></a></td><td>%(b_json)s</td></tr>
 <tr><td class="h"><a href="%(site)s/map/graph.json"><code>/map/graph.json</code></a></td><td>The day’s network: every x402-settled line between a wallet and a seller.</td></tr></table></div>
 <p class="muted">A wallet is not a person, and nothing in any of these files says who holds one.</p></main>""" % {
-        "who_price": esc(sw.PRICE), "api": esc(api), "who_json": esc(who), "header": esc(pro.HEADER),
+        "who_price": esc(sw.PRICE), "read_price": esc(sw.page_reader.PRICE), "api": esc(api), "who_json": esc(who), "header": esc(pro.HEADER),
         "per_hour": pro.PER_HOUR, "x402_path": esc(pro.X402_PATH), "exports": exports, "sample": esc(sample),
         "site": site, "install": esc(atlas_mcp.INSTALL), "desktop": esc(desktop), "tools": tools,
         "sellers": esc(sr.PRODUCT), "key_path": esc(sr.KEY_PATH), "sellers_price": esc(sr.PRICE),

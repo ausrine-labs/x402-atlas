@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Copied from the Aušrinė lab (commit a0d9190). Edit it there, not here.
+# Copied from the Aušrinė lab (commit 0a16b98). Edit it there, not here.
 """sell-who.py — the Radar's `who` verdict, and the Atlas Pro files, sold per call over x402.
 
 The evidence (journal/2026-09-15-money.md): nobody buys a market overview,
@@ -21,12 +21,23 @@ is an answer; this file puts a price on the answers and on nothing else.
                                  day.json (pro.X402_PRICES). The bytes are pro.exports()'s, the
                                  same the key holders get for the same day.
 
+    GET /sellers                 free: what the seller report ("Your buyers") holds, its price, a
+                                 real sample blurred to ranges, and how to subscribe
+    GET /sellers/report/<host>   Atlas for Sellers, $29 a month: a Polar license key in X-Atlas-Key
+                                 (POLAR_SELLERS_BENEFIT_ID; an Atlas Pro key opens it too), never
+                                 x402; <host>.html is the same report as one printable page
+    GET /x402/report/<host>      the same report as JSON, no key: paid per call over x402, $0.50
+                                 (seller_report.X402_PRICES)
+
     POST /posts                  $0.01 a post: an agent posts on the Atlas about a seller, an
                                  operator, a wallet or the market. The author is the wallet that
                                  paid; the post says whether it paid what it talks about (posts.py)
     GET /posts                   free: newest first, paged; ?about=<kind>:<id> for one thing
     GET /posts/<id>              free: one post and its replies
     POST /posts/<id>/hide        X-Atlas-Admin equal to ATLAS_ADMIN_TOKEN; off when that is unset
+
+    GET /read?url=<url>          $0.001 a page: a web page or a PDF as clean text, title and all
+                                 (page_reader.py). Refusals are free; a failed read is not settled
 
 <file> is one of sellers.csv, buyers.csv, operators.csv, day.json. Both doors serve the
 same files from the same pro.exports() call; this file only puts a gate in front of each.
@@ -48,6 +59,11 @@ and for /x402/export/<file>:
     200  the file                     paid
     404  not one of the four files    free, never asked to pay
     503  stale / no on-chain window   free
+and for /x402/report/<host>:
+    200  the report                   paid
+    400  not a hostname               free
+    404  not in the registry, not in the window, or nobody paid it there   free
+    503  stale snapshot or window     free
 and for POST /posts:
     201  the post, stored             paid, stored only once the payment has settled, and with
                                       GitHub commits on, committed to the repository first
@@ -57,6 +73,12 @@ and for POST /posts:
     404  about or reply_to not found  free
     429  20 posts today from that wallet  free
     503  stale / no on-chain window   free
+and for GET /read?url=<url>:
+    200  the page's text          paid
+    400  no URL, not http(s), a port other than 80 or 443, a login in the URL, a host
+         with no address or one that resolves to a private address        free
+    502/504/415/422 after payment  unreachable, timeout, over 5 MB, too many redirects,
+         unsupported type, no text, a scanned PDF: all non-2xx, so the SDK never settles
 and on any path at all:
     400  an escaped / or \ (%2F, %5C) free: the payment layer and the router could read
                                       such a path differently, and once did (review of #142)
@@ -84,8 +106,8 @@ Going live is Vilija's decision. See deploy/GO-LIVE.md.
 
 Proven 2026-09-17 on Base Sepolia: receipts in journal/2026-09-17-x402.md.
 
-THE FUNNEL, counted and nothing else (Funnel): for each priced family (who, and each
-export file) and each via tag (mcp when the address carried ?via=mcp, as every link the
+THE FUNNEL, counted and nothing else (Funnel): for each priced family (who, watch, each
+export file, report, posts, read) and each via tag (mcp when the address carried ?via=mcp, as every link the
 Atlas MCP server gives out does; none otherwise), how many requests were
     offered    the payment layer answered 402 (terms sent)
     attempted  the request carried a payment header
@@ -110,8 +132,15 @@ sys.path.insert(0, HERE)
 import who_service  # noqa: E402
 import watch_service  # noqa: E402
 import posts  # noqa: E402
+import seller_report  # noqa: E402
+import page_reader  # noqa: E402
 
 NETWORKS = {"testnet": "eip155:84532", "mainnet": "eip155:8453"}
+# Solana mainnet (the chain's genesis hash, CAIP-2). Every priced route can also be paid there, in USDC,
+# to SELL_WHO_SOL_PAY_TO: a public receiving address; no Solana key lives on this server (the
+# facilitator pays the fee and submits the buyer's signed transfer). Mainnet only.
+SOLANA_MAINNET = "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp"
+BASE58 = re.compile(r"^[1-9A-HJ-NP-Za-km-z]{32,44}$")
 FACILITATOR = {"testnet": "https://x402.org/facilitator"}
 LIVE_WORD = "real-money"
 # Throwaway wallets made for test-network runs. Their keys sat in a local file an
@@ -171,7 +200,27 @@ class PublicURL:
         await self.app(scope, receive, send)
 
 
-def live_refusal(net, facilitator, pay_to, cdp_key_file, env):
+B58 = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz"
+
+
+def sol_pay_to_ok(address):
+    """A Solana address as a receiving address: base58 that decodes to exactly 32 bytes (a public
+    key), never a 0x one. The alphabet and length alone let through strings that are not keys, and
+    a payTo that is not a key advertises a way to pay that cannot work."""
+    if not isinstance(address, str) or address.startswith("0x") or not BASE58.match(address):
+        return False
+    n = 0
+    for ch in address:
+        n = n * 58 + B58.index(ch)
+    pad = len(address) - len(address.lstrip("1"))                # each leading "1" is one zero byte
+    raw = b"\x00" * pad + (n.to_bytes((n.bit_length() + 7) // 8, "big") if n else b"")
+    return len(raw) == 32
+
+
+_UNSET = object()
+
+
+def live_refusal(net, facilitator, pay_to, cdp_key_file, env, sol_pay_to=_UNSET):
     """Why this process must not take real money, or None when it may.
     Pure: no network, no file is opened. Every condition is one a person has
     to have set deliberately."""
@@ -188,6 +237,11 @@ def live_refusal(net, facilitator, pay_to, cdp_key_file, env):
         return "mainnet needs a real payTo; %s is a throwaway test address" % pay_to
     if not (pay_to.startswith("0x") and len(pay_to) == 42):
         return "mainnet payTo must be a 0x address of 42 characters"
+    # the Solana address in effect (the command line wins over the environment); an old caller that
+    # passes none is judged on the environment's
+    sol = env.get("SELL_WHO_SOL_PAY_TO") if sol_pay_to is _UNSET else sol_pay_to
+    if sol and not sol_pay_to_ok(sol):
+        return "the Solana payTo must be a Solana address: base58 that decodes to a 32-byte public key"
     why = public_url_problem(env.get("SELL_WHO_PUBLIC_URL"))
     if why:
         return "mainnet needs SELL_WHO_PUBLIC_URL; it %s" % why
@@ -337,12 +391,96 @@ def posts_discovery_extension():
             "note": "paid_it is true when the author wallet made an x402 payment to that seller …"}))
 
 
-def x402_routes(pay_to, net, price=None):
-    """Every priced route and its terms. One payTo, one network, for all of them.
+REPORT_DESCRIPTION = ("Your buyers: one x402 seller's own customers, read from its x402 payments on Base over "
+                      "the Atlas's window. Per payTo wallet: buyers, payments and USDC day by day, who came back "
+                      "and the loyal buyers, new buyers per day, buyers lost and where each went, where new "
+                      "buyers came from, what is bought alongside, early buyers, its 5 closest rivals side by "
+                      "side, and what changed by fixed rules. Every figure with its dates. Refusals are free.")
+
+# What one paid report looks like (made-up hosts and wallets, never a real one).
+REPORT_EXAMPLE = {
+    "ok": True, "report": "Your buyers", "host": "api.example.com", "as_of": "2026-09-30", "age_days": 0,
+    "window": {"chain": "Base", "from": "2026-09-25", "to": "2026-09-29", "days": 5},
+    "wallets": [{
+        "wallet": "0x" + "11" * 20, "hosts": ["api.example.com"], "hosts_total": 1,
+        "summary": {"buyers": 96, "payments": 6982, "usdc": 152.35, "days_paid": 5, "window_days": 5},
+        "by_day": [{"date": "2026-09-25", "buyers": 35, "new_buyers": 35, "payments": 3152, "usdc": 60.78},
+                   {"date": "2026-09-26", "buyers": 24, "new_buyers": 10, "payments": 808, "usdc": 12.88}],
+        "came_back": {"buyers": 37, "of": 96, "rate_pct": 38.5,
+                      "loyal": [{"wallet": "0x" + "22" * 20, "days": 5, "first": "2026-09-25", "last": "2026-09-29",
+                                 "payments": 2753, "usdc": 37.36}]},
+        "lost": {"buyers": 22, "of": 96,
+                 "left_for": [{"wallet": "0x" + "33" * 20, "hosts": ["rival.example"], "hosts_total": 1, "buyers": 4}],
+                 "list": [{"wallet": "0x" + "55" * 20, "days": 1, "last_paid": "2026-09-26", "payments": 30,
+                           "usdc": 0.29, "busy": False, "went_to_total": 1,
+                           "went_to": [{"wallet": "0x" + "33" * 20, "hosts": ["rival.example"], "hosts_total": 1}]}]},
+        "arrived": {"buyers": 40, "of": 96,
+                    "came_from": [{"wallet": "0x" + "44" * 20, "hosts": ["other.example"], "hosts_total": 1, "buyers": 5}]},
+        "bought_alongside": {"sellers": [{"wallet": "0x" + "33" * 20, "hosts": ["rival.example"], "hosts_total": 1,
+                                          "shared_buyers": 13, "share_pct": 13.5}]},
+        "early_buyers": None,
+        "rivals": {"side_by_side": [{"wallet": "0x" + "11" * 20, "this": True, "buyers": 96, "came_back_rate_pct": 38.5,
+                                     "payments": 6982},
+                                    {"wallet": "0x" + "33" * 20, "this": False, "shared_buyers": 13, "buyers": 21,
+                                     "came_back_rate_pct": 23.8, "payments": 320}]},
+        "what_changed": [{"rule": "buyers_between_halves",
+                          "say": "Distinct buyers rose from 45 (2026-09-25 to 2026-09-26) to 66 (2026-09-28 to "
+                                 "2026-09-29), up 46.7%."}]}],
+    "caveats": ["a wallet is not an agent, and nothing here says who holds or runs one"]}
+
+
+def report_discovery_extension():
+    """The Bazaar listing for GET /x402/report/<host>: one host in the path, the report back."""
+    from x402.extensions.bazaar import OutputConfig, declare_discovery_extension
+    return declare_discovery_extension(
+        path_params_schema={
+            "properties": {"host": {"type": "string",
+                                    "description": "the x402 seller's hostname, as the registry lists it "
+                                                   "(api.example.com)"}},
+            "required": ["host"]},
+        output=OutputConfig(example=REPORT_EXAMPLE))
+
+
+READ_DESCRIPTION = ("Read a web page or a PDF as clean text: give a URL, get its title and readable text "
+                    "(markdown). %s a page over x402, no API key. Charged only when text comes back." % page_reader.PRICE)
+
+# What one paid read looks like (the page at example.com, as it reads today).
+READ_EXAMPLE_URL = "https://example.com/"
+READ_EXAMPLE = {
+    "ok": True, "url": "https://example.com/", "final_url": "https://example.com/", "status": 200,
+    "content_type": "text/html", "title": "Example Domain", "description": None, "language": None,
+    "text": "# Example Domain\n\nThis domain is for use in illustrative examples in documents. You may use "
+            "this domain in literature without prior coordination or asking for permission.\n\nMore information...",
+    "words": 29, "chars": 190, "pages": None, "truncated": False, "fetched_at": "2026-10-09T06:00:00Z"}
+
+
+def read_discovery_extension():
+    """The Bazaar listing for GET /read: one query parameter, the URL, and what comes back."""
+    from x402.extensions.bazaar import OutputConfig, declare_discovery_extension
+    return declare_discovery_extension(
+        input={"url": READ_EXAMPLE_URL},
+        input_schema={"type": "object",
+                      "properties": {"url": {"type": "string", "format": "uri",
+                                             "description": "the page to read: http or https, port 80 or 443, "
+                                                            "an HTML page, a text or markdown file, or a PDF"}},
+                      "required": ["url"]},
+        output=OutputConfig(example=READ_EXAMPLE))
+
+
+def x402_routes(pay_to, net, price=None, sol_pay_to=None):
+    """Every priced route and its terms. One payTo and one network for all of them, plus, when
+    `sol_pay_to` is given (mainnet only), the same price paid on Solana to that address: each route
+    then offers two ways to pay, and the buyer's client picks the one it can sign.
     The export routes are literal paths: anything else under /x402/export/ is refused,
     404 and unbilled, before the payment layer is reached (see build())."""
     import pro
-    accepts = lambda p: {"scheme": "exact", "payTo": pay_to, "price": p, "network": NETWORKS[net]}
+    if sol_pay_to and net != "mainnet":
+        raise ValueError("Solana is taken on mainnet only")
+    if sol_pay_to and not sol_pay_to_ok(sol_pay_to):
+        raise ValueError("the Solana payTo is not a Solana address")
+    base = lambda p: {"scheme": "exact", "payTo": pay_to, "price": p, "network": NETWORKS[net]}
+    accepts = (lambda p: [base(p), {"scheme": "exact", "payTo": sol_pay_to, "price": p, "network": SOLANA_MAINNET}]) \
+        if sol_pay_to else base
     routes = {"GET /who/:target": {
         "accepts": accepts(price or PRICE),
         "description": DESCRIPTION, "mimeType": "application/json",
@@ -363,23 +501,52 @@ def x402_routes(pay_to, net, price=None):
             "serviceName": pro.market.BRAND + " Pro export",
             "tags": ["x402", "market-data", "dataset", "atlas", "sellers" if name != "buyers.csv" else "buyers"],
             "extensions": export_discovery_extension(name)}
+    routes["GET " + seller_report.X402_PATH + ":host"] = {
+        "accepts": accepts(seller_report.X402_PRICES["report"]),
+        "description": REPORT_DESCRIPTION, "mimeType": "application/json",
+        "serviceName": pro.market.BRAND + " seller report",
+        "tags": ["x402", "seller-analytics", "customers", "retention", "market-data"],
+        "extensions": report_discovery_extension()}
     routes["POST " + posts.PATH] = {
         "accepts": accepts(posts.PRICE),
         "description": POSTS_DESCRIPTION, "mimeType": "application/json",
         "serviceName": pro.market.BRAND + " posts",
         "tags": ["x402", "social", "agents", "reviews", "market-data"],
         "extensions": posts_discovery_extension()}
+    routes["GET " + page_reader.PATH] = {
+        "accepts": accepts(page_reader.PRICE),
+        "description": READ_DESCRIPTION, "mimeType": "application/json",
+        "serviceName": "Infoharmoni page reader",
+        "tags": ["x402", "web", "scraping", "pdf", "text-extraction", "markdown"],
+        "extensions": read_discovery_extension()}
     return routes
 
 
-def x402_payment_middleware(pay_to, net, facilitator="public", cdp_key_file=None, price=None, client=None):
+def facilitator_supports(client, network):
+    """True only when the facilitator lists scheme `exact` (v2) on `network`. Asked before a route
+    names a network: the payment SDK ends the whole process (os._exit) when a route's network is not
+    one its facilitator lists, so the answer must be known first. A failure to ask is False."""
+    try:
+        kinds = getattr(client.get_supported(), "kinds", None) or []
+    except Exception:
+        return False
+    return any(getattr(k, "scheme", None) == "exact" and str(getattr(k, "network", "")) == network
+               and getattr(k, "x402_version", 2) == 2 for k in kinds)
+
+
+def x402_payment_middleware(pay_to, net, facilitator="public", cdp_key_file=None, price=None, client=None,
+                            sol_pay_to=None):
     """The real payment layer. Imported here so everything else in this file,
     and every test, works without the payment SDK installed.
 
     facilitator="public" is the keyless x402.org one (test network only).
     facilitator="cdp" is Coinbase's, authenticated with a key file that is
     read by path inside this process and never shown (cdp_facilitator.py).
-    `client` stands in for the facilitator in tests; nothing else passes it."""
+    `client` stands in for the facilitator in tests; nothing else passes it.
+
+    sol_pay_to adds Solana as a second way to pay, but only when the facilitator lists it: if it does
+    not (or cannot be asked), the layer is Base alone and says so (mw.solana is False), instead of a
+    server that will not start. The caller prints which it got."""
     from x402 import x402ResourceServer
     from x402.http import HTTPFacilitatorClient, FacilitatorConfig, HTTPRequestContext, x402HTTPResourceServer
     from x402.http.middleware.fastapi import payment_middleware
@@ -392,9 +559,17 @@ def x402_payment_middleware(pay_to, net, facilitator="public", cdp_key_file=None
         client = HTTPFacilitatorClient(FacilitatorConfig(url=FACILITATOR[net]))
     server = x402ResourceServer(client)
     register_exact_evm_server(server)
+    if sol_pay_to and not facilitator_supports(client, SOLANA_MAINNET):
+        sol_pay_to = None
+    if sol_pay_to:
+        try:
+            from x402.mechanisms.svm.exact import register_exact_svm_server
+            register_exact_svm_server(server)      # the Solana scheme: prices in USDC, the facilitator's fee payer
+        except ImportError:
+            sol_pay_to = None                      # the Solana libraries are not installed: Base alone
     # ":target" is one path segment. Anything else under /who/ never gets this
     # far: refuse_before_billing answers it first (see build()).
-    routes = x402_routes(pay_to, net, price)
+    routes = x402_routes(pay_to, net, price, sol_pay_to)
     mw = payment_middleware(routes, server)
     # The second lock (see build()): the SDK's own route matching, on the same server and
     # routes, asked about a path before it goes on. Some SDK versions match the raw
@@ -405,6 +580,7 @@ def x402_payment_middleware(pay_to, net, facilitator="public", cdp_key_file=None
         return all(matcher.requires_payment(HTTPRequestContext(adapter=None, path=p, method=method))
                    for p in (raw_path, path))
     mw.priced = priced
+    mw.solana = bool(sol_pay_to)
     return mw
 
 
@@ -463,20 +639,26 @@ class Funnel:
 
     def __init__(self, now=None):
         import pro
-        self.families = ["who", "watch"] + list(pro.X402_PRICES) + ["posts"]
+        self.families = ["who", "watch"] + list(pro.X402_PRICES) + ["posts"] + list(seller_report.X402_PRICES) + ["read"]
         self.started = (now or datetime.now(timezone.utc)).isoformat(timespec="seconds")
         self._lock = threading.Lock()
         self._n = {f: {v: dict.fromkeys(self.STAGES, 0) for v in self.VIAS} for f in self.families}
+        self._failed = {}      # why a payment that was tried did not settle: {reason: count}
+        self._clients = {}     # who asked a priced path, by kind of client: {kind: count}
 
     def family(self, path, method="GET"):
         """Which priced family a (decoded) path belongs to, or None."""
         import pro
         if path == posts.PATH:
             return "posts" if method == "POST" else None
+        if path == page_reader.PATH:
+            return "read" if method == "GET" else None
         if path.startswith("/who/"):
             return "who"
         if path.startswith("/watch/"):
             return "watch"
+        if path.startswith(seller_report.X402_PATH):
+            return "report"
         if path.startswith(pro.X402_PATH) and path[len(pro.X402_PATH):] in pro.X402_PRICES:
             return path[len(pro.X402_PATH):]
         return None
@@ -491,27 +673,51 @@ class Funnel:
         with self._lock:
             self._n[family][via][stage] += 1
 
-    def note(self, path, query, paid_header, status, settled_header, method="GET"):
-        """Count one request that went through the payment layer."""
+    def note(self, path, query, paid_header, status, settled_header, method="GET", why=None, client=None):
+        """Count one request that went through the payment layer. why: the reason a payment
+        that was tried did not settle (a short word, never a wallet); client: the kind of
+        client that asked (client_kind()), never its own words."""
         fam = self.family(path, method)
         if fam is None:
             return
         v = self.via(query)
+        if client:
+            self._bump(self._clients, client)
         if paid_header:
             self.count(fam, v, "attempted")
         if status == 402:
             self.count(fam, v, "offered")
         elif paid_header and 200 <= status < 300 and settled_header:
             self.count(fam, v, "settled")
+            return
+        if paid_header:
+            reason = "%s: %s" % (fam, why or "status %d" % int(status))
+            if self._bump(self._failed, reason) == 1:      # once per reason; the hourly line has the counts
+                print("sell-who: a payment was tried and did not settle: %s" % reason, flush=True)
+
+    MAX_KEYS = 40      # no caller can grow the tables: past this, every new key counts as "other"
+
+    def _bump(self, table, key):
+        with self._lock:
+            if key not in table and len(table) >= self.MAX_KEYS:
+                key = "other"
+            table[key] = table.get(key, 0) + 1
+            return table[key]
 
     def snapshot(self):
         with self._lock:
             counts = {f: {v: dict(c) for v, c in by.items()} for f, by in self._n.items()}
-        return {"ok": True, "since": self.started, "counts": counts,
+        with self._lock:
+            failed, clients = dict(self._failed), dict(self._clients)
+        return {"ok": True, "since": self.started, "counts": counts, "failed_payments": failed, "clients": clients,
                 "stages": {"offered": "the payment layer answered 402 with terms",
                            "attempted": "the request carried a payment header",
                            "settled": "the payment settled and the answer was served (2xx)"},
                 "via": "mcp when the address carried ?via=mcp, none otherwise",
+                "failed_payments_means": "why a request that carried a payment did not settle, by family: the "
+                                         "payment layer's own reason, or the answer's status",
+                "clients_means": "who asked a priced path, by kind of client read from its User-Agent; the "
+                                 "User-Agent itself is not kept",
                 "note": "aggregated counts since the process started; no address, wallet or host asked about is kept"}
 
     def line(self):
@@ -521,8 +727,12 @@ class Funnel:
             for v, c in by.items():
                 if any(c.values()):
                     parts.append("%s/%s %d/%d/%d" % (f, v, c["offered"], c["attempted"], c["settled"]))
-        return "sell-who: funnel since %s (offered/attempted/settled): %s" % (
-            snap["since"], ", ".join(parts) or "nothing yet")
+        out = "sell-who: funnel since %s (offered/attempted/settled): %s" % (snap["since"], ", ".join(parts) or "nothing yet")
+        if snap["clients"]:
+            out += " | clients: " + ", ".join("%s %d" % kv for kv in sorted(snap["clients"].items(), key=lambda kv: -kv[1]))
+        if snap["failed_payments"]:
+            out += " | not settled: " + ", ".join("%s %d" % kv for kv in sorted(snap["failed_payments"].items()))
+        return out
 
     async def forever(self, every=3600):
         import asyncio
@@ -534,6 +744,58 @@ class Funnel:
 PAYMENT_HEADERS = ("payment-signature", "x-payment")
 SETTLED_HEADERS = ("payment-response", "x-payment-response")
 
+CLIENT_KINDS = [  # (kind, pattern on the lower-cased User-Agent); first match wins, the text itself is never kept
+    ("x402scan", r"x402scan"), ("coinbase / bazaar", r"coinbase|\bcdp\b|bazaar"),
+    ("x402 client library", r"x402"), ("claude / anthropic", r"claude|anthropic"),
+    ("openai / chatgpt", r"openai|chatgpt|gptbot"), ("search crawler", r"googlebot|bingbot|duckduckbot|applebot|yandex|baiduspider"),
+    ("other bot or crawler", r"bot\b|crawler|spider|scan|monitor|uptime|check"),
+    ("python", r"python|httpx|aiohttp|urllib|requests"), ("node", r"node|undici|axios|got\b|fetch"),
+    ("curl / wget", r"curl|wget"), ("go", r"go-http-client"), ("browser", r"mozilla"),
+]
+
+
+def client_kind(user_agent):
+    """The kind of client from its User-Agent, as one of a fixed list of words."""
+    ua = (user_agent or "").lower()
+    if not ua:
+        return "no user-agent"
+    for kind, rx in CLIENT_KINDS:
+        if re.search(rx, ua):
+            return kind
+    return "other"
+
+
+PAYMENT_REASONS = [  # (what we keep, words in the payment layer's reason); its own text is never kept
+    ("not enough funds", r"insufficient|balance|funds"), ("authorization already used", r"nonce|already used|replay"),
+    ("authorization expired or not yet valid", r"expire|valid_?before|valid_?after|too early|too late|deadline"),
+    ("bad signature", r"signature"), ("wrong amount", r"amount|value"),
+    ("wrong recipient", r"recipient|pay_?to|receiver"), ("wrong network", r"network|chain"),
+    ("wrong token", r"asset|token|usdc"), ("wrong scheme or version", r"scheme|version"),
+    ("settlement failed", r"settle"), ("payment checker unavailable", r"facilitator|timeout|unavailable|connect"),
+    ("invalid payment", r"invalid|verify|malformed|decode|parse"),
+]
+
+
+def payment_error(response):
+    """Why the payment layer refused a payment, as one of a fixed list of plain reasons read
+    from the terms it answered with; None when it gave none. Its own words are never kept: a
+    facilitator's message could carry an address or a host."""
+    raw = response.headers.get("payment-required")
+    if not raw:
+        return None
+    try:
+        import base64
+        err = json.loads(base64.b64decode(raw)).get("error")
+    except Exception:
+        return None
+    if not isinstance(err, str) or not err:
+        return None
+    low = err.lower()
+    for reason, rx in PAYMENT_REASONS:
+        if re.search(rx, low):
+            return reason
+    return "other reason"
+
 
 BUDGET = 4      # unpaid pre-checks computed at once; beyond it, 503 busy, unpaid. Answers are cached
                 # per snapshot version, so a paying buyer's second call costs nothing.
@@ -541,18 +803,20 @@ BUDGET = 4      # unpaid pre-checks computed at once; beyond it, 503 busy, unpai
 
 def build(payment_mw, info=None, max_age_days=who_service.MAX_AGE_DAYS, sync=None, public_url=None,
           budget=BUDGET, gate=None, funnel=None, funnel_every=3600, post_store=None, post_sync=None,
-          post_storage=None, env=None, posts_open=True):
+          post_storage=None, env=None, posts_open=True, reader=None):
     """The app. `payment_mw` is any (request, call_next) middleware: the real
     x402 one in production, a stub in tests. `gate` decides who may take a Pro
     export (pro.Gate); without one, Pro says it is not switched on. `funnel`
     counts the paid paths (Funnel); one is made when none is given. `post_store`
     holds the posts (posts.Store; an in-memory one when none is given), `post_sync`
-    commits them (posts.GitHub, or None), `env` is where ATLAS_ADMIN_TOKEN is read."""
-    from fastapi import FastAPI, Request
+    commits them (posts.GitHub, or None), `env` is where ATLAS_ADMIN_TOKEN is read. `reader`
+    reads pages for /read (page_reader.Reader; one on the real network when none is given)."""
+    from fastapi import FastAPI, Query, Request
     from fastapi.concurrency import run_in_threadpool
     from fastapi.responses import JSONResponse, Response
     import pro
     gate = gate or pro.Gate(None)
+    reader = reader or page_reader.Reader()
 
     app = FastAPI(title="Infoharmoni Radar · who")
     funnel = funnel or Funnel()
@@ -610,9 +874,13 @@ def build(payment_mw, info=None, max_age_days=who_service.MAX_AGE_DAYS, sync=Non
     async def pay(request: Request, call_next):
         response = await payment_mw(request, call_next)
         # Only what passed the pre-check gets here, so a refusal is never counted as an offer.
+        tried = any(request.headers.get(h) for h in PAYMENT_HEADERS)
         funnel.note(request.url.path, request.scope.get("query_string", b"").decode("latin-1"),
-                    any(request.headers.get(h) for h in PAYMENT_HEADERS), response.status_code,
-                    any(response.headers.get(h) for h in SETTLED_HEADERS), request.method)
+                    tried, response.status_code,
+                    any(response.headers.get(h) for h in SETTLED_HEADERS), request.method,
+                    why=payment_error(response) if tried else None,
+                    client=client_kind(request.headers.get("user-agent")))
+        response = terms_in_body(response)
         # A post the handler prepared is stored only now, and only if its payment settled.
         staged = getattr(request.state, "post_staged", None)
         if staged is not None:
@@ -620,6 +888,22 @@ def build(payment_mw, info=None, max_age_days=who_service.MAX_AGE_DAYS, sync=Non
                 return await keep(staged, response)
             store.release(staged["author"])
         return response
+
+    def terms_in_body(response):
+        """The terms are in the payment-required header (x402 version 2). A client that reads the
+        answer's body finds them there too, instead of an empty {}."""
+        if response.status_code != 402 or not response.headers.get("payment-required"):
+            return response
+        if response.headers.get("content-length") not in ("0", "2"):
+            return response
+        try:
+            import base64
+            body = base64.b64decode(response.headers["payment-required"])
+            json.loads(body)
+        except Exception:
+            return response
+        headers = {k: v for k, v in response.headers.items() if k.lower() != "content-length"}
+        return Response(body, status_code=402, headers=headers, media_type="application/json")
 
     async def keep(post, response):
         """A paid post, stored before it is answered. With commits on, it is committed to the
@@ -658,6 +942,64 @@ def build(payment_mw, info=None, max_age_days=who_service.MAX_AGE_DAYS, sync=Non
                              "say": "this address is not one the payment layer prices; ask for the plain path"},
                             status_code=400, headers={"cache-control": "no-store"})
 
+    async def directory_probe(request, call_next, path):
+        """Directories (x402scan) learn our prices by probing: HEAD requests, and GETs on the
+        OpenAPI template itself (/who/{target}) or the catalog's pattern (/who/:target). An unpaid probe gets the payment terms, never an
+        answer: a template is swapped for the document's own example, HEAD is asked as GET and
+        answered without a body. Anything carrying a payment header takes the normal path, and
+        nothing is settled without one."""
+        if request.method not in ("GET", "HEAD") or any(request.headers.get(h) for h in PAYMENT_HEADERS):
+            return None
+        if path == page_reader.PATH:
+            # The template's own placeholder, or a HEAD: the terms for the example page. A probe
+            # never reads anything: without a payment the payment layer answers, and that is all.
+            # A plain GET with no url is not a probe but bad input, refused below, unbilled.
+            url = query_url(request)
+            template = url in ("{url}", ":url")
+            if not template and request.method != "HEAD":
+                return None
+            if template or not url:
+                from urllib.parse import urlencode
+                request.scope["query_string"] = urlencode({"url": READ_EXAMPLE_URL}).encode()
+            head = request.method == "HEAD"
+            request.scope["method"] = "GET"
+            response = await call_next(request)
+            if response.status_code != 402:
+                return JSONResponse({"ok": False, "charged": False, "error": "probe_unanswered"}, status_code=404,
+                                    headers={"cache-control": "no-store"})
+            if head:
+                headers = {k: v for k, v in response.headers.items() if k.lower() != "content-length"}
+                return Response(b"", status_code=402, headers=headers)
+            return response
+        prefix = next((p for p in ("/who/", "/watch/", pro.X402_PATH, seller_report.X402_PATH) if path.startswith(p)),
+                      None)
+        if prefix is None:
+            return None
+        value = unquote(path[len(prefix):])
+        # Coinbase's catalog lists our routes by their pattern (/who/:target), so an agent that
+        # copies the listed address asks for ":target" itself; it gets the terms, never a 400.
+        listed = {"/who/": ":target", "/watch/": ":wallet", pro.X402_PATH: ":name", seller_report.X402_PATH: ":host"}
+        template = "{" in value or "}" in value or value == listed[prefix]
+        if not template and request.method != "HEAD":
+            return None
+        if template:
+            target, wallet = discovery_examples()
+            example = {"/who/": target, "/watch/": wallet, pro.X402_PATH: next(iter(pro.X402_PRICES)),
+                       seller_report.X402_PATH: report_example()}[prefix]
+            new_path = prefix + example
+            request.scope["path"] = new_path
+            request.scope["raw_path"] = new_path.encode()
+        head = request.method == "HEAD"
+        request.scope["method"] = "GET"
+        response = await call_next(request)
+        if response.status_code != 402:
+            return JSONResponse({"ok": False, "charged": False, "error": "probe_unanswered"}, status_code=404,
+                                headers={"cache-control": "no-store"})
+        if head:
+            headers = {k: v for k, v in response.headers.items() if k.lower() != "content-length"}
+            return Response(b"", status_code=402, headers=headers)
+        return response
+
     # Registered last, so it runs FIRST: refusals leave here, unbilled.
     @app.middleware("http")
     async def refuse_before_billing(request: Request, call_next):
@@ -669,12 +1011,23 @@ def build(payment_mw, info=None, max_age_days=who_service.MAX_AGE_DAYS, sync=Non
             return JSONResponse({"ok": False, "charged": False, "error": "encoded_slash"},
                                 status_code=400, headers={"cache-control": "no-store"})
         path = request.url.path
+        probe = await directory_probe(request, call_next, path)
+        if probe is not None:
+            return probe
         if path.startswith(pro.X402_PATH):
             return await export_before_billing(request, call_next, path[len(pro.X402_PATH):], raw)
+        if path.startswith(seller_report.X402_PATH):
+            return await report_before_billing(request, call_next, unquote(path[len(seller_report.X402_PATH):]), raw)
         if path == posts.PATH or path.startswith(posts.PATH + "/"):
             return await posts_before_billing(request, call_next, path, raw)
         if path.lower().startswith(posts.PATH):
             # The payment layer matches /Posts as /posts; the router does not. Nothing to offer.
+            return JSONResponse({"ok": False, "charged": False, "error": "no_such_path"}, status_code=404,
+                                headers={"cache-control": "no-store"})
+        if path == page_reader.PATH:
+            return await read_before_billing(request, call_next, raw)
+        if path.lower().startswith(page_reader.PATH):
+            # /Read, /read/, /read/x: the payment layer might price the first; the router serves none
             return JSONResponse({"ok": False, "charged": False, "error": "no_such_path"}, status_code=404,
                                 headers={"cache-control": "no-store"})
         if path.startswith("/watch/"):
@@ -699,6 +1052,38 @@ def build(payment_mw, info=None, max_age_days=who_service.MAX_AGE_DAYS, sync=Non
             if code != 200:
                 return JSONResponse(body, status_code=code, headers={"cache-control": "no-store"})
             request.state.who = body
+        return await call_next(request)
+
+    async def read_before_billing(request, call_next, raw):
+        """The paid page read. Bad input leaves here, unbilled, before any payment is asked for:
+        no URL, a malformed one, a scheme that is not http(s), a port other than 80 or 443, a
+        login in the URL, a host with no address, and above all a host that resolves to a
+        private address. The host is resolved HERE, once; the handler connects to the address
+        judged here, so nothing can change between the judgment and the connection."""
+        if request.method != "GET":
+            return JSONResponse({"ok": False, "charged": False, "error": "method_not_allowed"},
+                                status_code=405, headers={"allow": "GET"})
+        url = query_url(request)
+        try:
+            page_reader.shape(url)                            # free, instant, no lookup, no slot needed
+        except page_reader.Refused as r:
+            return JSONResponse(r.body(), status_code=400, headers={"cache-control": "no-store"})
+        refusal = unpriced(request, raw)
+        if refusal is not None:
+            return refusal
+        if slots.locked():
+            return JSONResponse({"ok": False, "charged": False, "error": "busy",
+                                 "say": "too many unpaid requests at once; try again in a moment"},
+                                status_code=503, headers={"cache-control": "no-store"})
+        async with slots:
+            try:
+                # the name is looked up off the event loop; a slow resolver must not stall the server
+                target = await run_in_threadpool(reader.judge, url)
+            except page_reader.Refused as r:
+                # a bad URL is the asker's 400; a lookup that is busy or too slow is ours (503, 504)
+                return JSONResponse(r.body(), status_code=READ_FAILURES[r.error] if r.error in ("busy", "timeout") else 400,
+                                    headers={"cache-control": "no-store"})
+        request.state.read_target = target
         return await call_next(request)
 
     async def watch_before_billing(request, call_next, wallet, raw):
@@ -749,6 +1134,30 @@ def build(payment_mw, info=None, max_age_days=who_service.MAX_AGE_DAYS, sync=Non
         if refusal is not None:
             return refusal
         request.state.export = files
+        return await call_next(request)
+
+    async def report_before_billing(request, call_next, host, raw):
+        """The x402 door to the seller report. Everything that is not a report ready to hand over
+        leaves here, unbilled: another method, a name that is not a hostname, a stale snapshot or
+        window, a seller the registry or the window does not hold, a seller nobody paid."""
+        if request.method != "GET":
+            return JSONResponse({"ok": False, "charged": False, "error": "method_not_allowed"},
+                                status_code=405, headers={"allow": "GET"})
+        if not seller_report.valid_host(host):           # free, instant, no slot needed
+            code, body = seller_report.report(host, None, max_age_days)
+            return JSONResponse(body, status_code=code, headers={"cache-control": "no-store"})
+        refusal = unpriced(request, raw)
+        if refusal is not None:
+            return refusal
+        if slots.locked():
+            return JSONResponse({"ok": False, "charged": False, "error": "busy",
+                                 "say": "too many unpaid requests at once; try again in a moment"},
+                                status_code=503, headers={"cache-control": "no-store"})
+        async with slots:
+            code, body = await run_in_threadpool(seller_report.report, host, None, max_age_days)
+        if code != 200:
+            return JSONResponse(body, status_code=code, headers={"cache-control": "no-store"})
+        request.state.report = body
         return await call_next(request)
 
     def post_refusal(r, origin=None):
@@ -835,6 +1244,12 @@ def build(payment_mw, info=None, max_age_days=who_service.MAX_AGE_DAYS, sync=Non
         out["pro"] = gate.enabled
         out["x402_exports"] = {pro.X402_PATH + n: p for n, p in pro.X402_PRICES.items()}
         out["watch"] = {"/watch/<wallet>": watch_service.PRICE, "/pro/watch": "Pro key"}
+        out["read"] = {"GET " + page_reader.PATH + "?url=<url>": page_reader.PRICE,
+                       "types": sorted(page_reader.TYPES), "max_mb": page_reader.MAX_BYTES // (1024 * 1024)}
+        out["seller_reports"] = {"on": gate.sellers_enabled, "subscription": seller_report.PRICE,
+                                 "key": seller_report.KEY_PATH + "<host>",
+                                 "x402": {seller_report.X402_PATH + "<host>": seller_report.X402_PRICES["report"]},
+                                 "about": "/sellers"}
         if sync is not None:
             out["snapshots"] = sync.last
             if sync.flows_url:
@@ -850,6 +1265,17 @@ def build(payment_mw, info=None, max_age_days=who_service.MAX_AGE_DAYS, sync=Non
         out = funnel.snapshot()
         out["posts"] = store.counts()
         return JSONResponse(out, headers={"cache-control": "no-store"})
+
+    @app.get(WELL_KNOWN)
+    async def well_known(request: Request):
+        """The x402 discovery manifest (draft-hawkins-x402-dns-discovery): a host's own
+        machine-readable answer to "does it speak x402, and what does it sell". Free."""
+        if not public_url:                # never advertise addresses taken from a caller's Host header
+            return JSONResponse({"ok": False, "error": "no_public_url",
+                                 "say": "this host has no configured public address, so it publishes no manifest"},
+                                status_code=404)
+        return JSONResponse(manifest(public_url.rstrip("/"), info, posts_open), headers={"cache-control": "public, max-age=3600",
+                                                      "access-control-allow-origin": "*"})
 
     def read_json(request, body, status=200):
         return JSONResponse(body, status_code=status, headers=dict(
@@ -920,6 +1346,26 @@ def build(payment_mw, info=None, max_age_days=who_service.MAX_AGE_DAYS, sync=Non
                                 status_code=500)
         return JSONResponse(body, headers={"cache-control": "no-store"})
 
+    @app.get(page_reader.PATH)
+    async def read_route(request: Request,
+                         url: str = Query(..., description="the page to read: http or https, port 80 or 443; "
+                                                           "an HTML page, a text or markdown file, or a PDF")):
+        # Reached only after the payment layer, with the target the pre-check judged. Any failure
+        # answers non-2xx, so the SDK never settles the payment, and says charged: false.
+        target = getattr(request.state, "read_target", None)
+        if target is None:      # cannot happen while the pre-check stands; never read if it does
+            return JSONResponse({"ok": False, "charged": False, "error": "not_prepared"}, status_code=500)
+        try:
+            body = await run_in_threadpool(reader.read, target)
+        except page_reader.Refused as r:
+            return JSONResponse(r.body(), status_code=READ_FAILURES.get(r.error, 502),
+                                headers={"cache-control": "no-store"})
+        except Exception as e:  # a reader bug is still an unsettled answer, never a 500 with a trace
+            return JSONResponse({"ok": False, "charged": False, "error": "read_failed",
+                                 "say": "the page could not be read: %s" % type(e).__name__},
+                                status_code=502, headers={"cache-control": "no-store"})
+        return JSONResponse(body, headers={"cache-control": "no-store"})
+
     @app.get("/watch/{wallet}")
     async def watch_route(request: Request, wallet: str):
         body = getattr(request.state, "watch", None)
@@ -946,6 +1392,53 @@ def build(payment_mw, info=None, max_age_days=who_service.MAX_AGE_DAYS, sync=Non
         code, body = await run_in_threadpool(watch_service.answer, request.query_params.get("wallets"),
                                              request.query_params.get("days"), False, None, max_age_days)
         return JSONResponse(body, status_code=code, headers=headers)
+
+    @app.get("/sellers")
+    async def sellers_route():
+        body = await run_in_threadpool(seller_report.describe, env, None, max_age_days)
+        return JSONResponse(body, headers={"cache-control": "no-store"})
+
+    @app.options(seller_report.KEY_PATH + "{host}")
+    async def sellers_report_preflight(host: str):
+        # The /sellers/ page on the Atlas's own site calls this from the viewer's browser.
+        return Response(status_code=204, headers=REPORT_CORS)
+
+    @app.get(seller_report.KEY_PATH + "{host}")
+    async def sellers_report(request: Request, host: str):
+        # Not an x402 route: the payment layer lets it pass, and the key is the gate. A Sellers key or
+        # a Pro key opens it (pro.SELLERS); the key is never logged, echoed or kept.
+        headers = dict(REPORT_CORS, **{"cache-control": "no-store"})
+        page = host.lower().endswith(".html")
+        name = host[:-5] if page else host
+        if not seller_report.valid_host(name):
+            code, body = seller_report.report(name, None, max_age_days)
+            body.pop("charged", None)
+            return JSONResponse(body, status_code=code, headers=headers)
+        code, why = await run_in_threadpool(gate.check, request.headers.get(pro.HEADER), pro.SELLERS)
+        if code != 200:
+            if code == 401:
+                headers["www-authenticate"] = pro.HEADER
+            if code == 429:
+                headers["retry-after"] = str(why["retry_after"])
+            return JSONResponse(why, status_code=code, headers=headers)
+        code, body = await run_in_threadpool(seller_report.report, name, None, max_age_days)
+        if code != 200:
+            body = dict(body)
+            body.pop("charged", None)
+            return JSONResponse(body, status_code=code, headers=headers)
+        if page:
+            text = await run_in_threadpool(seller_report.html, body)
+            return Response(text, media_type="text/html; charset=utf-8", headers=dict(headers, **{
+                "content-disposition": 'inline; filename="your-buyers-%s-%s.html"' % (body["host"], body["as_of"])}))
+        return JSONResponse(body, headers=headers)
+
+    @app.get(seller_report.X402_PATH + "{host}")
+    async def x402_report(request: Request, host: str):
+        # Reached only after the payment layer, and only with the report the pre-check prepared.
+        body = getattr(request.state, "report", None)
+        if body is None:      # cannot happen while the pre-check stands; never serve if it does
+            return JSONResponse({"ok": False, "charged": False, "error": "not_prepared"}, status_code=500)
+        return JSONResponse(body, headers={"cache-control": "no-store"})
 
     @app.get("/pro")
     async def pro_route():
@@ -978,7 +1471,136 @@ def build(payment_mw, info=None, max_age_days=who_service.MAX_AGE_DAYS, sync=Non
             return JSONResponse({"ok": False, "charged": False, "error": "not_prepared"}, status_code=500)
         return export_file(name, files)
 
+    app.openapi = lambda: discovery_openapi(app)
     return app
+
+
+WELL_KNOWN = "/.well-known/x402"
+MANIFEST_UPDATED = "2026-10-10T00:00:00Z"      # change it when the paid routes or their prices change
+
+
+def manifest(base, info=None, posts_open=False):
+    """The /.well-known/x402 document: what this host sells over x402, at what price, with links.
+    Prices come from the same constants the payment layer charges, so the two cannot disagree."""
+    import pro
+    info = info or {}
+    res = lambda path, price, what, method="GET": {"url": base + path, "method": method, "price": price,
+                                                  "description": what}
+    resources = [
+        res("/who/{target}", info.get("price") or PRICE, "a seller's report card, who actually paid it on Base, and its relationships "
+                                    "with its buyers (came back, bought alongside, left for), with the evidence"),
+        res("/watch/{wallet}", watch_service.PRICE, "what a wallet paid for over x402, and to whom"),
+        res(seller_report.X402_PATH + "{host}", seller_report.X402_PRICES["report"],
+            "Your buyers: a seller's full report on its own customers from its x402 payments on Base"),
+        res(page_reader.PATH + "?url={url}", page_reader.PRICE,
+            "a web page or a PDF as clean text (markdown): title, description, language and the readable text"),
+    ] + [res(pro.X402_PATH + n, p, "the Atlas's newest window as a file: " + n) for n, p in pro.X402_PRICES.items()]
+    if posts_open:
+        resources.append(res(posts.PATH, posts.PRICE, "post to the Atlas's agent board", method="POST"))
+    return {"x402Version": 2, "kind": "resource-server", "name": "Infoharmoni Atlas",
+            "description": "The public record of agent commerce: who pays whom over x402 on Base, read off the "
+                           "chain every day. A refusal is never charged.",
+            "updated": MANIFEST_UPDATED, "docs": CONTACT["url"] + "/docs/", "contact": CONTACT["email"],
+            "networks": info.get("networks") or ([info["network"]] if info.get("network") else []),
+            "openapi": base + "/openapi.json", "resources": resources}
+
+
+CONTACT = {"name": "Infoharmoni", "email": "ausrine@infoharmoni.com", "url": "https://atlas.infoharmoni.com"}
+FALLBACK_TARGET = "stableenrich.dev"
+FALLBACK_WALLET = "0x54e163e9b8edda194d83f46add921bfa5fc5f4e0"
+
+
+def discovery_examples():
+    """Real values a directory can probe with: the busiest x402 seller in the loaded window and
+    its busiest payer, so the example request reaches the 402 instead of a free refusal."""
+    try:
+        _, chain = who_service.newest_chain()
+        sellers = sorted((chain or {}).get("sellers", {}).values(), key=lambda s: -s.get("on_chain_payments_x402", 0))
+        top = sellers[0]
+        payer = (top.get("x402_top_payers") or [{}])[0].get("wallet")
+        return top["host"], payer or FALLBACK_WALLET
+    except (IndexError, KeyError, TypeError, AttributeError):
+        return FALLBACK_TARGET, FALLBACK_WALLET
+
+
+def report_example():
+    """A real seller host whose report would be sold now, so a probe reaches the 402: the who
+    example when the window holds a payment to it, else the busiest seller in the window."""
+    target, _ = discovery_examples()
+    try:
+        _, win = who_service.relationships_window()
+        if not win or not win.get("dates"):
+            return target
+        view = seller_report.relationships.for_host(win, target)
+        if view and view["wallets"]:
+            return target
+        pick = seller_report.busiest(win, None)
+        return pick[0] if pick else target
+    except Exception:
+        return target
+
+
+def discovery_openapi(app):
+    """/openapi.json in the shape x402 directories read (x402scan's discovery spec): the paid
+    operations carry x-payment-info and a 402 response, every path parameter has a real example,
+    and the free operations say so with an empty security list. Built fresh each time so the
+    examples follow the newest window."""
+    from fastapi.openapi.utils import get_openapi
+    import pro
+    doc = get_openapi(title="Infoharmoni Atlas: pay-per-call answers for agents", version="1",
+                      description="Who actually pays whom in the x402 market on Base. Seller reports, "
+                                  "agent spend reports, the daily files and agent posts, and a page reader "
+                                  "(any web page or PDF as clean text), paid per call in USDC on Base over "
+                                  "x402. Refusals are never charged.",
+                      routes=app.routes)
+    doc["info"]["contact"] = dict(CONTACT)
+    target, wallet = discovery_examples()
+    price = lambda a: {"mode": "fixed", "currency": "USD", "amount": a}
+    paid = {
+        ("get", "/who/{target}"): (price(PRICE.lstrip("$")), {"target": target}),
+        ("get", "/watch/{wallet}"): (price(watch_service.PRICE.lstrip("$")), {"wallet": wallet}),
+        ("post", posts.PATH): (price(posts.PRICE.lstrip("$")), {}),
+        ("get", page_reader.PATH): (price(page_reader.PRICE.lstrip("$")), {"url": READ_EXAMPLE_URL}),
+        ("get", seller_report.X402_PATH + "{host}"): (price(seller_report.X402_PRICES["report"].lstrip("$")),
+                                                     {"host": report_example()}),
+        ("get", pro.X402_PATH + "{name}"): ({"mode": "dynamic", "currency": "USD",
+                                             "min": min(v.lstrip("$") for v in pro.X402_PRICES.values()),
+                                             "max": max(v.lstrip("$") for v in pro.X402_PRICES.values())},
+                                            {"name": "sellers.csv"}),
+    }
+    doc.setdefault("components", {})["securitySchemes"] = {
+        "AtlasProKey": {"type": "apiKey", "in": "header", "name": "X-Atlas-Key",
+                        "description": "the Atlas Pro license key from the Polar subscription"},
+        "AtlasSellersKey": {"type": "apiKey", "in": "header", "name": "X-Atlas-Key",
+                            "description": "the Atlas for Sellers license key from the Polar subscription; an "
+                                           "Atlas Pro key opens the seller reports too"},
+        "AtlasAdmin": {"type": "apiKey", "in": "header", "name": "X-Atlas-Admin"}}
+    keyed = {("get", "/pro/export/{name}"): "AtlasProKey", ("get", "/pro/watch"): "AtlasProKey",
+             ("get", seller_report.KEY_PATH + "{host}"): "AtlasSellersKey",
+             ("post", posts.PATH + "/{pid}/hide"): "AtlasAdmin"}
+    for path, ops in doc.get("paths", {}).items():
+        for method, op in ops.items():
+            terms = paid.get((method, path))
+            if terms is None:
+                scheme = keyed.get((method, path))
+                op["security"] = [{scheme: []}] if scheme else []   # a key, or free: nothing to pay
+                continue
+            pricing, examples = terms
+            op["x-payment-info"] = {"protocols": ["x402"], "price": pricing, "network": "base", "asset": "USDC"}
+            op.setdefault("responses", {})["402"] = {"description": "Payment required: x402 terms in the "
+                                                                    "PAYMENT-REQUIRED header, USDC on Base"}
+            for prm in op.get("parameters", []):
+                if prm.get("in") in ("path", "query") and prm.get("name") in examples:
+                    prm["example"] = examples[prm["name"]]
+                    prm.setdefault("schema", {})["example"] = examples[prm["name"]]
+            if method == "post" and path == posts.PATH:
+                op["requestBody"] = {"required": True, "content": {"application/json": {
+                    "schema": {"type": "object", "required": ["about", "text"], "properties": {
+                        "about": {"type": "object", "properties": {"kind": {"type": "string"}, "id": {"type": "string"}}},
+                        "text": {"type": "string", "minLength": 1, "maxLength": 500},
+                        "reply_to": {"type": "string"}}},
+                    "example": {"about": {"kind": "seller", "id": target}, "text": "Fast answers; paid it twice today."}}}}
+    return doc
 
 
 ENCODED_SLASH = re.compile(r"%(2f|5c)", re.IGNORECASE)
@@ -1005,11 +1627,29 @@ WATCH_CORS = {"access-control-allow-origin": "*", "access-control-allow-methods"
               "vary": "Origin"}
 
 
+# The /sellers/ page on the Atlas's own site asks for a report from the viewer's browser, key in the
+# header, exactly as the /watch/ page asks /pro/watch.
+REPORT_CORS = dict(WATCH_CORS)
+
+
 def spend_watch_malformed(wallet, days):
     """True when /watch/<wallet> is refused on its shape alone: not exactly one Base address,
     or a bad days value. Such a request is answered without touching the store."""
     ws, why = watch_service.spend_watch.parse_wallets(wallet)
     return bool(why) or len(ws) != 1 or bool(watch_service.spend_watch.parse_days(days)[1])
+
+
+# What a failed read answers with, after payment: never a 2xx, so the SDK never settles it.
+READ_FAILURES = {"unreachable": 502, "timeout": 504, "too_large": 502, "too_many_redirects": 502,
+                 "unsupported_type": 415, "empty_text": 422, "scanned_pdf": 422, "encrypted_pdf": 422,
+                 "unreadable_pdf": 422, "pdf_not_installed": 503, "private_address": 502,
+                 "busy": 503}
+
+
+def query_url(request):
+    """The ?url= of a request, read from the scope: the probe may have rewritten the query
+    after the request object cached its own reading of it."""
+    return (parse_qs(request.scope.get("query_string", b"").decode("latin-1")).get("url") or [None])[0]
 
 
 def raw_path(scope):
@@ -1052,6 +1692,9 @@ def main():
                          "in front of the process (Render does), 0.0.0.0")
     ap.add_argument("--net", choices=list(NETWORKS), default="testnet")
     ap.add_argument("--pay-to", default=os.environ.get("SELL_WHO_PAY_TO"))
+    ap.add_argument("--sol-pay-to", default=os.environ.get("SELL_WHO_SOL_PAY_TO") or None,
+                    help="a Solana address: every price can also be paid on Solana, in USDC, to it (mainnet only; "
+                         "a receiving address, no key)")
     ap.add_argument("--max-age-days", type=int, default=who_service.MAX_AGE_DAYS)
     ap.add_argument("--price", default=os.environ.get("SELL_WHO_PRICE") or PRICE,
                     help='what one answer costs, e.g. "$0.01"')
@@ -1073,15 +1716,22 @@ def main():
     if public_url and a.net != "mainnet" and public_url_problem(public_url):
         sys.exit("sell-who: SELL_WHO_PUBLIC_URL %s" % public_url_problem(public_url))
     import pro
-    no = live_refusal(a.net, a.facilitator, a.pay_to, a.cdp_key_file, os.environ)
+    no = live_refusal(a.net, a.facilitator, a.pay_to, a.cdp_key_file, os.environ, sol_pay_to=a.sol_pay_to)
     if no:
         sys.exit("sell-who: refusing real money: %s" % no)
+    if a.sol_pay_to and a.net != "mainnet":
+        sys.exit("sell-who: --sol-pay-to is for mainnet only")
+    if a.sol_pay_to and not sol_pay_to_ok(a.sol_pay_to):
+        sys.exit("sell-who: --sol-pay-to is not a Solana address")
     if a.net == "mainnet":
-        print("sell-who: LIVE on Base mainnet. payTo %s, price %s; Pro files per file: %s." % (
-            a.pay_to, a.price, ", ".join("%s %s" % (n, p) for n, p in pro.X402_PRICES.items())), flush=True)
+        print("sell-who: LIVE on Base mainnet%s. payTo %s%s, price %s; Pro files per file: %s; seller report %s; "
+              "page reader %s." % (" and Solana" if a.sol_pay_to else "", a.pay_to,
+                                   (" (Solana %s)" % a.sol_pay_to) if a.sol_pay_to else "", a.price,
+                                   ", ".join("%s %s" % (n, p) for n, p in pro.X402_PRICES.items()),
+                                   seller_report.X402_PRICES["report"], page_reader.PRICE), flush=True)
     import uvicorn
     try:
-        mw = x402_payment_middleware(a.pay_to, a.net, a.facilitator, a.cdp_key_file, a.price)
+        mw = x402_payment_middleware(a.pay_to, a.net, a.facilitator, a.cdp_key_file, a.price, sol_pay_to=a.sol_pay_to)
     except Exception as e:                      # KeyFileError never carries a secret
         sys.exit("sell-who: could not start the payment layer: %s: %s" % (type(e).__name__, e))
     sync = None
@@ -1093,8 +1743,12 @@ def main():
         print("sell-who: first snapshot sync:", sync.once(), flush=True)
         if a.flows_url:
             print("sell-who: first on-chain sync:", sync.chain_last, flush=True)
-    gate = pro.Gate(os.environ.get("POLAR_ORG_ID") or None, os.environ.get("POLAR_BENEFIT_ID") or None)
+    gate = pro.Gate(os.environ.get("POLAR_ORG_ID") or None, os.environ.get("POLAR_BENEFIT_ID") or None,
+                    sellers_benefit_id=os.environ.get("POLAR_SELLERS_BENEFIT_ID") or None)
     print("sell-who: Atlas Pro %s" % ("on" if gate.enabled else "off (POLAR_ORG_ID and POLAR_BENEFIT_ID are both needed)"), flush=True)
+    print("sell-who: seller reports by key %s; per call over x402 at %s<host>, %s" % (
+        "on" if gate.sellers_enabled else "off (POLAR_ORG_ID and POLAR_SELLERS_BENEFIT_ID or POLAR_BENEFIT_ID)",
+        seller_report.X402_PATH, seller_report.X402_PRICES["report"]), flush=True)
     store = posts.Store(posts.default_path())
     try:
         post_sync, storage = posts.from_env(os.environ)
@@ -1109,7 +1763,10 @@ def main():
         post_sync.prune_older(store)
     print("sell-who: posts: %d from the local file, %d waiting to commit; %s" % (local, len(store.pending), storage),
           flush=True)
+    if a.sol_pay_to and not getattr(mw, "solana", False):
+        print("sell-who: Solana is NOT on: the facilitator does not list it (or could not be asked). Base alone.", flush=True)
     app = build(mw, info={"network": NETWORKS[a.net], "pay_to": a.pay_to, "price": a.price,
+                          "networks": [NETWORKS[a.net]] + ([SOLANA_MAINNET] if getattr(mw, "solana", False) else []),
                           "facilitator": a.facilitator, "public_url": public_url},
                 max_age_days=a.max_age_days, sync=sync, public_url=public_url, gate=gate,
                 post_store=store, post_sync=post_sync, post_storage=storage,
