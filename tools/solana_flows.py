@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Copied from the Aušrinė lab (commit b5871a0). Edit it there, not here.
+# Copied from the Aušrinė lab (commit 4560551). Edit it there, not here.
 """solana_flows.py — who paid whom on Solana: every x402 payment a known payment
 processor settled, read in six-hour windows and assembled into UTC days.
 
@@ -155,8 +155,11 @@ class Rpc:
             if "error" in d:
                 err = d["error"] or {}
                 code = err.get("code", 0)
-                # a node that is behind or rate-limiting inside the body: try again like a 429
-                if code in (429, -32005, -32004, -32009, -32014, -32016):
+                # a node that is behind or rate-limiting inside the body: try again like a 429. Some answers say
+                # so only in words: mainnet-beta's "Failed to query long-term storage; please try again"
+                # crashed a whole window on 2026-10-10 (GitHub run 38061000445)
+                msg = str(err.get("message", "")).lower()
+                if code in (429, -32005, -32004, -32009, -32014, -32016) or "try again" in msg or "long-term storage" in msg:
                     last = RpcRefused(str(err.get("message", code))[:80])
                     self.refusals[url] += 1
                     self.sleep(0.5 * 2 ** i)
@@ -655,7 +658,9 @@ def cmd_catchup(rpc, processors, sellers, folder, workers, log, now=None, backfi
         log("%s · %s · %s → %s" % (how, name, iso(since), iso(until)))
         try:
             tally = read_window(rpc_w, processors, since, until, workers_w, log)
-        except RpcRefused as e:
+        except (RpcRefused, RuntimeError) as e:
+            # RuntimeError: an error answer that is not a refusal. One bad window must not stop the others
+            # (or the files already written): it is reported and tried again next run
             log("  %s: %s · not written" % (name, e))
             refused.append(name)
             continue
