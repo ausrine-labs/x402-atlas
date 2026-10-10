@@ -64,8 +64,9 @@ jobs:
           cd branch
           git add -A radar flows
           if git diff --cached --quiet; then echo "the data branch already holds today's window"; exit 0; fi
-          git -c user.name="Ausrine Jurgutis" -c user.email="ausrine@infoharmoni.com" \
-            commit -qm "data: the window as published $(date -u +%FT%TZ) (run ${GITHUB_RUN_ID})"
+          git config user.name "Ausrine Jurgutis"                    # a rebase after a lost push race needs a name too
+          git config user.email "ausrine@infoharmoni.com"
+          git commit -qm "data: the window as published $(date -u +%FT%TZ) (run ${GITHUB_RUN_ID})"
           # the hourly Solana job pushes to this branch too (other files): on a race, rebase and retry
           for i in 1 2 3 4 5; do
             git push -q origin HEAD:data && exit 0
