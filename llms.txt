@@ -14,9 +14,10 @@ The basic record is free to read: today's market, every seller's basic card, the
 - [Docs](http://atlas.infoharmoni.com/docs/): the paid API, the MCP server and the exports.
 - [Raw data](https://raw.githubusercontent.com/ausrine-labs/x402-atlas/data/radar/manifest.json): the daily registry snapshots and the on-chain window (radar/ and flows/ on the data branch, with sha256 manifests).
 
-## Pay per call (x402 on Base, USDC; a refusal is never charged)
+## Pay per call (x402, USDC on Base or on Solana, same price; a refusal is never charged)
 
 - [OpenAPI](https://ausrine-who.onrender.com/openapi.json): every route, price and example.
+- GET https://ausrine-who.onrender.com/read?url={url}: $0.001. Read a web page or a PDF as clean text: title, description, language and the readable body as markdown. No API key. Charged only when text comes back; a bad or private address is refused before payment. One page per call, up to 5 MB.
 - GET https://ausrine-who.onrender.com/who/{host or payTo wallet}: $0.01. A seller's report card, who actually paid it on-chain, and its relationships with its buyers, with the evidence behind each fact.
 - GET https://ausrine-who.onrender.com/watch/{wallet}: $0.01. What a wallet paid for, and to whom.
 - GET https://ausrine-who.onrender.com/x402/report/{host}: $0.50. "Your buyers": a seller's full report on its own customers: every buyer wallet, who came back, who left and for whom, where new buyers came from, rivals side by side.
