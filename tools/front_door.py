@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Copied from the Aušrinė lab (commit f04f064). Edit it there, not here.
+# Copied from the Aušrinė lab (commit 5da3472). Edit it there, not here.
 """front_door.py — the Atlas's home page: the public record of agent commerce, read off the chain.
 
 Not a dashboard and not a table: one sentence about what this is, one search box that
@@ -73,7 +73,7 @@ const o=O.filter(r=>hit((r.name+' '+r.slug).toLowerCase())).slice(0,5);
 let b=[];if(WALLET.test(v)){await loadB();b=B.filter(r=>String(r.wallet).toLowerCase().startsWith(v)).sort((x,y)=>y.x402-x.x402).slice(0,10);}
 let h='';
 if(b.length){h+='<h2>Buyers</h2>'+b.map(r=>'<p><a href="%(root)s/b/'+encodeURIComponent(String(r.wallet).toLowerCase())+'/"><code>'+e(r.wallet)+'</code></a> <span class="muted">'+Number(r.x402).toLocaleString()+' x402 payments · '+Number(r.sellers).toLocaleString()+(r.sellers==1?' seller paid':' sellers paid')+(r.agent?' · agent at work':'')+'</span></p>').join('');}
-if(s.length){h+='<h2>Sellers</h2>'+s.map(r=>'<p><a href="%(root)s/s/'+encodeURIComponent(r[1])+'/">'+e(r[0])+'</a> <span class="muted">'+e(r[6])+' · '+e(r[7])+(r[8]?' · '+Number(r[8]).toLocaleString()+' x402 payments on '+DAY:' · '+Number(r[2]).toLocaleString()+' paid calls, self-reported')+'</span></p>').join('');}
+if(s.length){h+='<h2>Sellers</h2>'+s.map(r=>'<p><a href="%(root)s/s/'+encodeURIComponent(r[1])+'/">'+e(r[0])+'</a> <span class="muted">'+e(r[6])+' · '+e(r[7])+(r[8]?' · '+Number(r[8]).toLocaleString()+' x402 payments on '+DAY:' · '+Number(r[2]).toLocaleString()+' paid calls, as the registry reports')+'</span></p>').join('');}
 if(o.length){h+='<h2>Operators</h2>'+o.map(r=>'<p><a href="%(root)s/o/'+encodeURIComponent(r.slug)+'/">'+e(r.name)+'</a> <span class="muted">'+r.hosts+' hosts · '+Number(r.x402).toLocaleString()+' x402 payments'+(r.claimed?' · claimed':'')+'</span></p>').join('');}
 if(!h)h='<p class="muted">Nothing by that name. <a href="%(root)s/s/">All sellers</a> · <a href="%(root)s/o/">all operators</a>.</p>';
 out.innerHTML=h;});
@@ -236,7 +236,7 @@ def build(out, chain, A, loaded, ctx, as_of, site, head, foot, issues, api, grou
              'cannot be typed in. We read them so an agent can check a seller before it pays.</p></div>'
              '<div class="card"><h3>How this is made</h3><p>The public x402 discovery registry is photographed once a day; the Base blockchain '
              "is read for every USDC transfer to the wallets it names, and an x402 payment is one a facilitator settled on a buyer’s "
-             "signature. Self-reported and on-chain figures sit side by side and are never blended.</p></div>"
+             "signature. The registry's and the chain's figures sit side by side and are never blended.</p></div>"
              '<div class="card"><h3>What costs money</h3><p>%s</p></div></div></section>' % ((COSTS_FREE if free else COSTS) % {"site": site}))
     p.append('<section aria-labelledby="ag"><p class="eyebrow">For AI agents</p><h2 id="ag">Built to be read by software, too</h2><div class="cards">'
              '<div class="card"><h3>Check before you pay</h3><p>Ask about any seller. Paid over x402, a cent a call; a refusal is never charged.</p>'

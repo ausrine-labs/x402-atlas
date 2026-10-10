@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
-# Copied from the Aušrinė lab (commit 400e511). Edit it there, not here.
+# Copied from the Aušrinė lab (commit 5da3472). Edit it there, not here.
 """whales.py — the agent whales: which wallets pay a lot, for what, and which
 sellers are actually paid on-chain.
 
 The registry says what each seller reports about itself. The chain says who
 paid whom (chain_flows.py, solana_flows.py). This rolls those payments up both
-ways and puts the on-chain figure next to the self-reported one, labelled.
+ways and puts the on-chain figure next to the registry's, labelled.
 
     whales.py report --flows flows-2026-09-23.json [more days or chains ...]
                      [--snapshot radar-store/market-2026-09-23.json]
@@ -303,7 +303,7 @@ def rollup(edges, sellers, chain_of, hours, snap):
             "some other way — a person paying a merchant, a treasury move — and is counted, but not as x402."
             if classified else
             "This pull did not yet tell x402-settled payments from other transfers to the same wallets.",
-            "Self-reported figures are the registry's own rolling 30-day counts. The two windows differ; "
+            "Registry figures are the registry's own rolling 30-day counts, as it reports them; we have not checked them. The two windows differ; "
             "both are shown per day so they can be compared, and neither is adjusted to match the other.",
             "A wallet is not an agent. One operator can appear as many wallets; a wallet paying several "
             "sellers is the honest signal of an agent at work.",
@@ -359,8 +359,8 @@ def report(d, dates, top):
               % (b["short"], b["usdc"], b["usdc_x402"], b["payments"], b["sellers_paid"],
                  ", ".join(s["host"][:24] for s in b["sellers"][:2])))
 
-    print("\n  SELLERS, PAID ON-CHAIN  (per day: on-chain over the pulled hours vs self-reported over 30 days)")
-    print("    %-30s %10s %10s %7s %6s   %9s %9s  %s" % ("seller", "usdc", "x402 usdc", "pays", "buyers", "chain/day", "self/day", "sells"))
+    print("\n  SELLERS, PAID ON-CHAIN  (per day: on-chain over the pulled hours vs the registry's over 30 days)")
+    print("    %-30s %10s %10s %7s %6s   %9s %9s  %s" % ("seller", "usdc", "x402 usdc", "pays", "buyers", "chain/day", "reg/day", "sells"))
     for s in d["sellers"][:top]:
         print("    %-30s %10.2f %10.2f %7d %6d   %9s %9s  %s"
               % (s["host"][:30], s["on_chain_usdc"], s["on_chain_usdc_x402"], s["on_chain_payments"], s["on_chain_buyer_wallets"],
@@ -376,7 +376,7 @@ def main():
     sub = ap.add_subparsers(dest="cmd", required=True)
     r = sub.add_parser("report", help="roll the pulled payments up by buyer and by seller")
     r.add_argument("--flows", nargs="+", required=True, help="chain_flows.py / solana_flows.py output, any number")
-    r.add_argument("--snapshot", help="radar-store/market-<date>.json, for names, categories and self-reported counts")
+    r.add_argument("--snapshot", help="radar-store/market-<date>.json, for names, categories and the registry's counts")
     r.add_argument("--top", type=int, default=15)
     r.add_argument("--out", help="write the full rollup as JSON")
     a = ap.parse_args()

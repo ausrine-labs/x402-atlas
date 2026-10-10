@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Copied from the Aušrinė lab (commit 0a16b98). Edit it there, not here.
+# Copied from the Aušrinė lab (commit 5da3472). Edit it there, not here.
 """site_pages.py — the company pages of the Infoharmoni Atlas: pricing, docs, about, contact.
 
 seller_pages.py calls build() after the data pages are written. Four pages, each at its
@@ -258,7 +258,7 @@ each went, where new buyers came from, what is bought alongside, and its closest
 
 <h2 id="free">Free JSON, rebuilt every morning</h2>
 <div class="tw"><table><tr><th>address</th><th>what it holds</th></tr>
-<tr><td class="h"><a href="%(site)s/s/index.json"><code>/s/index.json</code></a></td><td>Every seller: host, page, self-reported calls and payers, price, category, x402 payments on the newest day.</td></tr>
+<tr><td class="h"><a href="%(site)s/s/index.json"><code>/s/index.json</code></a></td><td>Every seller: host, page, the registry's calls and payers, price, category, x402 payments on the newest day.</td></tr>
 <tr><td class="h"><a href="%(site)s/o/index.json"><code>/o/index.json</code></a></td><td>%(o_json)s</td></tr>
 <tr><td class="h"><a href="%(site)s/b/index.json"><code>/b/index.json</code></a></td><td>%(b_json)s</td></tr>
 <tr><td class="h"><a href="%(site)s/map/graph.json"><code>/map/graph.json</code></a></td><td>The day’s network: every x402-settled line between a wallet and a seller.</td></tr></table></div>
