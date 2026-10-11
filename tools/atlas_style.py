@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Copied from the Aušrinė lab (commit a1e4e1c). Edit it there, not here.
+# Copied from the Aušrinė lab (commit f2ab14a). Edit it there, not here.
 """atlas_style.py — the one look of the Infoharmoni Atlas: stylesheet, header, footer.
 
 Every page the site build writes carries the same three things, written here once:
@@ -338,11 +338,21 @@ def esc(x):
 # carries only the checkout's id, and the address is put together when a person clicks.
 # Polar's own checkout needs script, so a reader without script loses nothing.
 POLAR = "https://buy.polar.sh/"
+# The launch code (Polar discount, 50% off the first invoice, 10 uses in all, 1 a customer, made 2026-10-11): every
+# checkout button adds it, so the first ten buyers need not type anything. When the ten are used, set this to None:
+# a spent code would meet the buyer as an error at checkout.
+DISCOUNT = "FIRSTTEN"
 # the address is split so that the page holds nothing a link-lifter would take for one
-CHECKOUT_JS = ("<script>if(!window.atlasCheckout){window.atlasCheckout=1;document.addEventListener('click',function(e){"
-               "var a=e.target.closest&&e.target.closest('a[data-go]');if(!a)return;e.preventDefault();"
-               "var r=a.getAttribute('data-ref');location.href='https://buy.'+'polar.sh/'+a.getAttribute('data-go')"
-               "+(r?'?reference_id='+encodeURIComponent(r):'');});}</script>")
+def checkout_js(discount):
+    """The one script every checkout button shares; `discount` is added to the Polar address, or nothing is."""
+    return ("<script>if(!window.atlasCheckout){window.atlasCheckout=1;document.addEventListener('click',function(e){"
+            "var a=e.target.closest&&e.target.closest('a[data-go]');if(!a)return;e.preventDefault();"
+            "var r=a.getAttribute('data-ref');location.href='https://buy.'+'polar.sh/'+a.getAttribute('data-go')"
+            "+'?'+(r?'reference_id='+encodeURIComponent(r)+'&':'')"
+            + ("+'discount_code=%s'" % discount if discount else "+''") + ";});}</script>")
+
+
+CHECKOUT_JS = checkout_js(DISCOUNT)
 
 
 def checkout(url, label, cls="btn buy", ref=None):
