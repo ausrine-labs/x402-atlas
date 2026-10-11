@@ -1,0 +1,71 @@
+name: solana-backfill
+# The slow half of solana-windows.yml: a window that aged past the fast endpoint's ~19 h
+# (a run that did not come, a job that failed) is read from the official endpoint, which keeps
+# all history but answers about 0.7 transactions a second: 6,000 transactions, about three
+# hours. The first version of this lived inside solana-windows with a 110-minute limit and never
+# finished a window (runs 38038604367 and 38092242300): a window is written only whole, so a
+# step cut short keeps nothing. Here it has its own job and five and a half hours, and one
+# window a run (the newest missing one, up to three days back). Its own concurrency group, so
+# the fast job keeps running beside it; both keep their files through tools/keep_solana.sh,
+# which retries a lost push race.
+on:
+  schedule:
+    - cron: "23 */3 * * *"
+  workflow_dispatch: {}
+permissions:
+  contents: write           # only to push the data branch
+concurrency:
+  group: solana-backfill
+  cancel-in-progress: false
+jobs:
+  backfill:
+    runs-on: ubuntu-latest
+    timeout-minutes: 345       # GitHub's limit is 360; the step below stops itself first
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          path: main
+          persist-credentials: false
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: data
+          path: data
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: "3.11"
+      - name: "Name for git (a rebase after a lost push race needs one)"
+        run: |
+          git config --global user.name "Ausrine Jurgutis"
+          git config --global user.email "ausrine@infoharmoni.com"
+      - name: Newest registry snapshot
+        run: |
+          set -eu
+          SNAP=$(ls data/radar/market-*.json.gz | sort | tail -1)
+          gunzip -c "$SNAP" > "$RUNNER_TEMP/market.json"
+      - name: "Fill in one older missing window (slow, the official service)"
+        # when nothing is missing this ends in a few seconds. A window not finished by the time
+        # limit writes nothing and is tried again by the next run.
+        continue-on-error: true
+        timeout-minutes: 330
+        run: |
+          set -eu
+          python3 main/tools/solana_flows.py --snapshot "$RUNNER_TEMP/market.json" catchup --dir data/flows/sol-windows \
+            --backfill-days 3 --max-backfill 1
+      - name: Keep what was filled in
+        if: always()
+        working-directory: data
+        run: sh ../main/tools/keep_solana.sh
+      - name: Join the last three days once their four windows are in
+        if: always()
+        run: |
+          set -u
+          for Y in $(date -u -d '3 days ago' +%F) $(date -u -d '2 days ago' +%F) $(date -u -d yesterday +%F); do
+            OUT="data/flows/flows-sol-$Y.json"
+            if [ -f "$OUT" ]; then echo "$OUT is already there"; continue; fi
+            python3 main/tools/solana_flows.py assemble --day "$Y" --dir data/flows/sol-windows --out "$OUT" \
+              || echo "::notice::$Y is not whole on Solana yet"
+          done
+      - name: Keep what was joined
+        if: always()
+        working-directory: data
+        run: sh ../main/tools/keep_solana.sh

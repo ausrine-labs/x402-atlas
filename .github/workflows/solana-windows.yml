@@ -8,7 +8,8 @@ name: solana-windows
 # Every fifteen minutes, because GitHub starts scheduled jobs hours late and drops many (on
 # 2026-10-09 one hourly run of twelve came): each run reads whatever window is due and
 # missing. A window past the fast endpoint's ~19 h is filled in later from mainnet-beta, which
-# keeps everything but is slow: one such window a run (--backfill-days 3), up to ~90 minutes.
+# keeps everything but is slow (about 0.7 reads a second, three hours for one window): that is
+# solana-backfill.yml, its own job, so a slow window never holds up these fast reads.
 # The Base pages do not read these files yet: until Solana has its own labelled view, the
 # Base figures stay Base alone.
 on:
@@ -23,7 +24,7 @@ concurrency:
 jobs:
   windows:
     runs-on: ubuntu-latest
-    timeout-minutes: 175       # the steps below stop themselves first; this only catches a hang
+    timeout-minutes: 60        # the due step stops itself at 40; this only catches a hang
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
@@ -58,14 +59,6 @@ jobs:
         if: always()
         working-directory: data
         run: sh ../main/tools/keep_solana.sh
-      - name: "Fill in one older missing window (slow, the official service, about 0.7 reads a second)"
-        # a step that runs out of time stops only itself: what the due step kept is already saved
-        continue-on-error: true
-        timeout-minutes: 110
-        run: |
-          set -eu
-          python3 main/tools/solana_flows.py --snapshot "$RUNNER_TEMP/market.json" catchup --dir data/flows/sol-windows \
-            --backfill-days 3 --max-backfill 1
       - name: Join the last three days once their four windows are in
         if: always()
         run: |
@@ -76,7 +69,7 @@ jobs:
             python3 main/tools/solana_flows.py assemble --day "$Y" --dir data/flows/sol-windows --out "$OUT" \
               || echo "::notice::$Y is not whole on Solana yet"
           done
-      - name: Keep what was filled in and joined
+      - name: Keep what was joined
         if: always()
         working-directory: data
         run: sh ../main/tools/keep_solana.sh
