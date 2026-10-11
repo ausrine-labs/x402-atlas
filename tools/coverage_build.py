@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Copied from the Aušrinė lab (commit f04f064). Edit it there, not here.
+# Copied from the Aušrinė lab (commit a1e4e1c). Edit it there, not here.
 """coverage_build.py — build /live/, /where/, /leaders/ and /prices/ in one go.
 
     coverage_build.py --whales whales-2026-09-24.json --store radar-store \
@@ -53,7 +53,7 @@ def main():
     flows = [json.load(open(p)) for p in a.flows]
     base = [f for f in flows if live_feed.base_day(f)]
     newest_base = max(base, key=lambda f: f.get("date") or "") if base else None
-    print(live_feed.write(a.out, live_feed.live_data(rollup, snap["sellers"], a.site, newest_base, free=free)))
+    print(live_feed.write_moved(a.out))           # the live feed is retired: /live/ forwards to the map
 
     dbip = a.dbip
     if not dbip and a.dbip_cache:

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Copied from the Aušrinė lab (commit 263cdbb). Edit it there, not here.
+# Copied from the Aušrinė lab (commit a1e4e1c). Edit it there, not here.
 """atlas_style.py — the one look of the Infoharmoni Atlas: stylesheet, header, footer.
 
 Every page the site build writes carries the same three things, written here once:
@@ -258,7 +258,7 @@ HEAD = """<!doctype html><html lang="en"><meta charset="utf-8">
 <span class="netchips" title="Covers x402 payments on Base"><span class="chip-sm">x402</span><span class="chip-sm">Base</span></span>
 <form class="hsearch" role="search" action="%(root)s/" method="get"><label class="vh" for="hq">Search the record</label>
 <input id="hq" name="q" type="search" placeholder="Search sellers, operators, wallets, or a job" autocomplete="off"></form>
-<nav class="main" aria-label="Main"><a href="%(root)s/s/">Sellers</a><a href="%(root)s/o/">Operators</a><a href="%(root)s/b/">Buyers</a><a href="%(root)s/map/">Map</a><a href="%(root)s/live/">Live</a><a href="%(root)s/leaders/">Leaders</a><a href="%(root)s/prices/">Prices</a><a href="%(root)s/where/">Where</a><a href="%(root)s/watch/">Watch</a><a href="%(root)s/pricing/">Pricing</a><a href="%(root)s/docs/">Docs</a><a href="%(root)s/about/">About</a><a href="%(root)s/contact/">Contact</a><a class="pro" href="%(root)s/pro.html">Pro</a></nav>
+<nav class="main" aria-label="Main"><a href="%(root)s/s/">Sellers</a><a href="%(root)s/o/">Operators</a><a href="%(root)s/b/">Buyers</a><a href="%(root)s/map/">Map</a><a href="%(root)s/leaders/">Leaders</a><a href="%(root)s/prices/">Prices</a><a href="%(root)s/where/">Where</a><a href="%(root)s/watch/">Watch</a><a href="%(root)s/pricing/">Pricing</a><a href="%(root)s/docs/">Docs</a><a href="%(root)s/about/">About</a><a href="%(root)s/contact/">Contact</a><a class="pro" href="%(root)s/pro.html">Pro</a></nav>
 </div></header>
 """
 
@@ -266,7 +266,7 @@ FOOT = """<footer class="site"><div class="fwrap">
 <div class="fbrand"><a class="brand" href="%(root)s/about/">""" + LOGO + """<span class="bname">""" + market.COMPANY + """</span></a>
 <p>""" + market.COMPANY + """ makes """ + market.PRODUCT + """, the public record of agent commerce: every x402 payment on Base, read off the chain every morning.</p></div>
 <nav class="fcols" aria-label="Footer">
-<div><h2>Product</h2><a href="%(root)s/s/">Sellers</a><a href="%(root)s/o/">Operators</a><a href="%(root)s/b/">Buyers</a><a href="%(root)s/map/">The map</a><a href="%(root)s/live/">Live payments</a><a href="%(root)s/leaders/">Leaderboards</a><a href="%(root)s/prices/">Price benchmarks</a><a href="%(root)s/where/">Where sellers are hosted</a><a href="%(root)s/pro.html">Atlas Pro</a><a href="%(root)s/watch/">Watch your agents</a><a href="%(root)s/pricing/">Pricing</a></div>
+<div><h2>Product</h2><a href="%(root)s/s/">Sellers</a><a href="%(root)s/o/">Operators</a><a href="%(root)s/b/">Buyers</a><a href="%(root)s/map/">The map</a><a href="%(root)s/leaders/">Leaderboards</a><a href="%(root)s/prices/">Price benchmarks</a><a href="%(root)s/where/">Where sellers are hosted</a><a href="%(root)s/pro.html">Atlas Pro</a><a href="%(root)s/watch/">Watch your agents</a><a href="%(root)s/pricing/">Pricing</a></div>
 <div><h2>Developers</h2><a href="%(root)s/docs/">Docs</a><a href="%(root)s/docs/#who">Paid API over x402</a><a href="%(root)s/docs/#mcp">MCP server</a><a href="%(root)s/docs/#exports">Pro exports</a></div>
 <div><h2>Company</h2><a href="%(root)s/about/">About """ + market.COMPANY + """</a><a href="%(root)s/claim.html">For sellers</a><a href="%(issue)s">Report an error</a></div>
 <div><h2>Contact</h2><a href="%(root)s/contact/">Contact us</a><a href="mailto:""" + EMAIL + """">""" + EMAIL + """</a><a href="https://x.com/""" + X_HANDLE + """">@""" + X_HANDLE + """ on X</a></div>
