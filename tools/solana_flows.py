@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Copied from the Aušrinė lab (commit a8183e9). Edit it there, not here.
+# Copied from the Aušrinė lab (commit de83223). Edit it there, not here.
 """solana_flows.py — who paid whom on Solana: every x402 payment a known payment
 processor settled, read in six-hour windows and assembled into UTC days.
 
@@ -100,6 +100,8 @@ ASSERTIONS = {"L2TExMFKdjpN9kozasaurPirfHy9P8sbXoAN1qA3S95"}
 # a settlement of a payment channel, not one exact payment, and stays in other_shape.
 PAGE = 1000                      # getSignaturesForAddress's largest page
 WORKERS = 6
+UNREAD_PASSES = 2                  # unread transactions are asked again this many times, one at a time
+GIVE_UP_AFTER = 10                # a pass stops after this many misses in a row
 MAX_UNREAD = 0.01                # more than this share unread: write nothing
 WINDOW_HOURS = 6                 # the catchup windows: 00, 06, 12, 18 UTC
 TX_VERSION = 1                   # maxSupportedTransactionVersion
@@ -545,9 +547,9 @@ def read_window(rpc, processors, since, until, workers=WORKERS, log=None):
     tally = Tally(len(found))
     lock = threading.Lock()
     done = [0]
+    again = []                                       # signatures no endpoint answered for: asked again below
 
-    def read(sig):
-        tx = fetch_tx(rpc, sig)
+    def count(sig, tx):
         if found[sig] is None and tx is not None:
             bt = tx.get("blockTime")
             if bt is None:
@@ -563,8 +565,42 @@ def read_window(rpc, processors, since, until, workers=WORKERS, log=None):
             if done[0] % 1000 == 0:
                 log("  %d/%d read · %d payments · %d unread" % (done[0], len(found), tally.payments, tally.unread))
 
+    def read(sig):
+        tx = fetch_tx(rpc, sig)
+        if tx is None:
+            with lock:
+                again.append(sig)                    # not unread yet: the load may have been the cause
+            return
+        count(sig, tx)
+
     with concurrent.futures.ThreadPoolExecutor(max_workers=max(1, workers)) as pool:
         list(pool.map(read, sorted(found, key=lambda s: found[s] or 0)))
+    # The official endpoint refuses a share of the reads while the workers press on it (2026-10-11:
+    # 12% of a backfilled window, which the 1% rule then threw away after two hours). Those are asked
+    # again, one at a time, after a pause; a pass stops when the endpoint is still refusing.
+    for n in range(UNREAD_PASSES):
+        if not again:
+            break
+        log("  %d not read yet · asking again, one at a time (pass %d of %d)" % (len(again), n + 1, UNREAD_PASSES))
+        rpc.sleep(30 * (n + 1))
+        todo, again[:] = sorted(again), []
+        misses = 0
+        for i, sig in enumerate(todo):
+            refused_before = sum(rpc.refusals.values())
+            tx = fetch_tx(rpc, sig)
+            if tx is None:
+                again.append(sig)
+                # only a refusal counts toward giving up: a null (a pruned slot) says nothing of the load
+                misses = misses + 1 if sum(rpc.refusals.values()) > refused_before else 0
+                if misses >= GIVE_UP_AFTER:
+                    again.extend(todo[i + 1:])
+                    log("  still refused after %d misses in a row: the rest stay unread this pass" % misses)
+                    break
+            else:
+                misses = 0
+                count(sig, tx)
+    for sig in again:
+        count(sig, None)                             # still unread: the 1% rule decides
     return tally
 
 
