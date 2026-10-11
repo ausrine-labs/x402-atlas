@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Copied from the Aušrinė lab (commit 9d208cd). Edit it there, not here.
+# Copied from the Aušrinė lab (commit 6db117c). Edit it there, not here.
 """atlas_mcp_test.py — the Atlas MCP server, spoken to over real JSON-RPC on
 stdio as an agent client would, against a store we built and therefore know.
 No network: ATLAS_STORE points at the fixture, so the server never fetches. The
@@ -740,5 +740,25 @@ class Posts(unittest.TestCase):
         self.assertNotIn("paid_next", d)
 
 
+class TheToolListIsWhatTheServerCanAnswer(unittest.TestCase):
+    def test_buyer_dry_run_is_listed_only_when_the_buyer_package_is_beside_the_server(self):
+        from unittest import mock
+        import atlas_mcp as m
+        with mock.patch.object(m, "buyer_beside", return_value=True):
+            self.assertIn("buyer_dry_run", [t["name"] for t in m.listed_tools()])
+        with mock.patch.object(m, "buyer_beside", return_value=False):
+            names = [t["name"] for t in m.listed_tools()]
+        self.assertNotIn("buyer_dry_run", names)
+        self.assertEqual(len(names), len(m.TOOLS) - 1)             # nothing else is hidden
+
+    def test_beside_means_the_folder_is_here_and_the_import_works(self):
+        from unittest import mock
+        import atlas_mcp as m
+        self.assertTrue(m.buyer_beside())                          # the lab's checkout has a working buyer
+        self.assertFalse(m.buyer_beside(tempfile.mkdtemp()))       # no buyer/ folder with procure.py
+        with mock.patch.dict(sys.modules, {"buyer": None}):        # the folder is there but the import fails
+            self.assertFalse(m.buyer_beside())
+
+
 if __name__ == "__main__":
-    unittest.main(verbosity=1)
+    unittest.main()

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Copied from the Aušrinė lab (commit 9d208cd). Edit it there, not here.
+# Copied from the Aušrinė lab (commit 6db117c). Edit it there, not here.
 """atlas_mcp.py — the Infoharmoni Atlas as an MCP server, so an agent can ask the
 public record of the x402 market on Base from inside its own tools.
 
@@ -190,6 +190,28 @@ TOOLS = [
          "count": {"type": "integer", "description": "web_search: how many results, default 5"}},
                      "required": ["need"]}},
 ]
+
+
+def buyer_beside(folder=None):
+    """True when the dry run can really import its buyer: this server's own buyer/ folder is there
+    (a `buyer` installed elsewhere does not count) and `from buyer import needs, procure` works, which
+    takes every module those two need with them."""
+    folder = folder or os.path.join(os.path.dirname(os.path.abspath(__file__)), "buyer")
+    if not os.path.isfile(os.path.join(folder, "procure.py")):
+        return False
+    try:
+        from buyer import needs, procure  # noqa: F401
+    except Exception:
+        return False
+    return True
+
+
+def listed_tools():
+    """The tools this server can really answer. buyer_dry_run needs the buyer package beside this
+    file; it ships with the lab's checkout, not with the Atlas's or the packaged server, so a server
+    without it does not list the tool (a listed tool that only ever errors is worse than none)."""
+    have_buyer = buyer_beside()
+    return [t for t in TOOLS if have_buyer or t["name"] != "buyer_dry_run"]
 
 
 # ---------------------------------------------------------------- data
@@ -758,7 +780,7 @@ def main():
         elif method == "notifications/initialized":
             continue
         elif method == "tools/list":
-            respond(rid, {"tools": TOOLS})
+            respond(rid, {"tools": listed_tools()})
         elif method == "tools/call":
             params = req.get("params") or {}
             try:
