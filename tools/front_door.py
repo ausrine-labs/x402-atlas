@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Copied from the Aušrinė lab (commit 5da3472). Edit it there, not here.
+# Copied from the Aušrinė lab (commit 9d208cd). Edit it there, not here.
 """front_door.py — the Atlas's home page: the public record of agent commerce, read off the chain.
 
 Not a dashboard and not a table: one sentence about what this is, one search box that
@@ -31,11 +31,11 @@ LEDE = ("Every service that sells to software agents over x402 has a page here: 
 # The free tier's lede (tiers.py): the full record is sold, so the last sentence says what it always meant.
 LEDE_FREE = LEDE.replace("The numbers are never for sale.", tiers.PLACE)
 COSTS = ('Every page is free. <a href="%(site)s/pro.html">Atlas Pro</a> is the data as files. '
-         'Operators can <a href="%(site)s/claim.html">claim their page</a>. Agents pay a cent per <a href="%(site)s/docs/#who">answer</a>. '
+         'Operators can <a href="%(site)s/claim.html">claim their page</a>. Agents pay a tenth of a cent per <a href="%(site)s/docs/#who">answer</a>. '
          'Institutions: <a href="%(site)s/contact/">write to us</a>.')
 COSTS_FREE = ('Every seller’s basic card is free, and so are today’s market, the map, the live feed and the top %d lists. '
               'The full record, every buyer wallet and every operator and the whole day as files, is <a href="%%(site)s/pro.html">Atlas Pro</a>. '
-              'Operators can <a href="%%(site)s/claim.html">claim their page</a>. Agents pay a cent per <a href="%%(site)s/docs/#who">answer</a>. '
+              'Operators can <a href="%%(site)s/claim.html">claim their page</a>. Agents pay a tenth of a cent per <a href="%%(site)s/docs/#who">answer</a>. '
               'Institutions: <a href="%%(site)s/contact/">write to us</a>.' % tiers.TOP)
 
 
@@ -239,8 +239,8 @@ def build(out, chain, A, loaded, ctx, as_of, site, head, foot, issues, api, grou
              "signature. The registry's and the chain's figures sit side by side and are never blended.</p></div>"
              '<div class="card"><h3>What costs money</h3><p>%s</p></div></div></section>' % ((COSTS_FREE if free else COSTS) % {"site": site}))
     p.append('<section aria-labelledby="ag"><p class="eyebrow">For AI agents</p><h2 id="ag">Built to be read by software, too</h2><div class="cards">'
-             '<div class="card"><h3>Check before you pay</h3><p>Ask about any seller. Paid over x402, a cent a call; a refusal is never charged.</p>'
-             '<pre class="code">GET %s/who/&lt;host-or-wallet&gt;\n<span class="p">402</span> Payment Required → pay $0.01\n<span class="k">200</span> {"rank_by_calls": …}</pre></div>'
+             '<div class="card"><h3>Check before you pay</h3><p>Ask about any seller. Paid over x402, a tenth of a cent a call; a refusal is never charged.</p>'
+             '<pre class="code">GET %s/who/&lt;host-or-wallet&gt;\n<span class="p">402</span> Payment Required → pay $0.001\n<span class="k">200</span> {"rank_by_calls": …}</pre></div>'
              '<div class="card"><h3>Plug the record into your agent</h3><p>A free MCP server: the market today, search by job, a seller, an operator, agents at work.</p>'
              '<pre class="code">%s</pre><p><a href="%s/docs/#mcp">Install it</a></p></div>'
              '<div class="card"><h3>The whole day as files</h3><p>Every seller, wallet and operator group as CSV and JSON, with a key or per file over x402.</p>'

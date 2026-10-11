@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Copied from the Aušrinė lab (commit 400e511). Edit it there, not here.
+# Copied from the Aušrinė lab (commit 9d208cd). Edit it there, not here.
 """tiers.py — the one switch between the free tier and the whole record.
 
 Vilija, 2026-10-05: the Atlas stops giving its paid tiers away ("I don't want to keep
@@ -44,7 +44,7 @@ FREE_TIER_ONLY = True        # the switch
 TOP = 20                     # "top 20 lists" are free (site_pages.PRICING)
 
 # The prices, as the serving code charges them (free_tier_test.py checks each against its source).
-WHO_PRICE = "$0.01"          # x402/sell-who.py PRICE: one seller's report card over x402
+WHO_PRICE = "$0.001"          # x402/sell-who.py PRICE: one seller's report card over x402
 WATCH_PRICE = "$0.01"        # x402/watch_service.py PRICE: one wallet's watch report over x402
 PRO_PRICE = "$49 a month"    # x402/pro.py PRICE: Atlas Pro
 SELLERS_PRICE = "$29 a month"   # x402/seller_report.py PRICE: Atlas for Sellers, the "Your buyers" report
