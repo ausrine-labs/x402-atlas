@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Copied from the Aušrinė lab (commit f04f064). Edit it there, not here.
+# Copied from the Aušrinė lab (commit 027aa20). Edit it there, not here.
 """atlas_mcp.py — the Infoharmoni Atlas as an MCP server, so an agent can ask the
 public record of the x402 market on Base from inside its own tools.
 
@@ -15,6 +15,7 @@ the pages are built from, and nothing else:
   compare           two to five hosts side by side, each row with its data date
   agent_spend       what one wallet paid over x402 in the window, and to whom, in brief
   posts             what agents have posted about a seller, an operator, a wallet or the market
+  buyer_dry_run     which seller the buyer would buy a need from, why, and at what price; pays nothing
 
 Data comes from the rolling windows the Atlas publishes each morning — the
 registry snapshots under radar/ and the on-chain pulls under flows/ — fetched
@@ -29,7 +30,7 @@ Links to pages in answers are always the site's.
 
 Every free answer that is an answer (not a refusal) names, in one field
 `paid_next`, the paid thing that follows from it, as a plain fact: for one
-seller, the `who` report card at a cent a call; for one wallet's spend, the full
+seller, the `who` report card at a tenth of a cent a call; for one wallet's spend, the full
 watch report at a cent a call; for the market or a list, the
 Atlas Pro files over x402; for posts, writing one, a cent a post. The posts are
 read from the paid seller's free GET /posts, https only, no redirect. Every link this server gives out to the Atlas or its
@@ -96,7 +97,7 @@ PAY = "x402, USDC on Base"
 INSTRUCTIONS = ("%s: %s. Who is actually paying whom among x402 sellers, from the public registry "
                 "and x402 payments settled in USDC on Base. Free; reads only what the %s publishes."
                 % (market.BRAND, market.BRAND_WHAT, market.BRAND_SHORT))
-WHO_PRICE = "$0.01"
+WHO_PRICE = "$0.001"
 WATCH_PRICE = "$0.01"
 # The one-line install, as the README and the docs page give it.
 INSTALL = "uvx --from git+https://github.com/ausrine-labs/x402-atlas infoharmoni-atlas-mcp"
@@ -122,13 +123,13 @@ TOOLS = [
     {"name": "search",
      "description": "Find sellers that do a job. Matches names and descriptions word by word, and reads intent "
                     "(e.g. 'weather', 'enrich a person', 'llm inference') into the Atlas categories. Ranked by "
-                    "x402 payments on the newest day, then by self-reported paid calls. Also names matching operators.",
+                    "x402 payments on the newest day, then by the registry's paid calls. Also names matching operators.",
      "inputSchema": {"type": "object", "properties": {"query": {"type": "string", "description": "words, a host, or the job you need done"},
                                                       "limit": {"type": "integer", "description": "sellers to return, default 10, max 25"}},
                      "required": ["query"]}},
     {"name": "seller",
      "description": "One seller's card: what it sells, its price range and how that sits against rivals, "
-                    "self-reported paid calls, rank in the registry, the last days of its history, and what the chain "
+                    "the registry's paid calls, rank in the registry, the last days of its history, and what the chain "
                     "says — x402 payments, USDC, payer wallets, concentration, and which other hosts share its wallet.",
      "inputSchema": {"type": "object", "properties": {"name": {"type": "string", "description": "a host (api.example.com) or a wallet address"}},
                      "required": ["name"]}},
@@ -143,7 +144,7 @@ TOOLS = [
      "inputSchema": {"type": "object", "properties": {"limit": {"type": "integer", "description": "wallets to return, default 12, max 50"}}}},
     {"name": "compare",
      "description": "Two to five seller hosts side by side: what each sells, its price range, x402 payments and "
-                    "USDC on the newest chain day, payer wallets, concentration, self-reported 30-day paid calls, "
+                    "USDC on the newest chain day, payer wallets, concentration, the registry's 30-day paid calls, "
                     "and its operator group. Every row names the dates its figures come from. A host the "
                     "registry does not list is reported as unknown, never guessed at.",
      "inputSchema": {"type": "object", "properties": {"hosts": {"type": "array", "items": {"type": "string"},
@@ -170,7 +171,47 @@ TOOLS = [
                                                  "wallet: a 0x address; market: base"},
          "limit": {"type": "integer", "description": "posts to return, default 10, max 50"}},
                      "required": ["kind", "id"]}},
+    {"name": "buyer_dry_run",
+     "description": "Which x402 seller the Atlas's buyer would buy a need from, why, and at what price: a dry run of "
+                    "the buyer loop for fetch_page (a url), web_search (a query) or enrich_company (a domain). It lists the "
+                    "sellers with an adapter for the need under the price cap, orders them by plain reasons (what this "
+                    "requester accepted before, its own on-chain payments to each seller, what the whole window shows: "
+                    "buyers, came back, left and for whom, then price), and reads each candidate's real unpaid 402 terms "
+                    "in that order until one passes the pin (USDC on the network, the registry's payTo wallet, under the cap). "
+                    "Pays nothing, reads no key, touches no wallet, writes nothing.",
+     "inputSchema": {"type": "object", "properties": {
+         "need": {"type": "string", "enum": ["fetch_page", "web_search", "enrich_company"]},
+         "url": {"type": "string", "description": "fetch_page: the page's address"},
+         "query": {"type": "string", "description": "web_search: the words to search for"},
+         "domain": {"type": "string", "description": "enrich_company: the company's domain, e.g. example.com"},
+         "max_usd": {"type": "number", "description": "the most to pay for one call, in USD; default 0.02"},
+         "requester": {"type": "string", "description": "who is asking, so its own past outcomes count; default anonymous"},
+         "wallet": {"type": "string", "description": "the requester's Base wallet, to read its own payments to each seller"},
+         "count": {"type": "integer", "description": "web_search: how many results, default 5"}},
+                     "required": ["need"]}},
 ]
+
+
+def buyer_beside(folder=None):
+    """True when the dry run can really import its buyer: this server's own buyer/ folder is there
+    (a `buyer` installed elsewhere does not count) and `from buyer import needs, procure` works, which
+    takes every module those two need with them."""
+    folder = folder or os.path.join(os.path.dirname(os.path.abspath(__file__)), "buyer")
+    if not os.path.isfile(os.path.join(folder, "procure.py")):
+        return False
+    try:
+        from buyer import needs, procure  # noqa: F401
+    except Exception:
+        return False
+    return True
+
+
+def listed_tools():
+    """The tools this server can really answer. buyer_dry_run needs the buyer package beside this
+    file; it ships with the lab's checkout, not with the Atlas's or the packaged server, so a server
+    without it does not list the tool (a listed tool that only ever errors is worse than none)."""
+    have_buyer = buyer_beside()
+    return [t for t in TOOLS if have_buyer or t["name"] != "buyer_dry_run"]
 
 
 # ---------------------------------------------------------------- data
@@ -658,9 +699,49 @@ def t_posts(args):
             "notes": [d.get("note") or "", NOTE_WALLET], "paid_next": paid_post(kind, ident)}
 
 
+DRY_RUN_MAX_USD = 0.02
+DRY_RUN_NETWORK = "testnet"      # the dry run reads terms and signs nothing; the pin is still Base Sepolia unless BUYER_NET says mainnet
+
+
+def t_buyer_dry_run(args):
+    """The buyer loop without the paying: who it would buy from, why, at what price. The buyer
+    package ships with the lab's checkout beside this file; when it is not there, say so."""
+    try:
+        from buyer import needs as b_needs, procure as b_procure
+    except ImportError as e:
+        return {"error": "the buyer is not beside this server (%s); it ships with the Atlas checkout, not yet with the "
+                         "uvx package" % type(e).__name__}
+    need = args.get("need")
+    if need not in b_needs.names():
+        return {"error": "need must be one of %s" % ", ".join(b_needs.names())}
+    raw = args.get("max_usd")
+    max_usd = DRY_RUN_MAX_USD if raw is None else raw     # only an absent or null cap takes the default: 0 is refused below
+    requester = str(args.get("requester") or "anonymous").strip()[:120] or "anonymous"
+    wallet = (args.get("wallet") or "").strip() or None
+    if wallet and not re.match(r"^0x[0-9a-fA-F]{40}$", wallet):
+        return {"error": "wallet must be a Base address: 0x followed by 40 hex characters"}
+    d = data()                                   # the same fetched window every other tool reads
+    try:
+        out = b_procure.procure(need, {"url": args.get("url"), "query": args.get("query"), "domain": args.get("domain"),
+                                       "count": args.get("count")},
+                                max_usd, requester, wallet, dry_run=True, store=STORE,
+                                network=os.environ.get("BUYER_NET") or DRY_RUN_NETWORK)
+    except b_needs.BadInput as e:
+        return {"error": str(e)}
+    for c in out.get("candidates") or []:
+        c["page"] = seller_url(c["host"])
+    out["paid"] = None
+    out["notes"] = ["a dry run: the terms were read from each seller's own unpaid 402 answer, in the order shown; "
+                    "nothing was paid, no key was read, nothing was written",
+                    "the order is by plain reasons, each shown with its numbers; nothing a seller could pay for enters it",
+                    NOTE_WALLET]
+    out["problems"] = (out.get("problems") or []) + d["problems"]
+    return out
+
+
 HANDLERS = {"market_today": t_market_today, "search": t_search, "seller": t_seller,
             "operator": t_operator, "agents_at_work": t_agents, "compare": t_compare,
-            "agent_spend": t_agent_spend, "posts": t_posts}
+            "agent_spend": t_agent_spend, "posts": t_posts, "buyer_dry_run": t_buyer_dry_run}
 
 
 def call_tool(name, args):
@@ -699,7 +780,7 @@ def main():
         elif method == "notifications/initialized":
             continue
         elif method == "tools/list":
-            respond(rid, {"tools": TOOLS})
+            respond(rid, {"tools": listed_tools()})
         elif method == "tools/call":
             params = req.get("params") or {}
             try:

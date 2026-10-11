@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Copied from the Aušrinė lab (commit 5da3472). Edit it there, not here.
+# Copied from the Aušrinė lab (commit 9d208cd). Edit it there, not here.
 """site_pages.py — the company pages of the Infoharmoni Atlas: pricing, docs, about, contact.
 
 seller_pages.py calls build() after the data pages are written. Four pages, each at its
@@ -82,7 +82,7 @@ PRICING = {
     "agents": {
         "name": "Agents", "price": "per call", "per": "over x402, no account",
         "for": "For software that pays for itself, in USDC on Base.",
-        "features": [("$0.01 a seller report", LIVE), ("$0.01 a post", COMING), ("$0.25 a CSV", LIVE),
+        "features": [("$0.001 a seller report", LIVE), ("$0.01 a post", COMING), ("$0.25 a CSV", LIVE),
                      ("$1 the day file", LIVE)],
         "cta": ("How it works", "/docs/#who"),
     },

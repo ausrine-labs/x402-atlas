@@ -18,7 +18,7 @@ The basic record is free to read: today's market, every seller's basic card, the
 
 - [OpenAPI](https://ausrine-who.onrender.com/openapi.json): every route, price and example.
 - GET https://ausrine-who.onrender.com/read?url={url}: $0.001. Read a web page or a PDF as clean text: title, description, language and the readable body as markdown. No API key. Charged only when text comes back; a bad or private address is refused before payment. One page per call, up to 5 MB.
-- GET https://ausrine-who.onrender.com/who/{host or payTo wallet}: $0.01. A seller's report card, who actually paid it on-chain, and its relationships with its buyers, with the evidence behind each fact.
+- GET https://ausrine-who.onrender.com/who/{host or payTo wallet}: $0.001. Is this seller real? Its report card, who actually pays it on Base (payer wallets, concentration, came back, wide samplers), and its relationships with its buyers, with the evidence behind each fact.
 - GET https://ausrine-who.onrender.com/watch/{wallet}: $0.01. What a wallet paid for, and to whom.
 - GET https://ausrine-who.onrender.com/x402/report/{host}: $0.50. "Your buyers": a seller's full report on its own customers: every buyer wallet, who came back, who left and for whom, where new buyers came from, rivals side by side.
 - [x402 discovery file](https://ausrine-who.onrender.com/.well-known/x402): every paid route and price, in the draft-hawkins-x402-dns-discovery shape.

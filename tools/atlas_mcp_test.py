@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Copied from the Aušrinė lab (commit f04f064). Edit it there, not here.
+# Copied from the Aušrinė lab (commit 027aa20). Edit it there, not here.
 """atlas_mcp_test.py — the Atlas MCP server, spoken to over real JSON-RPC on
 stdio as an agent client would, against a store we built and therefore know.
 No network: ATLAS_STORE points at the fixture, so the server never fetches. The
@@ -126,8 +126,10 @@ class Wire(unittest.TestCase):
         self.assertEqual(init["serverInfo"]["title"], "Infoharmoni Atlas")
         self.assertIn("x402 market on Base", init["instructions"])
         tools = next(x for x in res if x.get("id") == 2)["result"]["tools"]
-        self.assertEqual([t["name"] for t in tools], ["market_today", "search", "seller", "operator", "agents_at_work", "compare",
-                                                     "agent_spend", "posts"])
+        import atlas_mcp as m
+        want = ["market_today", "search", "seller", "operator", "agents_at_work", "compare", "agent_spend", "posts"]
+        # buyer_dry_run is listed where the buyer package sits beside the server (the lab), not in the Atlas
+        self.assertEqual([t["name"] for t in tools], want + (["buyer_dry_run"] if m.buyer_beside() else []))
         for t in tools:
             self.assertIn("inputSchema", t)
             self.assertNotIn("verif", t["description"].lower())
@@ -426,7 +428,7 @@ class PaidNext(unittest.TestCase):
                                  ("search", {"query": "forecast"}, "weather.example")):
             p = call(tool, args)["paid_next"]
             self.assertEqual(p["url"], "https://seller.test/who/%s?via=mcp" % host, tool)
-            self.assertEqual((p["price"], p["pay"]), ("$0.01", "x402, USDC on Base"), tool)
+            self.assertEqual((p["price"], p["pay"]), ("$0.001", "x402, USDC on Base"), tool)
 
     def test_market_and_lists_lead_to_the_files(self):
         for (tool, args), first in zip([("market_today", {}), ("search", {"query": "random"}),
@@ -740,5 +742,26 @@ class Posts(unittest.TestCase):
         self.assertNotIn("paid_next", d)
 
 
+class TheToolListIsWhatTheServerCanAnswer(unittest.TestCase):
+    def test_buyer_dry_run_is_listed_only_when_the_buyer_package_is_beside_the_server(self):
+        from unittest import mock
+        import atlas_mcp as m
+        with mock.patch.object(m, "buyer_beside", return_value=True):
+            self.assertIn("buyer_dry_run", [t["name"] for t in m.listed_tools()])
+        with mock.patch.object(m, "buyer_beside", return_value=False):
+            names = [t["name"] for t in m.listed_tools()]
+        self.assertNotIn("buyer_dry_run", names)
+        self.assertEqual(len(names), len(m.TOOLS) - 1)             # nothing else is hidden
+
+    def test_beside_means_the_folder_is_here_and_the_import_works(self):
+        from unittest import mock
+        import atlas_mcp as m
+        here = os.path.isfile(os.path.join(os.path.dirname(os.path.abspath(m.__file__)), "buyer", "procure.py"))
+        self.assertEqual(m.buyer_beside(), here)                   # the lab's checkout has a working buyer; the Atlas has none
+        self.assertFalse(m.buyer_beside(tempfile.mkdtemp()))       # no buyer/ folder with procure.py
+        with mock.patch.dict(sys.modules, {"buyer": None}):        # the folder is there but the import fails
+            self.assertFalse(m.buyer_beside())
+
+
 if __name__ == "__main__":
-    unittest.main(verbosity=1)
+    unittest.main()

@@ -151,7 +151,7 @@ Settings, all optional: `ATLAS_STORE` (a folder of `market-<date>.json` and
 are kept), `ATLAS_DATA` and `ATLAS_SITE` (where they are fetched from).
 
 Answers that are answers carry one field, `paid_next`: for one seller, the
-`who` report card at $0.01 a call; for the market or a list, the whole window
+`who` report card at $0.001 a call; for the market or a list, the whole window
 as files ($0.25 a CSV, $1.00 the day file). Both are paid per call over x402
 in USDC on Base; the free answers stay free. Links from the server carry
 `?via=mcp`, and the paid seller counts, in aggregate only, how many offers

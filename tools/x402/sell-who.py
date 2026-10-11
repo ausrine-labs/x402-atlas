@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Copied from the Aušrinė lab (commit 0a16b98). Edit it there, not here.
+# Copied from the Aušrinė lab (commit 9d208cd). Edit it there, not here.
 """sell-who.py — the Radar's `who` verdict, and the Atlas Pro files, sold per call over x402.
 
 The evidence (journal/2026-09-15-money.md): nobody buys a market overview,
@@ -7,7 +7,7 @@ but agents pay, up to $0.25 a call, for a verdict on ONE seller before they
 spend. `radar.who_data()` produces that verdict; who_service.py decides what
 is an answer; this file puts a price on the answers and on nothing else.
 
-    GET /who/<host-or-wallet>    $0.01 for a report card; refusals are free
+    GET /who/<host-or-wallet>    $0.001 for a report card; refusals are free
     GET /health                  free
     GET /stats                   free: the funnel counts since the process started (Funnel)
     GET /pro                     free: what Atlas Pro holds and how to call it
@@ -148,16 +148,20 @@ LIVE_WORD = "real-money"
 TEST_ONLY_PAY_TO = {"0xcd4bbb6c35fde6b9c658b11f7bca6ace5c83521f",
                     "0x02ad39c14d7eecfcc0f1bebcebd9c7b79084e4c9"}
 
-# $0.01: the going rate. `radar.py like` measured the median price of the 36
-# sellers of intelligence about the x402 market at $0.01 (and of the 182 wide
-# "market/intelligence" sellers at $0.012). The one seller at $0.25 has a
-# scored, classified verdict and 907 calls behind it; we enter at the median
-# and let the replay earn a higher price, not assert one.
-PRICE = "$0.01"
+# $0.001. At $0.01, the median price of the 36 sellers of intelligence about the x402 market
+# (`radar.py like`), the check drew no payment: on 2026-10-10 about 890 callers were shown
+# the price and none tried to pay. The probes that tell an agent whether an endpoint is up
+# (x402station's seven-day report) sell at $0.001, so that is the price a buyer weighs a
+# stranger's check against. We match it and let the difference be what a probe cannot see:
+# who actually pays the seller, how concentrated they are, how many came back, and how many
+# of its payers are wide samplers.
+PRICE = "$0.001"
 
-DESCRIPTION = ("One x402 seller's report card before you pay them: what they sell, paid calls "
-               "and payers in 30 days, price, rank of all sellers, rivals, and the day-by-day "
-               "replay nobody else stored. Stamped with the snapshot date. Refusals are free.")
+DESCRIPTION = ("Is this x402 seller real? One seller's report card before you pay them: what they sell, price, "
+               "rank of all sellers, rivals, and from the chain who actually pays it on Base: payer wallets, how "
+               "concentrated they are, how many came back on 2 or more days, and how many of its payers are wide "
+               "samplers that paid 30+ sellers (not shoppers). Dated, with the evidence behind each fact. "
+               "$0.001 a call. Refusals are free.")
 
 
 def public_url_problem(url):
@@ -1476,7 +1480,7 @@ def build(payment_mw, info=None, max_age_days=who_service.MAX_AGE_DAYS, sync=Non
 
 
 WELL_KNOWN = "/.well-known/x402"
-MANIFEST_UPDATED = "2026-10-10T00:00:00Z"      # change it when the paid routes or their prices change
+MANIFEST_UPDATED = "2026-10-11T00:00:00Z"      # change it when the paid routes or their prices change
 
 
 def manifest(base, info=None, posts_open=False):
@@ -1487,8 +1491,9 @@ def manifest(base, info=None, posts_open=False):
     res = lambda path, price, what, method="GET": {"url": base + path, "method": method, "price": price,
                                                   "description": what}
     resources = [
-        res("/who/{target}", info.get("price") or PRICE, "a seller's report card, who actually paid it on Base, and its relationships "
-                                    "with its buyers (came back, bought alongside, left for), with the evidence"),
+        res("/who/{target}", info.get("price") or PRICE, "is this seller real: its report card, who actually pays it on Base (payer wallets, "
+                                    "concentration, came back, wide samplers), and its relationships with its buyers, "
+                                    "with the evidence"),
         res("/watch/{wallet}", watch_service.PRICE, "what a wallet paid for over x402, and to whom"),
         res(seller_report.X402_PATH + "{host}", seller_report.X402_PRICES["report"],
             "Your buyers: a seller's full report on its own customers from its x402 payments on Base"),
