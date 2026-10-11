@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Copied from the Aušrinė lab (commit de83223). Edit it there, not here.
+# Copied from the Aušrinė lab (commit b3626bf). Edit it there, not here.
 """solana_flows.py — who paid whom on Solana: every x402 payment a known payment
 processor settled, read in six-hour windows and assembled into UTC days.
 
@@ -42,11 +42,16 @@ Transactions come in version 1 now, and mainnet-beta refuses
 maxSupportedTransactionVersion 0 for those (error -32015), so version 1 is asked.
 
 Every file has the shape chain_flows.py writes, so whales.py merges the two chains:
-{"chain":"solana","date","day","hours","edges":[{from,to,n,usdc,n_x402,usdc_x402}],
+{"chain":"solana","date","day","hours","edges":[{from,to,n,usdc,n_x402,usdc_x402,first,last}],
 "sellers":{wallet:[hosts]}}, plus "processors":{id:{payments,usdc}},
 "assets":{symbol:{mint,payments,usdc}}, "other_shape" and "unread". Every edge is
 x402 by construction (n == n_x402); "usdc" is stablecoin dollars, USDC and USDT
 together. Base58 is case-sensitive and no address is ever lowercased here.
+
+Each edge also carries "first" and "last": the UTC time (to the second) of the pair's first and
+last payment in the file. Payments divided by the span read the pair's rhythm (a metered use
+and a fixed-cadence loop differ). Windows written before 2026-10-11 have no times; merging
+them with newer ones leaves the pair's times to the newer ones.
 
     python3 solana_flows.py catchup --dir flows/sol-windows --snapshot radar/market-2026-10-08.json
     python3 solana_flows.py assemble --day 2026-10-08 --dir flows/sol-windows --out flows/flows-sol-2026-10-08.json
@@ -447,7 +452,8 @@ def classify(tx, processors):
     (mint_d, buyer, down), (mint_c, seller, up) = debits[0], credits[0]
     if mint_d != mint_c or not buyer or not seller or buyer == seller or abs(up + down) > 1e-9:
         return "other_shape", None
-    return "payment", {"buyer": buyer, "seller": seller, "mint": mint_c, "amount": up, "processor": processors[payer]}
+    return "payment", {"buyer": buyer, "seller": seller, "mint": mint_c, "amount": up, "processor": processors[payer],
+                       "time": tx.get("blockTime")}
 
 
 class Tally:
@@ -457,6 +463,7 @@ class Tally:
     def __init__(self, signatures=0):
         self.signatures = signatures
         self.edges = collections.Counter()           # (buyer, seller) -> payments
+        self.span = {}                               # (buyer, seller) -> [first, last] as iso strings, when known
         self.usd = collections.Counter()             # (buyer, seller) -> stablecoin dollars
         self.processors = collections.defaultdict(lambda: {"payments": 0, "usdc": 0.0})
         self.assets = collections.defaultdict(lambda: {"payments": 0, "usdc": 0.0})
@@ -468,6 +475,8 @@ class Tally:
             self.payments += 1
             self.edges[(p["buyer"], p["seller"])] += 1
             self.usd[(p["buyer"], p["seller"])] += p["amount"]
+            if p.get("time") is not None:
+                self._widen((p["buyer"], p["seller"]), iso(p["time"]), iso(p["time"]))
             self.processors[p["processor"]]["payments"] += 1
             self.processors[p["processor"]]["usdc"] += p["amount"]
             self.assets[p["mint"]]["payments"] += 1
@@ -481,6 +490,11 @@ class Tally:
         else:
             self.other_shape += 1
 
+    def _widen(self, pair, first, last):
+        """The pair's first and last payment time: the earliest and the latest seen (iso strings sort as times)."""
+        old = self.span.get(pair)
+        self.span[pair] = [first, last] if old is None else [min(old[0], first), max(old[1], last)]
+
     def merge(self, f):
         """Fold one written window file in."""
         self.signatures += f.get("signatures", 0)
@@ -492,6 +506,8 @@ class Tally:
             self.payments += e["n"]
             self.edges[(e["from"], e["to"])] += e["n"]
             self.usd[(e["from"], e["to"])] += e["usdc"]
+            if e.get("first") and e.get("last"):         # a window written before times were kept has none
+                self._widen((e["from"], e["to"]), e["first"], e["last"])
         for pid, v in f.get("processors", {}).items():
             self.processors[pid]["payments"] += v["payments"]
             self.processors[pid]["usdc"] += v["usdc"]
@@ -513,8 +529,9 @@ class Tally:
                       "list is still counted and shows as its wallet",
             "signatures": self.signatures, "unread": self.unread, "other_shape": self.other_shape,
             "failed": self.failed, "not_processor": self.not_processor, "rpc": rpcs,
-            "edges": [{"from": f, "to": t, "n": n, "usdc": round(self.usd[(f, t)], 6),
-                       "n_x402": n, "usdc_x402": round(self.usd[(f, t)], 6)}
+            "edges": [dict({"from": f, "to": t, "n": n, "usdc": round(self.usd[(f, t)], 6),
+                            "n_x402": n, "usdc_x402": round(self.usd[(f, t)], 6)},
+                           **({"first": self.span[(f, t)][0], "last": self.span[(f, t)][1]} if (f, t) in self.span else {}))
                       for (f, t), n in sorted(self.edges.items(), key=lambda kv: (-kv[1], kv[0]))],
             "processors": {k: {"payments": v["payments"], "usdc": round(v["usdc"], 6)}
                            for k, v in sorted(self.processors.items(), key=lambda kv: -kv[1]["payments"])},
@@ -559,6 +576,8 @@ def read_window(rpc, processors, since, until, workers=WORKERS, log=None):
                     tally.signatures -= 1            # listed without a time, and not this window's after all
                 return
         kind, p = classify(tx, processors)
+        if kind == "payment" and p.get("time") is None and found[sig] is not None:
+            p["time"] = found[sig]                   # the transaction left its time out; the signature list had it
         with lock:
             tally.add(kind, p)
             done[0] += 1
