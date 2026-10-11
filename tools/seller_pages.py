@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Copied from the Aušrinė lab (commit 9d208cd). Edit it there, not here.
+# Copied from the Aušrinė lab (commit f2ab14a). Edit it there, not here.
 """seller_pages.py — a public page for every seller in the agent economy.
 
 Roughly 2,000 teams sell to agents over x402. Each of them wants to know how
@@ -758,8 +758,9 @@ hi.value=h;
 document.getElementById('hostform').addEventListener('submit',e=>e.preventDefault());
 document.querySelectorAll('a.buy').forEach(a=>a.addEventListener('click',e=>{e.preventDefault();const x=arm(hi.value);
 if(!x){hi.focus();note.textContent='Type your service’s host first, like api.example.com: the checkout needs it to know which page is yours.';return;}
-location.href='https://buy.'+'polar.sh/'+a.dataset.checkout+'?reference_id='+encodeURIComponent(x);}));
-</script>""".replace("%(numbers)s", tiers.PLACE if free else "The numbers are never for sale.")
+location.href='https://buy.'+'polar.sh/'+a.dataset.checkout+'?reference_id='+encodeURIComponent(x)@@DISCOUNT@@;}));
+</script>""".replace("@@DISCOUNT@@", "+'&discount_code=%s'" % atlas_style.DISCOUNT if atlas_style.DISCOUNT else "")
+                 .replace("%(numbers)s", tiers.PLACE if free else "The numbers are never for sale.")
                  .replace("%(deeper)s", "a deeper look at your corner of the market, and the full record" if free
                           else "and a deeper look at your corner of the market")
                  .replace("%(browse)s", "every seller’s basic card" if free else "all sellers")

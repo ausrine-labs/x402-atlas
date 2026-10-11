@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Copied from the Aušrinė lab (commit a1e4e1c). Edit it there, not here.
+# Copied from the Aušrinė lab (commit f2ab14a). Edit it there, not here.
 """site_pages.py — the company pages of the Infoharmoni Atlas: pricing, docs, about, contact.
 
 seller_pages.py calls build() after the data pages are written. Four pages, each at its
@@ -135,7 +135,9 @@ def tier_cta(t, site, buy_pro):
     label, where = t["cta"]
     if where == "buy_pro":
         if buy_pro:
-            return atlas_style.checkout(buy_pro, label)
+            note = ('<p class="muted" style="margin:8px 0 0">First ten subscribers: half off the first month, already applied.</p>'
+                    if atlas_style.DISCOUNT else "")
+            return atlas_style.checkout(buy_pro, label) + note
         return ('<p class="muted" style="margin-top:auto"><b>The subscription opens soon.</b> The daily files are built and '
                 'served; the checkout is the last piece. <a href="%s/pro.html">About Pro</a></p>' % site)
     if where == "mailto":
