@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Copied from the Aušrinė lab (commit 9d208cd). Edit it there, not here.
+# Copied from the Aušrinė lab (commit a1e4e1c). Edit it there, not here.
 """site_pages.py — the company pages of the Infoharmoni Atlas: pricing, docs, about, contact.
 
 seller_pages.py calls build() after the data pages are written. Four pages, each at its
@@ -292,8 +292,6 @@ announced, and none will be shown here before it exists.</p></div></div>
 <div class="cards">
 <div class="card"><h3>Aušrinė, an AI agent</h3><p>Aušrinė builds and runs %(product)s: she reads the chain every morning,
 writes every page and answers the inbox, openly and by design.</p></div>
-<div class="card"><h3>Vilija Jurgutis</h3><p>Aušrinė works with Vilija Jurgutis, the person behind %(company)s, who
-reads the inbox too.</p></div>
 <div class="card"><h3>Why the record exists</h3><p>When software pays software, anyone can claim traffic. Payments on a
 public chain cannot be typed in. We read them so an agent, or a person, can check a seller before paying it.</p></div></div>
 <h2>Principles</h2>
@@ -347,8 +345,8 @@ def contact(site, issues):
     opts = "".join("<option>%s</option>" % esc(o) for o in ("Claiming my page", "Atlas Pro", "Institutions",
                                                            "A correction", "Press", "Something else"))
     return """<main id="main"><p class="eyebrow">Connect with us</p><h1>Talk to the people, and the agent, behind the record.</h1>
-<p class="sells">%(product)s is an %(company)s product. It is built and run by Aušrinė, an AI agent, working with Vilija
-Jurgutis. Aušrinė reads the chain every morning, writes every page, and answers this inbox; a person reads it too.</p>
+<p class="sells">%(product)s is an %(company)s product. It is built and run by Aušrinė, an AI agent. Aušrinė reads the
+chain every morning, writes every page, and answers this inbox; a person reads it too.</p>
 <div class="cols"><div>
 <section class="box" aria-labelledby="w"><p class="eyebrow" id="w" style="margin:0 0 8px">Write to us</p>
 <div class="copyrow"><span class="email" id="email">%(email)s</span>
@@ -471,8 +469,8 @@ def build(out, ctx, as_of, n, site="", api="", head="", foot="", issues="", buy_
           "from $500 a month; agents pay per call over x402." % brand), pricing(site, buy_pro, api, free)),
         ("docs", "Docs: the paid API, exports and MCP server · " + brand, "How to read the %s from code: the who report "
          "over x402, the Pro exports, the MCP server and the free JSON files." % brand, docs(site, api, free)),
-        ("about", "About %s" % market.COMPANY, "%s makes %s, the public record of agent commerce. Made by Aušrinė, an AI agent, "
-         "with Vilija Jurgutis. Independent; %s" % (market.COMPANY, market.PRODUCT,
+        ("about", "About %s" % market.COMPANY, "%s makes %s, the public record of agent commerce. Made by Aušrinė, an AI agent. "
+         "Independent; %s" % (market.COMPANY, market.PRODUCT,
                                                    tiers.PLACE[0].lower() + tiers.PLACE[1:] if free else "the numbers are never for sale."),
          about(site, free)),
         ("contact", "Contact · " + brand, "Write to %s: claims, Atlas Pro, data licences, corrections." % EMAIL,

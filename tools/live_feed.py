@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Copied from the Aušrinė lab (commit 0f48b70). Edit it there, not here.
+# Copied from the Aušrinė lab (commit a1e4e1c). Edit it there, not here.
 """live_feed.py — /live/: x402 payments as they settle, read in the viewer's own browser.
 
 Every other Atlas page is a photograph of yesterday. This one is a window. The page
@@ -23,6 +23,7 @@ Standard library only.
 
 import argparse
 import json
+import os
 import sys
 
 import chain_flows
@@ -252,6 +253,24 @@ def write(out, data):
     return cp.write(out, "live", html_text, {"wallets.json": table_json(data)})
 
 
+MOVED = """<!doctype html><html lang="en"><head><meta charset="utf-8"><title>Moved to the map</title>
+<meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex">
+<meta http-equiv="refresh" content="0; url=../map/"><link rel="canonical" href="../map/"></head>
+<body><p>The live page has moved. <a href="../map/">See who paid whom on the map.</a></p></body></html>
+"""
+
+
+def write_moved(out):
+    """out/live/index.html as a forward to the map. The live feed read the public Base server from each
+    visitor's browser, which refuses them (2026-10-11), so the page showed 'no live feed'; old links and
+    the daily card still land somewhere useful. Paths are relative so it works at any site root."""
+    os.makedirs(os.path.join(out, "live"), exist_ok=True)
+    path = os.path.join(out, "live", "index.html")
+    with open(path, "w") as f:
+        f.write(MOVED)
+    return path
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[1])
     ap.add_argument("--whales", required=True, help="the newest whales-<date>.json rollup")
@@ -263,7 +282,9 @@ def main():
     rollup = json.load(open(a.whales))
     snap = json.load(open(a.snapshot))["sellers"] if a.snapshot else None
     d = live_data(rollup, snap, a.site, json.load(open(a.flows)) if a.flows else None)
-    print("live: %d seller wallets, %d buyer pages -> %s" % (len(d["wallets"]), len(d["buyers"]), write(a.out, d)))
+    # the live feed is retired (see write_moved): this entry point writes the forward too, so a supported
+    # invocation cannot bring the broken page back
+    print("live: %d seller wallets known; the page is retired, writing the forward -> %s" % (len(d["wallets"]), write_moved(a.out)))
 
 
 if __name__ == "__main__":
