@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Copied from the Aušrinė lab (commit f04f064). Edit it there, not here.
+# Copied from the Aušrinė lab (commit 9d208cd). Edit it there, not here.
 """atlas_mcp_test.py — the Atlas MCP server, spoken to over real JSON-RPC on
 stdio as an agent client would, against a store we built and therefore know.
 No network: ATLAS_STORE points at the fixture, so the server never fetches. The
@@ -127,7 +127,7 @@ class Wire(unittest.TestCase):
         self.assertIn("x402 market on Base", init["instructions"])
         tools = next(x for x in res if x.get("id") == 2)["result"]["tools"]
         self.assertEqual([t["name"] for t in tools], ["market_today", "search", "seller", "operator", "agents_at_work", "compare",
-                                                     "agent_spend", "posts"])
+                                                     "agent_spend", "posts", "buyer_dry_run"])
         for t in tools:
             self.assertIn("inputSchema", t)
             self.assertNotIn("verif", t["description"].lower())
@@ -426,7 +426,7 @@ class PaidNext(unittest.TestCase):
                                  ("search", {"query": "forecast"}, "weather.example")):
             p = call(tool, args)["paid_next"]
             self.assertEqual(p["url"], "https://seller.test/who/%s?via=mcp" % host, tool)
-            self.assertEqual((p["price"], p["pay"]), ("$0.01", "x402, USDC on Base"), tool)
+            self.assertEqual((p["price"], p["pay"]), ("$0.001", "x402, USDC on Base"), tool)
 
     def test_market_and_lists_lead_to_the_files(self):
         for (tool, args), first in zip([("market_today", {}), ("search", {"query": "random"}),
