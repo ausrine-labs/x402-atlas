@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Copied from the Aušrinė lab (commit 4560551). Edit it there, not here.
+# Copied from the Aušrinė lab (commit a8183e9). Edit it there, not here.
 """solana_flows.py — who paid whom on Solana: every x402 payment a known payment
 processor settled, read in six-hour windows and assembled into UTC days.
 
@@ -632,16 +632,18 @@ def cmd_read(rpc, processors, sellers, since, until, out_path, workers, log, now
 
 
 def cmd_catchup(rpc, processors, sellers, folder, workers, log, now=None, backfill_days=0, max_backfill=1,
-                backfill_workers=2):
+                backfill_workers=2, due=True):
     """Every due window (due_windows) not yet in `folder`, read and written one by one, the
     oldest first; then, with backfill_days, at most `max_backfill` older missing windows
     (backfill_windows, newest first), read slowly from the endpoints that still hold them.
+    With due=False only the older ones: the slow job that runs beside the fast one must not
+    read, or race for, the windows the fast one is on.
     A window over 1% unread or with a page missing is reported and left for the next run.
     Returns the names written and the names refused."""
     now = time.time() if now is None else now
     os.makedirs(folder, exist_ok=True)
     written, refused = [], []
-    todo = [(s, u, rpc, workers, "catchup") for s, u in due_windows(int(now))]
+    todo = [(s, u, rpc, workers, "catchup") for s, u in due_windows(int(now))] if due else []
     late = [(s, u) for s, u in backfill_windows(int(now), backfill_days)
             if not os.path.exists(os.path.join(folder, window_name(s) + ".json"))] if backfill_days else []
     for since, until in late[:max(0, max_backfill)]:
@@ -736,6 +738,8 @@ def main(argv=None, rpc=None, now=None):
     c.add_argument("--backfill-days", type=float, default=0,
                    help="also read older missing windows from the last N days, from the endpoints that keep them")
     c.add_argument("--max-backfill", type=int, default=1, help="at most this many older windows a run (they are slow)")
+    c.add_argument("--backfill-only", action="store_true",
+                   help="skip the due windows (the fast job reads those): only the older missing ones")
     s = sub.add_parser("assemble", parents=[common], help="the day file from its four windows")
     s.add_argument("--day", required=True, help="YYYY-MM-DD, UTC")
     s.add_argument("--dir", required=True)
@@ -767,7 +771,7 @@ def main(argv=None, rpc=None, now=None):
         cmd_read(rpc, processors, sellers, parse_iso(a.since), parse_iso(a.until), a.out, a.workers, log, now)
     elif a.cmd == "catchup":
         _, refused = cmd_catchup(rpc, processors, sellers, a.dir, a.workers, log, now,
-                                 backfill_days=a.backfill_days, max_backfill=a.max_backfill)
+                                 backfill_days=a.backfill_days, max_backfill=a.max_backfill, due=not a.backfill_only)
         if refused:
             sys.exit(1)
 

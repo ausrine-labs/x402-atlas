@@ -50,7 +50,7 @@ jobs:
         run: |
           set -eu
           python3 main/tools/solana_flows.py --snapshot "$RUNNER_TEMP/market.json" catchup --dir data/flows/sol-windows \
-            --backfill-days 3 --max-backfill 1
+            --backfill-days 3 --max-backfill 1 --backfill-only
       - name: Keep what was filled in
         if: always()
         working-directory: data
