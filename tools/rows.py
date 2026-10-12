@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Copied from the Aušrinė lab (commit 9c81769). Edit it there, not here.
+# Copied from the Aušrinė lab (commit 893b6af). Edit it there, not here.
 """rows.py — every USDC transfer into and out of chosen wallets on Base, one row each.
 
     BASE_RPC_URL=... rows.py --wallet 0x... [--wallet 0x...] --day 2026-10-03 [--day ...] --out rows.csv

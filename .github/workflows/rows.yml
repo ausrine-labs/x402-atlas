@@ -16,6 +16,10 @@ on:
       name:
         description: "File name, like rows-top3-2026-10-03-10.csv"
         required: true
+      funders:
+        description: "Also make the funders file from those rows (name: funders-<same name>)"
+        type: boolean
+        default: false
 permissions:
   contents: read
 jobs:
@@ -35,6 +39,7 @@ jobs:
           WALLETS: ${{ inputs.wallets }}
           DAYS: ${{ inputs.days }}
           NAME: ${{ inputs.name }}
+          FUNDERS: ${{ inputs.funders }}
         run: |
           set -eu
           printf '%s\n' "$NAME" | grep -Eq '^[a-z0-9][a-z0-9-]{0,80}\.csv$' || { echo "::error::bad name"; exit 1; }
@@ -52,6 +57,13 @@ jobs:
           python3 tools/rows.py "$@" --out "$OUT/$NAME"
           python3 tools/rows.py --check "$OUT/$NAME"
           openssl smime -encrypt -binary -aes256 -outform DER -in "$OUT/$NAME" -out "$RUNNER_TEMP/$NAME.p7m" tools/rows-recipient.pem
+          if [ "$FUNDERS" = "true" ]; then
+            FNAME="funders-$NAME"
+            python3 tools/funders.py --rows "$OUT/$NAME" --out "$OUT/$FNAME"
+            python3 tools/funders.py --check "$OUT/$FNAME"
+            openssl smime -encrypt -binary -aes256 -outform DER -in "$OUT/$FNAME" -out "$RUNNER_TEMP/$FNAME.p7m" tools/rows-recipient.pem
+            openssl smime -encrypt -binary -aes256 -outform DER -in "$OUT/${FNAME%.csv}-summary.json" -out "$RUNNER_TEMP/${FNAME%.csv}-summary.json.p7m" tools/rows-recipient.pem
+          fi
           rm -rf "$OUT"
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
