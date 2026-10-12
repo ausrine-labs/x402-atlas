@@ -87,7 +87,7 @@ if [ ! -f "$WHALES" ]; then
 fi
 
 # 5. the site
-for p in data LICENSE README.md robots.txt *.txt; do [ -e "$p" ] && cp -R "$p" _site/; done
+for p in data brief LICENSE README.md robots.txt *.txt; do [ -e "$p" ] && cp -R "$p" _site/; done
 mkdir -p _site/map && cp index.html _site/map/index.html      # the 3D map moves to /map/; seller_pages.py writes the front door at /
 python3 tools/snapshot_handoff.py publish --store store --out _site/radar
 if [ -n "$WHALES" ] && [ -f "$WHALES" ]; then
