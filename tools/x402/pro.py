@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Copied from the Aušrinė lab (commit f04f064). Edit it there, not here.
+# Copied from the Aušrinė lab (commit 77e445f). Edit it there, not here.
 """pro.py — Atlas Pro: the Atlas's record as working data, for a license key.
 
 The Atlas is a public record: every seller's basic card is free, and the full record,
@@ -63,10 +63,14 @@ import buyer_pages  # noqa: E402  (what a wallet bought, counted as the buyer pa
 PRICE = "$49 a month"
 HEADER = "X-Atlas-Key"
 POLAR_VALIDATE = "https://api.polar.sh/v1/customer-portal/license-keys/validate"
+# Polar began dated API versions on 2026-10-01: a request that names none follows "Current", so the
+# contract could shift under a paying customer at each quarterly release. We pin the one this was built on
+# (Polar's own advice, their notice of 2026-09-29); move it on purpose, after reading the changes.
+POLAR_VERSION = "2026-04"
 GOOD_FOR = 600              # seconds a good answer from Polar is trusted
 PER_HOUR = 60               # export calls one key may make in an hour
 POLAR_PER_MINUTE = 30       # validations this host asks Polar for in a minute, all keys together
-ATLAS = (os.environ.get("ATLAS_URL") or "http://atlas.infoharmoni.com").rstrip("/")
+ATLAS = (os.environ.get("ATLAS_URL") or "https://atlas.infoharmoni.com").rstrip("/")
 
 SELLER_COLUMNS = [
     "host", "category", "sells", "price_min", "price_max", "endpoints", "chains",
@@ -353,7 +357,7 @@ def polar_validate(key, org_id, benefit_id=None, timeout=10):
     body = {"key": key, "organization_id": org_id}   # the benefit is checked in Polar's answer, not sent
     req = urllib.request.Request(POLAR_VALIDATE, data=json.dumps(body).encode(), method="POST",
                                  headers={"Content-Type": "application/json", "Accept": "application/json",
-                                          "User-Agent": "ausrine-atlas-pro/1.0"})
+                                          "Polar-Version": POLAR_VERSION, "User-Agent": "ausrine-atlas-pro/1.0"})
     try:
         with urllib.request.urlopen(req, timeout=timeout) as r:
             return r.status, json.loads(r.read(64 * 1024) or b"null")
