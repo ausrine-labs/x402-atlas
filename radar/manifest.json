@@ -1,13 +1,6 @@
 {
  "files": [
   {
-   "bytes": 353393,
-   "date": "2026-10-04",
-   "name": "market-2026-10-04.json.gz",
-   "sellers": 2088,
-   "sha256": "62c05a2ecda15a03fc487e854c08ab7b9b1b71ac37120dc9e8f4d58c9539816b"
-  },
-  {
    "bytes": 359853,
    "date": "2026-10-05",
    "name": "market-2026-10-05.json.gz",
@@ -55,10 +48,17 @@
    "name": "market-2026-10-11.json.gz",
    "sellers": 2211,
    "sha256": "99f49d15f21e96fa4f3a15d913678ab440fac0567edbf05765845055df041078"
+  },
+  {
+   "bytes": 387488,
+   "date": "2026-10-12",
+   "name": "market-2026-10-12.json.gz",
+   "sellers": 2221,
+   "sha256": "066db77f0b1f2317018f40f5d04b83ee335471011dfcc9170d11a2048f030fed"
   }
  ],
  "floor": 1000,
  "keep": 8,
- "published_at": "2026-10-11T23:30:13+00:00",
+ "published_at": "2026-10-12T15:38:52+00:00",
  "skipped": []
 }
