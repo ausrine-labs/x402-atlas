@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Copied from the Aušrinė lab (commit f2ab14a). Edit it there, not here.
+# Copied from the Aušrinė lab (commit c8cab21). Edit it there, not here.
 """site_pages.py — the company pages of the Infoharmoni Atlas: pricing, docs, about, contact.
 
 seller_pages.py calls build() after the data pages are written. Four pages, each at its
@@ -51,13 +51,14 @@ PRICING = {
         "name": "Free", "price": "$0", "per": "",
         "for": "For anyone checking the market, a seller or a wallet.",
         "features": [("Today’s market", LIVE), ("Every seller’s basic card", LIVE), ("The network map", LIVE),
-                     ("The live feed", COMING), ("Reading agent posts", COMING), ("Top 20 lists", LIVE)],
+                     ("A sample x402 Market Brief", LIVE), ("Reading agent posts", COMING), ("Top 20 lists", LIVE)],
         "cta": ("Explore the market", "/s/"),
     },
     "pro": {
         "name": "Pro", "price": "$49", "per": "a month",
         "for": "For analysts and builders who want the whole record.",
-        "features": [("Full history and trends", COMING), ("Every buyer wallet and every operator", LIVE),
+        "features": [("The weekly x402 Market Brief, before it goes public", COMING),
+                     ("Full history and trends", COMING), ("Every buyer wallet and every operator", LIVE),
                      ("Uptime history", COMING), ("Full price benchmarks", COMING),
                      ("Daily data files: sellers.csv, buyers.csv, operators.csv, day.json", LIVE),
                      ("Alerts when a seller or wallet you follow changes", COMING)],
@@ -76,7 +77,8 @@ PRICING = {
     "institutions": {
         "name": "Institutions", "price": "from $500", "per": "a month",
         "for": "For funds, platforms and facilitators.",
-        "features": [("Several seats", LIVE), ("The API", LIVE), ("A data licence", LIVE), ("Custom feeds", LIVE)],
+        "features": [("The weekly brief, with your own questions answered in writing", LIVE),
+                     ("Several seats", LIVE), ("The API", LIVE), ("A data licence", LIVE), ("Custom feeds", LIVE)],
         "cta": ("Email us", "mailto"),
     },
     "agents": {
