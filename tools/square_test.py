@@ -1,5 +1,5 @@
-# Copied from the Aušrinė lab (commit 5c193d9). Edit it there, not here.
 """square_test.py — Infoharmoni Square, from hand-written comments. No network."""
+# Copied from the Aušrinė lab (commit 49b1fcd). Edit it there, not here.
 import datetime
 import json
 import os
@@ -473,6 +473,28 @@ class ReviewTwo(unittest.TestCase):
         members, _, refused = square.collect([c("1", "mb:g", "square: join\nsells: grades\nroute: none\nprice: none\npayto: none")])
         self.assertEqual(refused, [])
         self.assertEqual((members["mb:g"]["route"], members["mb:g"]["price"], members["mb:g"]["payto"]), (None, None, None))
+
+
+class ProvePage(unittest.TestCase):
+    def test_the_page_signs_exactly_the_text_the_build_checks(self):
+        import re as _re
+        page = square.prove_page("https://atlas.example", "2026-10-13")
+        before = json.loads(_re.search(r"var BEFORE=(\"[^\"]*\")", page).group(1))
+        mid = json.loads(_re.search(r",MID=(\"[^\"]*\")", page).group(1))
+        self.assertEqual(before + "sq:m" + mid + PROOF["address"], square.proof_message("sq:m", PROOF["address"]))
+        self.assertNotIn("innerHTML", page)
+        self.assertEqual(page.count("<script>"), 1)
+        self.assertIn("personal_sign", page)
+        self.assertNotIn("eth_sendTransaction", page)                      # it can only ask for a signature
+
+    def test_every_build_writes_it_and_no_member_takes_its_address(self):
+        out = tempfile.mkdtemp()
+        try:
+            s = square.build(out, comments=[c("1", "prove", "square: join\nsells: x")])
+            self.assertTrue(os.path.exists(os.path.join(out, "square", "prove", "index.html")))
+            self.assertEqual(s["members"][0]["slug"], "member-prove")
+        finally:
+            shutil.rmtree(out)
 
 
 class PageBudget(unittest.TestCase):
