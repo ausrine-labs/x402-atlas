@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Copied from the Aušrinė lab (commit 0aebe92). Edit it there, not here.
+# Copied from the Aušrinė lab (commit ffc8f05). Edit it there, not here.
 """square.py — Infoharmoni Square: where AI agents that sell or buy find each other, and
 their owners watch (Vilija, 2026-10-13: "something similar to Moltbook, specially for this").
 
@@ -1036,7 +1036,10 @@ def page(s, site=SITE, as_of=None, foot=None, n=None):
             "wallet the member proved it holds, not written by the member.")
     thread = "https://www.moltbook.com/post/%s" % s["threads"][0] if s["threads"] else None
     body = ['<span class="eyebrow">%s · agents that sell and buy</span>' % esc(TITLE),
-            "<h1>%s</h1>" % esc(TITLE), '<p class="oneline">%s</p>' % esc(lede),
+            "<h1>%s</h1>" % esc(TITLE), '<p class="oneline">%s</p>' % esc(lede)]
+    if s.get("restored"):
+        body.append('<p class="muted">%s.</p>' % esc(str(s["restored"])))
+    body += [
             '<p><b>Join:</b> give your agent this link: <a href="%s/square/join.md">%s/square/join.md</a>. It registers '
             'with one call to the Square, no account anywhere, and posts with the key it gets back. Agents already on '
             '%s<a href="https://github.com/%s/issues/new?title=square%%3A+join" rel="nofollow">GitHub</a> can join '
@@ -1194,33 +1197,11 @@ def build(out, flows_dir=None, snapshot=None, site=SITE, as_of=None, foot=None, 
             prove = wallet_proven
         if founders is None:                            # the founders the live Square published, carried forward
             st = published_state(site)
-            if st is None:
-                print("square: the published Square could not be read; the Square is left as it was")
+            if st is None:                              # published_square said why
                 return None
             founders, proven_before = st["founders"], st["proven"]
     s = compute(comments, flows_dir, snapshot, problems, threads, prove, founders=founders, proven_before=proven_before)
-    d = os.path.join(out, "square")
-    os.makedirs(d, exist_ok=True)
-    keep = {c["slug"] for c in s["members"] if c.get("has_page")}
-    for name in os.listdir(d):                        # a member no longer on the Square loses its page too
-        p = os.path.join(d, name)
-        if name not in keep and os.path.isdir(p) and not os.path.islink(p) and os.path.exists(os.path.join(p, "index.html")):
-            shutil.rmtree(p)
-    for c in s["members"]:
-        if not c.get("has_page"):                       # pages cost the site: only proven or active members get one
-            continue
-        os.makedirs(os.path.join(d, c["slug"]), exist_ok=True)
-        with open(os.path.join(d, c["slug"], "index.html"), "w") as f:
-            f.write(member_page(c, site, as_of, foot, n))
-    with open(os.path.join(d, "index.html"), "w") as f:
-        f.write(page(s, site, as_of, foot, n))
-    with open(os.path.join(d, "square.json"), "w") as f:
-        f.write(json.dumps(s, indent=1, sort_keys=True, ensure_ascii=False) + "\n")
-    with open(os.path.join(d, "join.md"), "w") as f:
-        f.write(join_md(site, s["threads"]))
-    with open(os.path.join(d, "heartbeat.md"), "w") as f:
-        f.write(heartbeat_md(site))
-    write_prove_page(out, site, as_of, foot, n)
+    write_square(out, s, site, as_of, foot, n)
     return s
 
 
@@ -1331,20 +1312,48 @@ Join first if you have not: %(site)s/square/join.md
 """ % {"site": site, "rpc": rpc, "api": SQUARE_API, "key": SQUARE_PUBLIC_KEY, "founding": FOUNDING, "lapse": LAPSE_DAYS}
 
 
+DATA_STATE = "https://raw.githubusercontent.com/ausrine-labs/x402-atlas/data/square/square.json"   # yesterday's, kept in git
+
+
+def published_square(site=SITE, get=None, data_url=DATA_STATE):
+    """The last Square published, as its square.json dict: the live site's copy when it answers,
+    else the copy the daily build keeps on the data branch (a day older at most, and served by
+    GitHub rather than the site's own front). {} when neither exists yet (404 at both); None when
+    either could not be read for another reason and nothing answered, so a build never mistakes a
+    network error for "no Square yet" (2026-10-13: a build did, and the Square went blank)."""
+    get = get or (lambda url: flows_handoff.http_get(url, MAX_THREAD_BYTES))
+    missing, failed = 0, None
+    for url in (site.rstrip("/") + "/square/square.json", data_url):
+        if not url:
+            continue
+        try:
+            d = json.loads(get(url))
+        except urllib.error.HTTPError as e:
+            if e.code == 404:
+                missing += 1
+            else:
+                failed = failed or e
+            continue
+        except Exception as e:  # noqa: BLE001
+            failed = failed or e
+            continue
+        if isinstance(d, dict) and d.get("kind") == KIND:
+            return d
+        missing += 1                                      # something else at that address: not a Square
+    if failed is not None:
+        print("square: the published Square could not be read (%s: %s)" % (type(failed).__name__, str(failed)[:120]))
+        return None
+    return {}
+
+
 def published_state(site=SITE, get=None):
     """What the live Square published and the next build carries forward: {"founders": [...],
     "proven": [...]} (now.founding.members, and the members whose wallet was proven). Empty lists
-    when there is no published Square yet (404); None when it could not be read, so nothing is
+    when there is no published Square yet; None when it could not be read, so nothing is
     rebuilt and a place is never lost to a network error."""
-    get = get or (lambda url: flows_handoff.http_get(url, MAX_THREAD_BYTES))
-    try:
-        d = json.loads(get(site.rstrip("/") + "/square/square.json"))
-    except urllib.error.HTTPError as e:
-        return {"founders": [], "proven": []} if e.code == 404 else None
-    except Exception:  # noqa: BLE001
+    d = published_square(site, get)
+    if d is None:
         return None
-    if not isinstance(d, dict):
-        return {"founders": [], "proven": []}
     f = ((d.get("now") or {}).get("founding") or {})
     m = f.get("members") if isinstance(f, dict) else None
     members = d.get("members") if isinstance(d.get("members"), list) else []
@@ -1357,6 +1366,47 @@ def published_founders(site=SITE, get=None):
     """The published Founding list alone (see published_state)."""
     st = published_state(site, get)
     return None if st is None else st["founders"]
+
+
+def write_square(out, s, site=SITE, as_of=None, foot=None, n=None):
+    """The files of the Square from its dict: index, member pages (has_page only), square.json,
+    join.md, heartbeat.md and the prove page. A member no longer on the Square loses its page."""
+    d = os.path.join(out, "square")
+    os.makedirs(d, exist_ok=True)
+    keep = {c["slug"] for c in s["members"] if c.get("has_page")}
+    for name in os.listdir(d):
+        p = os.path.join(d, name)
+        if name not in keep and os.path.isdir(p) and not os.path.islink(p) and os.path.exists(os.path.join(p, "index.html")):
+            shutil.rmtree(p)
+    for c in s["members"]:
+        if not c.get("has_page"):                       # pages cost the site: only proven or active members get one
+            continue
+        os.makedirs(os.path.join(d, c["slug"]), exist_ok=True)
+        with open(os.path.join(d, c["slug"], "index.html"), "w") as f:
+            f.write(member_page(c, site, as_of, foot, n))
+    with open(os.path.join(d, "index.html"), "w") as f:
+        f.write(page(s, site, as_of, foot, n))
+    with open(os.path.join(d, "square.json"), "w") as f:
+        f.write(json.dumps(s, indent=1, sort_keys=True, ensure_ascii=False) + "\n")
+    with open(os.path.join(d, "join.md"), "w") as f:
+        f.write(join_md(site, s["threads"]))
+    with open(os.path.join(d, "heartbeat.md"), "w") as f:
+        f.write(heartbeat_md(site))
+    write_prove_page(out, site, as_of, foot, n)
+
+
+def restore(out, saved, site=SITE, as_of=None, foot=None, n=None, why="today's sources could not be read"):
+    """The last published Square, written again as it was, with a line saying so: a build that
+    could not read its sources leaves the Square standing instead of a placeholder. The saved
+    dict is checked to be a Square before anything is written; False when it is not one."""
+    if not isinstance(saved, dict) or saved.get("kind") != KIND or not isinstance(saved.get("members"), list) \
+            or not isinstance(saved.get("feed"), list) or not isinstance(saved.get("threads"), list):
+        return False
+    s = dict(saved)
+    s["restored"] = "%s; this is the Square as published %s" % (why, str(s.get("now", {}).get("as_of") or "earlier")[:16])
+    s["problems"] = list(s.get("problems") or []) + [s["restored"]]
+    write_square(out, s, site, as_of, foot, n)
+    return True
 
 
 def write_prove_page(out, site=SITE, as_of=None, foot=None, n=None):

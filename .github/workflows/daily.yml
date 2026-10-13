@@ -61,8 +61,15 @@ jobs:
           tar -xf artifact/artifact.tar -C site ./radar
           tar -xf artifact/artifact.tar -C site ./flows || echo "::warning::no flows window in today's build"
           python3 main/tools/data_branch.py merge --new site --branch branch
+          # The Square's state (Founding places, proven wallets) rides along, so a build that cannot
+          # read the site still carries it forward; a build that wrote no Square changes nothing here.
+          if tar -xf artifact/artifact.tar -C site ./square/square.json 2>/dev/null; then
+            mkdir -p branch/square && cp site/square/square.json branch/square/square.json
+          else
+            echo "::warning::today's build wrote no square.json; the data branch keeps the last one"
+          fi
           cd branch
-          git add -A radar flows
+          git add -A radar flows square
           if git diff --cached --quiet; then echo "the data branch already holds today's window"; exit 0; fi
           git config user.name "Ausrine Jurgutis"                    # a rebase after a lost push race needs a name too
           git config user.email "ausrine@infoharmoni.com"

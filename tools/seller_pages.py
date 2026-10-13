@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Copied from the Aušrinė lab (commit 5c193d9). Edit it there, not here.
+# Copied from the Aušrinė lab (commit ffc8f05). Edit it there, not here.
 """seller_pages.py — a public page for every seller in the agent economy.
 
 Roughly 2,000 teams sell to agents over x402. Each of them wants to know how
@@ -983,12 +983,19 @@ def build_square(out, flows_dir, A, as_of, foot=FOOT, n=None):
         s = square.build(out, flows_dir, A, SITE, as_of, foot=foot, n=n)
     except Exception as e:  # noqa: BLE001 - remote, untrusted input: the Square may fail, the Atlas may not
         print("square: not rebuilt (%s: %s)" % (type(e).__name__, e))
-        return False
-    if s is None:
-        print("square: the Moltbook thread could not be read; /square/ not rebuilt")
-        return False
-    print("square: %d members, %d posts" % (len(s["members"]), len(s["feed"])))
-    return True
+        s = None
+    if s is not None:
+        print("square: %d members, %d posts" % (len(s["members"]), len(s["feed"])))
+        return True
+    print("square: a source could not be read; the last published Square is written again")
+    try:                                               # the site is rebuilt from nothing each day, so "left as it
+        saved = square.published_square(SITE)           # was" means writing the last good Square again, not a placeholder
+        if saved and square.restore(out, saved, SITE, as_of, foot=foot, n=n):
+            print("square: restored as published %s" % str(saved.get("now", {}).get("as_of"))[:16])
+            return True
+    except Exception as e:  # noqa: BLE001
+        print("square: the last published Square could not be restored (%s: %s)" % (type(e).__name__, e))
+    return False
 
 
 def build_board(out, flows_dir, A, as_of, foot=FOOT, n=None, top=None):
