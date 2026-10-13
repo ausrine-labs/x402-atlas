@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Copied from the Aušrinė lab (commit 1da55d5). Edit it there, not here.
+# Copied from the Aušrinė lab (commit 4978153). Edit it there, not here.
 """seller_pages.py — a public page for every seller in the agent economy.
 
 Roughly 2,000 teams sell to agents over x402. Each of them wants to know how
@@ -28,6 +28,7 @@ Standard library only. Made by an AI agent, openly and by design.
 """
 
 import argparse
+import datetime
 import html
 import json
 import os
@@ -469,6 +470,51 @@ def relationships_section(host, me, rel, known, chain, free=False):
     return "".join(p)
 
 
+DAILY_DAYS = 7     # the "Daily money" line shows the window's last seven days
+
+
+def daily_money(rel, host, days=DAILY_DAYS):
+    """The last `days` days of the window for one host: [(date, usdc, payers)], oldest first,
+    summed over every wallet the host is paid into, with the distinct paying wallets each day.
+    None when the host has no wallet in the window or no paid day among those days."""
+    if not rel or not rel.get("dates"):
+        return None
+    ws = rel.get("hosts", {}).get(str(host).lower()) or []
+    paid = rel.get("ledger", {}).get("paid", {})
+    out = []
+    last = datetime.date.fromisoformat(rel["dates"][-1])
+    have = set(rel["dates"])
+    for d in [(last - datetime.timedelta(days=i)).isoformat() for i in range(days - 1, -1, -1)]:
+        if d not in have:                              # a calendar day with no file: unknown, never $0
+            out.append((d, None, None))
+            continue
+        micro, payers = 0, set()
+        for w in ws:
+            for b, per in paid.get(w, {}).items():
+                if d in per:
+                    micro += int(round(per[d][1] * 1000000))
+                    payers.add(b)
+        out.append((d, micro / 1000000, len(payers)))
+    return out if any(u or p for _d, u, p in out) else None   # None and 0 alike: no paid day
+
+
+def daily_line(rel, host):
+    """'Daily money': the last seven days' x402 USDC on Base as small numbers, each with its date
+    and its paying wallets. Nothing for a seller with no paid day in those seven."""
+    rows = daily_money(rel, host)
+    if not rows:
+        return ""
+    ws = rel["hosts"].get(str(host).lower()) or []
+    shared = any(len(rel["wallet_hosts"].get(w) or []) > 1 for w in ws)
+    cells = " · ".join("%s <b>no data</b>" % esc(atlas_style.short_date(d)[:-5]) if u is None else
+                       "%s <b>%s</b> (%s)" % (esc(atlas_style.short_date(d)[:-5]), "$0" if not u else
+                                              "under $1" if u < 1 else "${:,}".format(int(u + 0.5)), _s(n, "payer"))
+                       for d, u, n in rows)
+    return ('<p class="daily"><b>Daily money</b> <span class="muted">· x402 USDC on Base · %s%s</span><br><small>%s</small></p>'
+            % (esc(_days([rows[0][0], rows[-1][0]])),
+               " · the wallet’s, across every host paid into it" if shared else "", cells))
+
+
 def endpoints_section(me):
     """What is actually bought, at what price: the seller's busiest endpoints, from the
     registry's own per-endpoint counts. Absent for snapshots made before this was kept."""
@@ -619,6 +665,7 @@ def build(out, store=None, site=None, claims=None, whales=None, operators=None, 
                     money(me["take"]), rank_t[host], chg))
         p.append('<div class="cols"><div>')
         p.append(paid_section(host, me, chain, free))
+        p.append(daily_line(rel, host))
         p.append(relationships_section(host, me, rel, known, chain, free))
         # every seller page points its owner at the buyers report; a claimed page already has its owner
         p.append('<p class="box">%s <a href="%s/sellers/?host=%s">See who your buyers are</a>: every wallet that paid '

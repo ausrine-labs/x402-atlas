@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Copied from the Aušrinė lab (commit 9d208cd). Edit it there, not here.
+# Copied from the Aušrinė lab (commit 4978153). Edit it there, not here.
 """seller_pages_test.py — the public pages, from a synthetic store. No network.
 
     python3 seller_pages_test.py
@@ -9,6 +9,7 @@ none of it can become markup or script on our site.
 """
 import json
 import os
+import shutil
 import sys
 import tempfile
 import unittest
@@ -459,6 +460,90 @@ class Relationships(unittest.TestCase):
         self.assertIn("<b>3 buyers</b> paid this seller over x402 on 1 of the window’s 1 day", html)
         self.assertIn("came-back facts need 2 or more days", html)
         self.assertNotIn("Early buyers", html)
+
+
+def daily_window():
+    """Eight days, 2026-01-01 to 2026-01-08, so the line's last seven start on 2 Jan.
+         plain   1 Jan $500 (outside the seven); 2 Jan $0; 3 Jan $1,234.50 from p0 and p1; 4 Jan $0.20 from p0;
+                 5 to 8 Jan $10 a day from p0, and on 8 Jan another $5 from p2 (2 payers: p0 and p2)
+         rival   1 Jan only: no paid day in the seven, so no line
+         shared  4 Jan $7 from s0; the wallet takes payment for evil.example and filler1.example"""
+    d = tempfile.mkdtemp()
+    ds = ["2026-01-0%d" % i for i in range(1, 9)]
+    pays = {x: [] for x in ds}
+    pays[ds[0]] += [(wallet("p0"), PLAIN, 500.0), (wallet("r0"), RIVAL, 9.0)]
+    pays[ds[2]] += [(wallet("p0"), PLAIN, 1000.0), (wallet("p1"), PLAIN, 234.5)]
+    pays[ds[3]] += [(wallet("p0"), PLAIN, 0.2), (wallet("s0"), SHARED, 7.0)]
+    for x in ds[4:]:
+        pays[x].append((wallet("p0"), PLAIN, 10.0))
+    pays[ds[7]].append((wallet("p2"), PLAIN, 5.0))
+    for x in ds:
+        edges = [{"from": b, "to": t, "n": 1, "usdc": u, "n_x402": 1, "usdc_x402": u} for b, t, u in pays[x]]
+        edges.append({"from": wallet("z0"), "to": PLAIN, "n": 1, "usdc": 99.0, "n_x402": 0, "usdc_x402": 0.0})   # not x402
+        json.dump({"date": x, "day": x, "hours": 24.0, "edges": edges, "sellers": FLOW_SELLERS},
+                  open(os.path.join(d, "flows-%s.json" % x), "w"))
+    return d
+
+
+class DailyMoney(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.out = tempfile.mkdtemp()
+        cls.flows = daily_window()
+        sp.build(cls.out, store(), site="https://example.test/atlas", claims="/nonexistent/claims.json",
+                 flows_dir=cls.flows, free=False)
+
+    def page(self, host):
+        return open(os.path.join(self.out, "s", sp.slug(host), "index.html")).read()
+
+    def line(self, host):
+        html = self.page(host)
+        i = html.index('<p class="daily">')
+        return html[i:html.index("</p>", i) + 4]
+
+    def test_the_last_seven_days_with_their_dates_and_payers(self):
+        rows = sp.daily_money(sp.relationships.window(self.flows), "plain.example")
+        self.assertEqual(rows, [("2026-01-02", 0.0, 0), ("2026-01-03", 1234.5, 2), ("2026-01-04", 0.2, 1),
+                                ("2026-01-05", 10.0, 1), ("2026-01-06", 10.0, 1), ("2026-01-07", 10.0, 1),
+                                ("2026-01-08", 15.0, 2)])
+
+    def test_the_line_on_the_page(self):
+        line = self.line("plain.example")
+        self.assertIn("<b>Daily money</b>", line)
+        self.assertIn("x402 USDC on Base · 2 Jan 2026 – 8 Jan 2026", line)
+        self.assertIn("2 Jan <b>$0</b> (0 payers) · 3 Jan <b>$1,235</b> (2 payers) · 4 Jan <b>under $1</b> (1 payer) · "
+                      "5 Jan <b>$10</b> (1 payer) · 6 Jan <b>$10</b> (1 payer) · 7 Jan <b>$10</b> (1 payer) · "
+                      "8 Jan <b>$15</b> (2 payers)", line)
+        self.assertNotIn("1 Jan", line)                                   # the eighth day back is out
+        self.assertNotIn("across every host", line)
+
+    def test_a_seller_with_no_paid_day_in_the_seven_gets_no_line(self):
+        self.assertNotIn('<p class="daily">', self.page("rival.example:8443"))
+        self.assertNotIn('<p class="daily">', self.page("filler2.example"))   # not in the sellers map at all
+
+    def test_a_shared_wallet_says_whose_money_it_is(self):
+        line = self.line("evil.example")
+        self.assertIn("4 Jan <b>$7</b> (1 payer)", line)
+        self.assertIn("the wallet’s, across every host paid into it", line)
+        self.assertEqual(line, self.line("filler1.example"))
+
+    def test_without_the_window_there_is_no_line(self):
+        self.assertEqual(sp.daily_line(None, "plain.example"), "")
+        out = tempfile.mkdtemp()
+        sp.build(out, store(), site="https://example.test/atlas", claims="/nonexistent/claims.json")
+        self.assertNotIn('<p class="daily">', open(os.path.join(out, "s", "plain.example", "index.html")).read())
+
+    def test_a_missing_day_is_no_data_never_zero(self):
+        d = daily_window()
+        os.remove(os.path.join(d, "flows-2026-01-05.json"))
+        rows = sp.daily_money(sp.relationships.window(d), "plain.example")
+        self.assertEqual([r[0] for r in rows], ["2026-01-%02d" % i for i in range(2, 9)])   # still seven calendar days
+        self.assertEqual(rows[3], ("2026-01-05", None, None))
+        shutil.rmtree(d)
+
+    def test_never_the_word(self):
+        for h in ("plain.example", "evil.example"):
+            self.assertNotIn("ver" + "if", self.line(h).lower(), h)
 
 
 class Money(unittest.TestCase):

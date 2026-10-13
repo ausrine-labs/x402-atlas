@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Copied from the Aušrinė lab (commit f00a5fb). Edit it there, not here.
+# Copied from the Aušrinė lab (commit 4978153). Edit it there, not here.
 """brief_test.py — the weekly brief, built from a window small enough to count by hand.
 
 Four Base days (2026-01-01 to 2026-01-04: halves 1-2 and 3-4) and two Solana days. Every
@@ -402,6 +402,170 @@ class TheFiles(unittest.TestCase):
                 self.assertNotIn(w, text.lower(), (name, w))
         for f in ("brief.py", "brief_test.py"):
             self.assertNotIn(STEM, read(os.path.join(HERE, f)).lower(), f)
+
+
+M = brief.MICRO
+
+
+def dollars(*xs):
+    return [int(round(x * M)) for x in xs]
+
+
+class DailyMoney(unittest.TestCase):
+    """The fixture's days, counted by hand from BASE above:
+         all sellers  $65, $36, $14, $3.21    payers 2 (A B), 3 (A B C), 5 (A B C D E), 4 (R D A B)
+         S1           $60, $30, $3, $2        payers 1, 1, 1, 2 (A and B, $1 each: exactly half is not over)
+         S2           $5, $5, $8, $0          payers 1, 1, 3, 0
+         S3           $0, $1, $3, $1          payers 0, 1, 1, 1"""
+
+    def rows(self, b=BRIEF):
+        return b["money"]["daily"]["rows"]
+
+    def test_the_rows_and_their_dates(self):
+        dl = BRIEF["money"]["daily"]
+        self.assertEqual(dl["dates"], {"from": "2026-01-01", "to": "2026-01-04", "days": 4})
+        self.assertEqual(dl["days"], DAYS)
+        self.assertEqual([x["label"] for x in self.rows()[:4]], ["All sellers", "one.example", "two.example", "….example"])
+        self.assertEqual(len(self.rows()), 1 + brief.TOP)
+        self.assertEqual([x.get("rank") for x in self.rows()[:3]], [None, 1, 2])
+
+    def test_money_by_day_is_exact(self):
+        a, s1, s2, s3 = self.rows()[:4]
+        self.assertEqual(list(a["usdc_by_day"].values()), ["65.000000", "36.000000", "14.000000", "3.210000"])
+        self.assertEqual(list(s1["usdc_by_day"].values()), ["60.000000", "30.000000", "3.000000", "2.000000"])
+        self.assertEqual(list(s2["usdc_by_day"].values()), ["5.000000", "5.000000", "8.000000", "0.000000"])
+        self.assertEqual(list(s3["usdc_by_day"].values()), ["0.000000", "1.000000", "3.000000", "1.000000"])
+        self.assertEqual(list(a["usdc_by_day"]), DAYS)
+        self.assertEqual(brief.six(1), "0.000001")
+        self.assertEqual(brief.six(287300000), "287.300000")
+
+    def test_payers_by_day(self):
+        a, s1, s2, s3 = self.rows()[:4]
+        self.assertEqual(list(a["payers_by_day"].values()), [2, 3, 5, 4])
+        self.assertEqual(list(s1["payers_by_day"].values()), [1, 1, 1, 2])
+        self.assertEqual(list(s2["payers_by_day"].values()), [1, 1, 3, 0])
+        self.assertEqual(list(s3["payers_by_day"].values()), [0, 1, 1, 1])
+
+    def test_each_row_has_its_shape(self):
+        self.assertEqual([x["shape"] for x in self.rows()[:4]], ["spike", "spike", "uneven", "spike"])
+
+    def test_a_day_with_one_edge_over_half_is_named(self):
+        s1 = self.rows()[1]
+        self.assertEqual([(le["date"], le["usdc"], le["share_pct"]) for le in s1["one_edge_days"]],
+                         [("2026-01-01", 60.0, 100.0), ("2026-01-02", 30.0, 100.0), ("2026-01-03", 3.0, 100.0)])
+        self.assertTrue(s1["largest_edge"]["over_half"])                          # $60 of $95
+        self.assertEqual([le["date"] for le in self.rows()[0]["one_edge_days"]], DAYS[:2])   # $60 of $65, $30 of $36
+
+    def test_the_table_on_the_page(self):
+        part = PAGE[PAGE.index("<h3 style=\"margin-top:28px\">Daily money</h3>"):PAGE.index("<h2>2. Concentration</h2>")]
+        self.assertIn("1 to 4 January 2026 · Base · x402 only", part)
+        self.assertIn("<th class=\"n\">1 Jan</th><th class=\"n\">2 Jan</th><th class=\"n\">3 Jan</th><th class=\"n\">4 Jan</th>", part)
+        self.assertIn('<b>All sellers</b> <span class="tag">spike</span></td><td class="n">$65</td><td class="n">$36</td>'
+                      '<td class="n">$14</td><td class="n">$3</td>', part)
+        self.assertIn('<span class="tag">uneven</span></td><td class="n">$5</td><td class="n">$5</td><td class="n">$8</td>'
+                      '<td class="n">$0</td>', part)
+        self.assertIn('<td class="n">$0</td><td class="n">$0</td><td class="n">$0</td><td class="n">under $1</td>', part)   # $0.01
+        self.assertIn("One edge was more than half of the day's money on 1 Jan 2026 ($60.00, 92.3% of $65.00), "
+                      "2 Jan 2026 ($30.00, 83.3% of $36.00).", part)
+        self.assertIn("63.2% of its total across these days", part)                # S1: $60 of $95
+
+    def test_no_schedule_line_in_the_fixture(self):
+        self.assertNotIn("schedule", [m["rule"] for m in BRIEF["what_it_means"]])
+
+
+class Shapes(unittest.TestCase):
+    def test_flat(self):
+        self.assertEqual(brief.shape(dollars(10, 11, 9, 10)), "flat")             # median 10: 9 and 11 are 10% off
+        self.assertEqual(brief.shape(dollars(10, 11.5, 10)), "uneven")            # 15% off
+        self.assertEqual(brief.shape(dollars(1, 1, 1)), "uneven")                 # the median must be above $1
+
+    def test_spike(self):
+        self.assertEqual(brief.shape(dollars(1, 10, 1)), "spike")                 # 10 of 12
+        self.assertEqual(brief.shape(dollars(5, 3, 2)), "uneven")                 # 5 of 10: exactly half is not a spike
+
+    def test_gone_quiet(self):
+        self.assertEqual(brief.shape(dollars(30, 25, 20, 1, 0)), "gone quiet")    # 1 and 0 under 5% of 30
+        self.assertEqual(brief.shape(dollars(30, 25, 20, 1.5, 0)), "uneven")      # 1.50 is 5% of 30, not under
+        self.assertEqual(brief.shape(dollars(19, 18, 17, 0, 0)), "uneven")        # no earlier day reached $20
+
+    def test_ramping(self):
+        self.assertEqual(brief.shape(dollars(5, 1, 2, 3, 4)), "ramping")          # 1 < 2 < 3 < 4
+        self.assertEqual(brief.shape(dollars(5, 1, 2, 3, 3)), "uneven")
+        self.assertEqual(brief.shape(dollars(1, 2, 3)), "uneven")                 # three days hold only two rises
+
+    def test_nothing_at_all(self):
+        self.assertEqual(brief.shape([0, 0, 0]), "uneven")
+        self.assertIsNone(brief.spread_pct([0, 0]))
+
+    def test_api_xpay_4_to_10_october_is_uneven(self):
+        days = dollars(287.30, 327.54, 408.195, 408.345, 408.98, 409.22, 408.615)
+        self.assertEqual(brief.shape(days), "uneven")                             # median 408.615: 287.30 is 29.6% off
+
+    def test_api_xpay_6_to_10_october_is_flat_on_a_schedule(self):
+        days = dollars(408.195, 408.345, 408.98, 409.22, 408.615)
+        self.assertEqual(brief.shape(days), "flat")
+        self.assertEqual(brief.spread_pct(days), 0.15)                            # 409.22 against 408.615
+
+
+class Schedule(unittest.TestCase):
+    def test_a_flat_seller_within_one_percent_is_a_schedule(self):
+        b = brief.build(fixture({"2026-01-01": [x(A, S1, 1, 100.0), x(B, S2, 1, 10.0)],
+                                 "2026-01-02": [x(A, S1, 1, 100.5), x(B, S2, 1, 10.5)],      # S2 is 5% off: flat, no schedule
+                                 "2026-01-03": [x(A, S1, 1, 99.8), x(B, S2, 1, 10.0)]}, sol=None),
+                        "2026-01-01", "2026-01-03")
+        self.assertEqual([r["shape"] for r in b["money"]["daily"]["rows"]], ["flat", "flat", "flat"])
+        says = [m for m in b["what_it_means"] if m["rule"] == "schedule"]
+        self.assertEqual([m["says"] for m in says], ["one.example took within 1% of the same amount every day for 3 days "
+                                                     "(1–3 Jan 2026): a schedule, not a crowd."])
+        self.assertEqual((says[0]["numbers"]["wallet"], says[0]["numbers"]["spread_pct"]), (S1, 0.5))
+
+    def test_exactly_one_percent_is_a_schedule_and_a_gap_is_not(self):
+        b = brief.build(fixture({"2026-01-01": [x(A, S1, 1, 100.0)], "2026-01-02": [x(A, S1, 1, 101.0)],
+                                 "2026-01-03": [x(A, S1, 1, 100.0)]}, sol=None), "2026-01-01", "2026-01-03")
+        self.assertEqual(len([m for m in b["what_it_means"] if m["rule"] == "schedule"]), 1)   # 1% is within 1%
+        b = brief.build(fixture({"2026-01-01": [x(A, S1, 1, 100.0)], "2026-01-03": [x(A, S1, 1, 100.0)]}, sol=None),
+                        "2026-01-01", "2026-01-03")
+        self.assertEqual([m for m in b["what_it_means"] if m["rule"] == "schedule"], [])         # 2 Jan unknown
+        self.assertEqual({r["shape"] for r in b["money"]["daily"]["rows"]}, {None})              # no shape across a gap
+        row = b["money"]["daily"]["rows"][0]
+        self.assertEqual(list(row["usdc_by_day"]), ["2026-01-01", "2026-01-02", "2026-01-03"])  # the gap keeps its column
+        self.assertIsNone(row["usdc_by_day"]["2026-01-02"])
+        self.assertIsNone(row["payers_by_day"]["2026-01-02"])
+        self.assertEqual(brief.whole(None), "no data")
+        b = brief.build(fixture({"2026-01-01": [x(A, S1, 1, 100.0)], "2026-01-02": [x(A, S1, 1, 101.004)],
+                                 "2026-01-03": [x(A, S1, 1, 100.0)]}, sol=None), "2026-01-01", "2026-01-03")
+        self.assertEqual([m for m in b["what_it_means"] if m["rule"] == "schedule"], [])         # 1.004% rounds to 1.0, is not within
+        b = brief.build(fixture({"2026-01-01": [x(A, S1, 1, 100.0)], "2026-01-02": [x(A, S1, 1, 100.0)]}, sol=None),
+                        "2026-01-01", "2026-01-02")
+        self.assertEqual([m for m in b["what_it_means"] if m["rule"] == "schedule"], [])         # two days are not a schedule
+        b = brief.build(fixture({"2026-01-02": [x(A, S1, 1, 100.0)], "2026-01-03": [x(A, S1, 1, 100.0)],
+                                 "2026-01-04": [x(A, S1, 1, 100.0)]}, sol=None), "2026-01-01", "2026-01-04")
+        self.assertEqual({r["shape"] for r in b["money"]["daily"]["rows"]}, {None})              # 1 Jan asked for, not there
+        self.assertEqual((brief.whole("0.500000"), brief.whole("0.999999"), brief.whole("1.500000"), brief.whole("2.5")),
+                         ("under $1", "under $1", "$2", "$3"))
+        self.assertEqual([m for m in b["what_it_means"] if m["rule"] == "schedule"], [])         # two days are not a schedule
+
+
+@unittest.skipUnless(os.environ.get("BRIEF_REAL_FLOWS"), "set BRIEF_REAL_FLOWS to a folder holding the 4-10 Oct 2026 files")
+class TheRealDailyMoney(unittest.TestCase):
+    """4 to 10 Oct 2026, from the public daily files, read by eye against the page."""
+
+    def row(self, b, label):
+        return next(r for r in b["money"]["daily"]["rows"] if r["label"] == label)
+
+    def test_4_to_10_october(self):
+        b = brief.build(os.environ["BRIEF_REAL_FLOWS"], "2026-10-04", "2026-10-10")
+        cells = lambda r: [brief.whole(v) for v in r["usdc_by_day"].values()]
+        self.assertEqual(cells(self.row(b, "All sellers")), ["$1,627", "$1,093", "$1,898", "$2,370", "$2,395", "$3,081", "$2,121"])
+        xp = self.row(b, "api-xpay.com")
+        self.assertEqual((cells(xp), xp["shape"]), (["$287", "$328", "$408", "$408", "$409", "$409", "$409"], "uneven"))
+        self.assertEqual(cells(self.row(b, "ax1-new.vercel.app")), ["$826", "$1", "$208", "$298", "$209", "$259", "$202"])
+
+    def test_6_to_10_october(self):
+        b = brief.build(os.environ["BRIEF_REAL_FLOWS"], "2026-10-06", "2026-10-10")
+        self.assertEqual(self.row(b, "api-xpay.com")["shape"], "flat")
+        self.assertIn("api-xpay.com took within 1% of the same amount every day for 5 days (6–10 Oct 2026): a schedule, not a crowd.",
+                      [m["says"] for m in b["what_it_means"]])
 
 
 class Command(unittest.TestCase):
