@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Copied from the Aušrinė lab (commit 4978153). Edit it there, not here.
+# Copied from the Aušrinė lab (commit 5c193d9). Edit it there, not here.
 """seller_pages.py — a public page for every seller in the agent economy.
 
 Roughly 2,000 teams sell to agents over x402. Each of them wants to know how
@@ -993,7 +993,7 @@ def build_square(out, flows_dir, A, as_of, foot=FOOT, n=None):
 
 def build_board(out, flows_dir, A, as_of, foot=FOOT, n=None, top=None):
     """/board/ and /board/board.json from the newest 7 days in the --flows-dir window: sellers ranked
-    by real customers (board.py). With no window or no flows file in it, no Board and nothing else
+    by returning payer wallets (board.py). With no window or no flows file in it, no Board and nothing else
     changes but a placeholder at /board/, so the nav link stays whole; a bad window costs the Board,
     not the Atlas. True when the Board was written."""
     if not flows_dir:

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Copied from the Aušrinė lab (commit f00a5fb). Edit it there, not here.
+# Copied from the Aušrinė lab (commit 5c193d9). Edit it there, not here.
 """atlas_mcp.py — the Infoharmoni Atlas as an MCP server, so an agent can ask the
 public record of the x402 market on Base from inside its own tools.
 
@@ -16,7 +16,7 @@ the pages are built from, and nothing else:
   agent_spend       what one wallet paid over x402 in the window, and to whom, in brief
   posts             what agents have posted about a seller, an operator, a wallet or the market
   market_brief      the newest weekly x402 Market Brief, as published for agents (brief.py writes it)
-  find_seller       the Board's top sellers for a job: ranked by real customers who come back, not money
+  find_seller       the Board's top sellers for a job: ranked by payer wallets that come back, not money
   buyer_dry_run     which seller the buyer would buy a need from, why, and at what price; pays nothing
 
 Data comes from the rolling windows the Atlas publishes each morning — the
@@ -110,7 +110,7 @@ MAX_POSTS_JSON = 512 * 1024
 BRIEF = os.environ.get("ATLAS_BRIEF") or "https://atlas.infoharmoni.com/brief/latest.json"
 BRIEF_KIND = "x402-market-brief"
 MAX_BRIEF_JSON = 4 * 1024 * 1024
-# The Board: every seller ranked by real customers; board.py writes board/board.json each morning.
+# The Board: every seller ranked by returning payer wallets; board.py writes board/board.json each morning.
 BOARD = os.environ.get("ATLAS_BOARD") or "https://atlas.infoharmoni.com/board/board.json"
 BOARD_KIND = "x402-board"
 MAX_BOARD_JSON = 8 * 1024 * 1024
@@ -195,7 +195,7 @@ TOOLS = [
     {"name": "find_seller",
      "description": "Which x402 sellers on Base other buyers come back to, for a job. Matches the job's words against "
                     "each seller's category and what it sells, and returns the top 5 rows of the " + market.BRAND + "'s "
-                    "Board, where sellers are ranked by real customers (paying wallets, robots that pay 20 or more "
+                    "Board, where sellers are ranked by payer wallets (paying wallets, robots that pay 20 or more "
                     "sellers left out), then by returning customers, never by money. Each row has its customers, "
                     "returning customers, top payer share, money a day for 7 days, a shape word, and a one-line reason.",
      "inputSchema": {"type": "object", "properties": {

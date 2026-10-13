@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
-# Copied from the Aušrinė lab (commit 1afc427). Edit it there, not here.
-"""board.py — The Board: every x402 seller on Base ranked by real customers, not by money.
+# Copied from the Aušrinė lab (commit 5c193d9). Edit it there, not here.
+"""board.py — The Board: every x402 seller on Base ranked by the payer wallets that come back, not by money.
 
 A directory that ranks by payments rewards loops and single payers: one wallet paying
 itself through a seller, or one big payer, puts a seller on top. The Board answers the
@@ -251,7 +251,7 @@ def _row(r, site):
 
 def _table(rows, site):
     return ('<div class="tw"><table class="board"><thead><tr><th class="n">#</th><th>Seller</th><th>What it sells</th>'
-            '<th>Price</th><th class="n">Customers</th><th class="n">Returning</th><th class="n">Top payer</th>'
+            '<th>Price</th><th class="n">Payer wallets</th><th class="n">Came back</th><th class="n">Top payer</th>'
             '<th>USDC a day, oldest first</th><th>Shape</th></tr></thead><tbody>'
             + "".join(_row(r, site) for r in rows) + "</tbody></table></div>")
 
@@ -263,18 +263,19 @@ def page(b, site=SITE, as_of=None, foot=None, n=None):
     w = b["window"]
     as_of = as_of or w["to"]
     rng = "%s to %s" % (atlas_style.long_date(w["from"]), atlas_style.long_date(w["to"]))
-    lede = "Every x402 seller on Base, ranked by customers who come back, not by money. %s." % rng
+    lede = "Every x402 seller on Base, ranked by payer wallets that come back on another day, not by money. %s." % rng
     ctx = {"root": esc(site), "css": esc(site) + "/atlas.css", "canon": esc(site) + "/board/",
-           "title": esc("%s: x402 sellers ranked by real customers · %s" % (TITLE, market.BRAND)), "desc": esc(lede)}
+           "title": esc("%s: x402 sellers ranked by returning payer wallets · %s" % (TITLE, market.BRAND)), "desc": esc(lede)}
     p = [atlas_style.HEAD % ctx, '<main id="main">',
          '<span class="eyebrow">%s · %s · Base · x402 only</span>' % (esc(TITLE), esc(rng)),
          "<h1>Who buyers come back to</h1>",
          '<p class="oneline">%s</p>' % esc(lede),
-         "<p>Money can be made by one payer, or by a wallet paying a seller again and again. Customers who come back "
-         "on another day are harder to make. So this list counts wallets, not dollars.</p>",
-         '<ul class="cav"><li><b>Customers</b>: wallets that paid the seller this week. A wallet that paid %d or more '
+         "<p>Money can be made by one payer, or by a wallet paying a seller again and again. So this list counts payer "
+         "wallets that come back on another day, not dollars. A wallet is not a customer you can see: one operator can "
+         "run many wallets, and this list cannot tell. Read it as a lead, not a verdict.</p>",
+         '<ul class="cav"><li><b>Payer wallets</b>: wallets that paid the seller this week. A wallet that paid %d or more '
          "different sellers is a robot and is not counted (%s this week); its money still counts.</li>"
-         "<li><b>Returning</b>: customers that paid on 2 or more days.</li>"
+         "<li><b>Came back</b>: payer wallets that paid on 2 or more days.</li>"
          "<li><b>Top payer</b>: the share of the seller's USDC from its largest payer. Over half, and the row is marked "
          '<span class="pill one-payer">%s</span> and placed after every seller that is not.</li>'
          "<li><b>Shape</b> of the money a day: <b>flat</b> every day within 10%% of the middle day; <b>spike</b> one day "
@@ -309,9 +310,9 @@ def placeholder(out, site=SITE, as_of=None, foot=None, n=None):
     if os.path.exists(path):
         return False
     site = site.rstrip("/")
-    lede = "Every x402 seller on Base, ranked by customers who come back, not by money."
+    lede = "Every x402 seller on Base, ranked by payer wallets that come back on another day, not by money."
     ctx = {"root": esc(site), "css": esc(site) + "/atlas.css", "canon": esc(site) + "/board/",
-           "title": esc("%s: x402 sellers ranked by real customers · %s" % (TITLE, market.BRAND)), "desc": esc(lede)}
+           "title": esc("%s: x402 sellers ranked by returning payer wallets · %s" % (TITLE, market.BRAND)), "desc": esc(lede)}
     d = {"root": esc(site), "issue": atlas_style.ISSUES, "as_of": as_of, "n": n}
     p = [atlas_style.HEAD % ctx, '<main id="main">', "<h1>Who buyers come back to</h1>",
          '<p class="oneline">%s</p>' % esc(lede),

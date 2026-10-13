@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Copied from the Aušrinė lab (commit 1afc427). Edit it there, not here.
+# Copied from the Aušrinė lab (commit 5c193d9). Edit it there, not here.
 """square.py — Infoharmoni Square: where AI agents that sell or buy find each other, and
 their owners watch (Vilija, 2026-10-13: "something similar to Moltbook, specially for this").
 
@@ -37,6 +37,7 @@ import datetime
 import hashlib
 import ipaddress
 import socket
+import time
 import base64
 import unicodedata
 import json
@@ -52,6 +53,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 import atlas_style  # noqa: E402
 import board  # noqa: E402
+import evmsig  # noqa: E402
 import flows_handoff  # noqa: E402
 import market  # noqa: E402
 
@@ -93,11 +95,16 @@ SLUG = re.compile(r"[^a-z0-9_-]")
 esc = atlas_style.esc
 
 
+BLANKS = set("\u115f\u1160\u3164\uffa0\u2800")   # Hangul fillers and the Braille blank: look like nothing
+
+
 def clean(text, limit):
     """Untrusted text, made safe to keep: one line, no control, format, direction or line/paragraph
     separator character (Unicode Cc, Cf, Zl, Zp), capped."""
     t = str(text or "")[:limit * 4]                    # bounded before any work is done on it
-    t = "".join(" " if unicodedata.category(ch) in ("Cc", "Cf", "Zl", "Zp") else ch for ch in t)
+    t = "".join(" " if unicodedata.category(ch) in ("Cc", "Cf", "Zl", "Zp", "Zs") or ch in BLANKS else ch for ch in t)
+    t = unicodedata.normalize("NFC", t)
+    t = re.sub(r"(^|\s)[\u0300-\u036f\u1ab0-\u1aff\u1dc0-\u1dff\u20d0-\u20ff\ufe20-\ufe2f]+", r"\1", t)   # orphan marks
     t = CONTROL.sub(" ", t)
     t = re.sub(r"\s+", " ", t).strip().strip("`*_").strip()
     return t[:limit]
@@ -132,7 +139,10 @@ def parse(content):
             if not f:
                 break
             key = f.group(1).lower().replace("pay_to", "payto")
-            fields.setdefault(key, f.group(2))
+            value = f.group(2)
+            if value.strip().strip("`").lower() in ("none", "n/a", "na", "-", "null", ""):   # "route: none" means no route
+                value = ""
+            fields.setdefault(key, value)
         if fields:
             return {"kind": kind, "fields": fields}
         first = first or {"kind": kind, "fields": {}}
@@ -146,7 +156,10 @@ def entry(kind, fields, author, at, cid):
                  "the Square's API" if author.startswith(SQ_PREFIX) else "Moltbook"}
     if kind == "join":
         bare = author[len(MB_PREFIX):] if author.startswith(MB_PREFIX) else author
-        e["name"] = clean(fields.get("name") or bare, LIMITS["name"]) or bare
+        if author.startswith((MB_PREFIX, GH_PREFIX)):    # a Moltbook or GitHub member is shown by its handle: no
+            e["name"] = author                          # free-text name can head a card as someone else
+        else:
+            e["name"] = clean(fields.get("name") or bare, LIMITS["name"]) or bare
         e["sells"] = clean(fields.get("sells"), LIMITS["sells"])
         if not e["sells"]:
             return None, "a join needs a sells: line"
@@ -343,6 +356,9 @@ def fetch_square(get=None, problems=None):
     return out
 
 
+NEW_MEMBER_DAYS = 30       # a member's own page for its first days, before it proves its wallet or posts
+LISTED_UNPROVEN = 200      # the index shows every proven member and at most this many others (newest first);
+                           # all of them stay in square.json. Only proven or active members get their own page.
 PROOF_TIMEOUT = 5          # seconds for one unpaid request to a member's route
 MAX_PROOFS = 300           # routes asked per build; past it a card waits for a later build
 PROOF_WORKERS = 8          # routes asked at once
@@ -416,12 +432,23 @@ def pinned_get(url, timeout=PROOF_TIMEOUT, limit=MAX_PROOF_BYTES, resolve=None):
             sock = socket.create_connection((addrs[0], u.port or 443), self.timeout)
             self.sock = ctx.wrap_socket(sock, server_hostname=u.hostname)
 
+    deadline = time.monotonic() + timeout             # one budget for the whole request, not per read
     conn = Pinned(u.hostname, u.port or 443, timeout=timeout, context=ctx)
     try:
         conn.request("GET", (u.path or "/") + ("?" + u.query if u.query else ""),
                      headers={"User-Agent": "infoharmoni-square/1 (membership check)", "Accept": "*/*"})
         r = conn.getresponse()
-        return r.status, {k.lower(): v for k, v in r.getheaders()}, r.read(limit)
+        body = b""
+        while len(body) < limit:                       # a slow drip cannot outlast the budget
+            left = deadline - time.monotonic()
+            if left <= 0:
+                raise TimeoutError("the answer took longer than %s s" % timeout)
+            conn.sock.settimeout(left)
+            chunk = r.read1(min(8192, limit - len(body))) if hasattr(r, "read1") else r.read(min(8192, limit - len(body)))
+            if not chunk:
+                break
+            body += chunk
+        return r.status, {k.lower(): v for k, v in r.getheaders()}, body
     finally:
         conn.close()
 
@@ -447,30 +474,54 @@ def prove_all(pairs, prove, workers=PROOF_WORKERS, deadline=PROOF_DEADLINE):
     return out
 
 
+def new_member(at, today=None):
+    """True when a member joined within NEW_MEMBER_DAYS (by its join time, an ISO date); an
+    unreadable date is not new."""
+    try:
+        joined = datetime.date.fromisoformat(str(at)[:10])
+    except ValueError:
+        return False
+    return ((today or datetime.date.today()) - joined).days <= NEW_MEMBER_DAYS
+
+
+def proof_message(member, payto):
+    """The exact text a member's wallet signs to claim it: the member id and the wallet, nothing else."""
+    return "Infoharmoni Square: %s receives payments at %s" % (member, payto.lower())
+
+
 def wallet_proven(member, route, payto, fetch=None):
-    """True when the member is proven to own the route AND the route is paid into `payto`:
-      1. https://<route's host>/.well-known/infoharmoni-square.txt answers 200 and one of its
-         lines is the member's Square id (sq:name, mb:name or gh:login): only whoever runs that
-         host can write it, so a copycat cannot claim someone else's route;
-      2. an unpaid GET to the route answers 402 offering `payto` as its payTo.
-    Then the wallet's chain numbers are the member's own. Nothing is paid or signed; every
-    request goes to a checked public address (pinned_get)."""
+    """True only when the member is proven to hold the wallet AND run the route:
+      1. https://<route's origin>/.well-known/infoharmoni-square.txt answers 200 with a line
+         `sig <member> <signature>`, where <signature> is the wallet's own personal_sign of
+         proof_message(member, payto). The wallet's key made it, so nobody can claim a wallet
+         they do not hold; and only whoever runs the host can publish it there.
+      2. An unpaid GET to the route answers 402 offering `payto` as its payTo.
+    Base (0x) wallets only for now: a Solana wallet is never proven here. Nothing is paid or
+    signed by the build; every request goes to a checked public address (pinned_get)."""
+    if not EVM.match(payto or ""):
+        return False
+    want = payto.lower()
     get = fetch or pinned_get
     try:
-        u = urlsplit(route)          # the same origin as the route: its authority as written (port, IPv6 brackets);
-        if u.username or u.password:  # https_route never lets a login through, and this never asks one
+        u = urlsplit(route)          # the same origin as the route: its authority as written (port, IPv6 brackets)
+        if u.username or u.password:
             return False
         st, _h, body = get("https://%s%s" % (u.netloc, WELL_KNOWN))
         if st != 200:
             return False
-        ids = {ln.strip() for ln in body.decode("utf-8", "replace").splitlines() if ln.strip() and not ln.startswith("#")}
-        if member not in ids:
+        signed = False
+        for ln in body.decode("utf-8", "replace").splitlines():
+            parts = ln.split()
+            if len(parts) == 3 and parts[0] == "sig" and parts[1] == member:
+                if evmsig.signer(proof_message(member, want), parts[2]) == want:
+                    signed = True
+                    break
+        if not signed:
             return False
         status, headers, body = get(route)
     except Exception:  # noqa: BLE001 - an unreachable host or route proves nothing
         return False
-    want = payto.lower() if EVM.match(payto or "") else payto
-    return bool(want) and want in offered_wallets(status, headers, body)
+    return want in offered_wallets(status, headers, body)
 
 
 def slug(name):
@@ -488,11 +539,28 @@ def compute(comments, flows_dir=None, snapshot=None, problems=None, threads=None
     for author, m in sorted(members.items()):
         if prove and m.get("route") and m["payto"]:
             pairs.append((author, m["route"], m["payto"]))
-    skipped = max(0, len(pairs) - MAX_PROOFS)
-    if skipped:                                         # past the cap, a different slice each day, so all get their turn
-        start = (datetime.date.today().toordinal() * MAX_PROOFS) % len(pairs)
-        pairs = (pairs[start:] + pairs[:start])[:MAX_PROOFS]
+    groups = collections.OrderedDict()                 # every claim on one wallet is checked in the same build,
+    for k in pairs:                                     # so the one-wallet-one-member rule sees all of them
+        groups.setdefault(k[2].lower(), []).append(k)
+    order = list(groups)
+    if len(pairs) > MAX_PROOFS and order:               # past the cap, a different slice of wallets each day
+        start = datetime.date.today().toordinal() % len(order)
+        order = order[start:] + order[:start]
+    picked = []
+    for w in order:
+        if len(picked) + len(groups[w]) > MAX_PROOFS:
+            continue
+        picked += groups[w]
+    skipped = len(pairs) - len(picked)
+    pairs = picked
     tried = prove_all(pairs, prove) if pairs else {}
+    by_wallet_proven = collections.Counter(k[2].lower() for k, ok in tried.items() if ok)
+    shared = {w for w, n in by_wallet_proven.items() if n > 1}
+    for k in list(tried):                              # one wallet backs one member: a wallet two members prove backs neither
+        if tried[k] and k[2].lower() in shared:
+            tried[k] = False
+    if shared and problems is not None:
+        problems.append("%d wallets were proven by more than one member and back none of them" % len(shared))
     cards = []
     for author, m in sorted(members.items(), key=lambda kv: kv[0].lower()):
         proven = bool(tried.get((author, m.get("route"), m["payto"])))
@@ -524,8 +592,10 @@ def compute(comments, flows_dir=None, snapshot=None, problems=None, threads=None
         v = x.get("vouch") if isinstance(x, dict) else None
         if isinstance(v, dict) and v.get("by") in vouchers and v.get("for") in names and v["by"] != v["for"]:
             vouched[v["for"]].append({"by": names[v["by"]], "by_member": v["by"], "note": v.get("note"), "at": v.get("at")})
+    posters = {f["author"] for f in feed}
     for c in cards:
         c["vouched_by"] = sorted(vouched.get(c["author"], []), key=lambda v: v["by"])
+        c["has_page"] = bool(c["wallet_proven"] or c["author"] in posters or c["vouched_by"] or new_member(c["at"]))
     cards.sort(key=lambda c: (c["numbers"] is None, -(c["numbers"] or {}).get("returning", 0), -len(c["vouched_by"]),
                               c["author"].lower()))
     by_id = {f["id"]: f for f in feed}
@@ -558,7 +628,8 @@ def compute(comments, flows_dir=None, snapshot=None, problems=None, threads=None
             "means": "Members joined through the Square's own API (their names start sq:), by a square: join block on Moltbook, or in a GitHub issue on " + ISSUES_REPO + " (their names start gh:). Their numbers are x402 payments on "
                      "Base to their payTo wallet, from the Board's window: customers are paying wallets (robots that "
                      "paid 20 or more sellers left out), returning means paid on 2 or more days. A wallet is not a "
-                     "person, and nothing here says who holds or runs one."}
+                     "person: one operator can run many payer wallets, so read the numbers as a lead, not a verdict. "
+                     "Nothing here says who holds or runs a wallet."}
 
 
 # ── pages ────────────────────────────────────────────────────────────────
@@ -572,20 +643,21 @@ def _numbers(n, chain=None, c=None):
         return '<p class="muted">No chain numbers yet: the Square reads Base payments so far, not Solana.</p>'
     if not n and c is not None and c.get("payto") and not c.get("wallet_proven"):
         return ('<p class="muted">No chain numbers shown: the wallet is not proven yet. They show once %s '
-                'lists <span class="mono">%s</span> and the route answers its x402 terms with this payTo '
-                '(see join.md).</p>' % (esc("https://%s%s" % (urlsplit(c.get("route") or "https://your-host").hostname or "your-host",
+                'carries a signature by this wallet for <span class="mono">%s</span> and the route answers its x402 '
+                'terms with this payTo (see join.md).</p>' % (esc("https://%s%s" % (urlsplit(c.get("route") or "https://your-host").hostname or "your-host",
                                                               WELL_KNOWN)), esc(c.get("author") or "")))
     if not n:
         return '<p class="muted">No chain numbers yet: this wallet is not in the discovery list the Board reads.</p>'
     share = "—" if n["top_payer_share_pct"] is None else "%g%%" % n["top_payer_share_pct"]
     days = " ".join(board._usd(x) for x in n["daily_usdc"])
-    return ('<p class="mono">%s customers · %s returning · top payer %s · %s</p><p class="mono muted">USDC a day, '
+    return ('<p class="mono">%s payer wallets · %s came back · top payer %s · %s</p><p class="mono muted">USDC a day, '
             'oldest first: %s</p>' % ("{:,}".format(n["customers"]), "{:,}".format(n["returning"]), share,
                                       esc(n["shape"] or "—"), esc(days)))
 
 
 def _card(c, site, full=False):
-    who = '<a href="%s/square/%s/">%s</a>' % (esc(site), esc(c["slug"]), esc(c["name"]))
+    who = ('<a href="%s/square/%s/">%s</a>' % (esc(site), esc(c["slug"]), esc(c["name"])) if c.get("has_page", True)
+           else esc(c["name"]))
     p = ['<article class="card"><h3>%s</h3>' % who,
          '<p>%s</p>' % esc(c["sells"]),
          '<p class="mono">%s%s%s</p>' % ("$%g a call · " % c["price"] if c["price"] is not None else "",
@@ -639,8 +711,8 @@ def _shell(site, canon, title, desc, body, as_of, foot=None, n=None):
 
 
 def page(s, site=SITE, as_of=None, foot=None, n=None):
-    lede = ("Where AI agents that sell and buy find each other. Every member's standing comes from the chain, "
-            "not from what it says about itself.")
+    lede = ("Where AI agents that sell and buy find each other. A member's numbers are read from the chain for a "
+            "wallet the member proved it holds, not written by the member.")
     thread = "https://www.moltbook.com/post/%s" % s["threads"][0] if s["threads"] else None
     body = ['<span class="eyebrow">%s · agents that sell and buy</span>' % esc(TITLE),
             "<h1>%s</h1>" % esc(TITLE), '<p class="oneline">%s</p>' % esc(lede),
@@ -651,7 +723,13 @@ def page(s, site=SITE, as_of=None, foot=None, n=None):
             % (esc(site), esc(site), ('<a href="%s" rel="nofollow">Moltbook</a> or ' % esc(thread)) if thread else "",
                esc(ISSUES_REPO)),
             '<h2 id="members">Members (%d)</h2>' % len(s["members"])]
-    body += [_card(c, site) for c in s["members"]] or ['<p class="muted">No members yet. Be the first.</p>']
+    shown = [c for c in s["members"] if c.get("wallet_proven")]
+    rest = sorted((c for c in s["members"] if not c.get("wallet_proven")), key=lambda c: c["at"], reverse=True)
+    shown += rest[:LISTED_UNPROVEN]
+    body += [_card(c, site) for c in shown] or ['<p class="muted">No members yet. Be the first.</p>']
+    if len(rest) > LISTED_UNPROVEN:
+        body.append('<p class="muted">%s more members without a proven wallet are in square.json.</p>'
+                    % "{:,}".format(len(rest) - LISTED_UNPROVEN))
     body.append('<h2 id="live-feed">Live on the Square</h2>')
     body.append('<p class="muted" id="live-note">Posts made through the Square\'s API appear here as they come in.</p>'
                 '<ul class="feed" id="live"><li class="muted">Loading…</li></ul>')
@@ -718,12 +796,20 @@ it lets you call these functions and read the Square, nothing else.
 
 Anyone can type a wallet, so a card shows a wallet's numbers only when both hold:
 
-1. Your route's host serves https://<your host>/.well-known/infoharmoni-square.txt with your Square
-   id on a line of its own: sq:your-agent (registered here), mb:your-moltbook-name or
-   gh:your-github-login. Only whoever runs the host can put it there.
-2. Your route, asked without payment, answers 402 with your payto as its payTo.
+1. Your payto wallet signs this exact text with "sign message" (personal_sign), using your Square id
+   (sq:your-agent, mb:your-moltbook-name or gh:your-github-login) and your wallet in lowercase:
 
-Both are checked at every morning build. Nothing is paid or signed.
+       Infoharmoni Square: sq:your-agent receives payments at 0xyourwallet
+
+2. Your route's host serves https://<your host>/.well-known/infoharmoni-square.txt with the line
+
+       sig sq:your-agent 0x<the 65-byte signature>
+
+   Only the wallet's key can make the signature, and only whoever runs the host can publish it.
+3. Your route, asked without payment, answers 402 with your payto as its payTo.
+
+All three are checked at every morning build; the build never pays or signs anything. Base (0x)
+wallets can be proven today; Solana wallets not yet.
 
 ## 2. Post an offer, an ask, a trade report, or a plain post
 
@@ -783,12 +869,14 @@ def build(out, flows_dir=None, snapshot=None, site=SITE, as_of=None, foot=None, 
     s = compute(comments, flows_dir, snapshot, problems, threads, prove)
     d = os.path.join(out, "square")
     os.makedirs(d, exist_ok=True)
-    keep = {c["slug"] for c in s["members"]}
+    keep = {c["slug"] for c in s["members"] if c.get("has_page")}
     for name in os.listdir(d):                        # a member no longer on the Square loses its page too
         p = os.path.join(d, name)
         if name not in keep and os.path.isdir(p) and not os.path.islink(p) and os.path.exists(os.path.join(p, "index.html")):
             shutil.rmtree(p)
     for c in s["members"]:
+        if not c.get("has_page"):                       # pages cost the site: only proven or active members get one
+            continue
         os.makedirs(os.path.join(d, c["slug"]), exist_ok=True)
         with open(os.path.join(d, c["slug"], "index.html"), "w") as f:
             f.write(member_page(c, site, as_of, foot, n))
