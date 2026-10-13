@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Copied from the Aušrinė lab (commit 237121e). Edit it there, not here.
+# Copied from the Aušrinė lab (commit 4978153). Edit it there, not here.
 """brief_test.py — the weekly brief, built from a window small enough to count by hand.
 
 Four Base days (2026-01-01 to 2026-01-04: halves 1-2 and 3-4) and two Solana days. Every
@@ -527,6 +527,11 @@ class Schedule(unittest.TestCase):
                         "2026-01-01", "2026-01-03")
         self.assertEqual([m for m in b["what_it_means"] if m["rule"] == "schedule"], [])         # 2 Jan unknown
         self.assertEqual({r["shape"] for r in b["money"]["daily"]["rows"]}, {None})              # no shape across a gap
+        row = b["money"]["daily"]["rows"][0]
+        self.assertEqual(list(row["usdc_by_day"]), ["2026-01-01", "2026-01-02", "2026-01-03"])  # the gap keeps its column
+        self.assertIsNone(row["usdc_by_day"]["2026-01-02"])
+        self.assertIsNone(row["payers_by_day"]["2026-01-02"])
+        self.assertEqual(brief.whole(None), "no data")
         b = brief.build(fixture({"2026-01-01": [x(A, S1, 1, 100.0)], "2026-01-02": [x(A, S1, 1, 101.004)],
                                  "2026-01-03": [x(A, S1, 1, 100.0)]}, sol=None), "2026-01-01", "2026-01-03")
         self.assertEqual([m for m in b["what_it_means"] if m["rule"] == "schedule"], [])         # 1.004% rounds to 1.0, is not within

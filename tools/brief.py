@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Copied from the Aušrinė lab (commit 237121e). Edit it there, not here.
+# Copied from the Aušrinė lab (commit 4978153). Edit it there, not here.
 """brief.py — the weekly x402 Market Brief, written from the data: one command, one page
 for people and one JSON file for agents, every number computed and dated.
 
@@ -394,7 +394,8 @@ def daily(dates, rows, top, by_seller, asked=None):
     """money.daily: one row for all sellers, then one for each top seller, each with its money
     and its paying wallets on every day of the window, a shape word, and the days on which one
     edge was more than half of that day's money."""
-    whole = bool(dates) and list(dates) == list(asked or span(dates[0], dates[-1]))   # every requested day is here
+    cal = list(asked or (span(dates[0], dates[-1]) if dates else []))   # every requested day, a missing one as None
+    whole = bool(dates) and list(dates) == cal
 
     def row(rs):
         per = {d: [] for d in dates}
@@ -407,15 +408,16 @@ def daily(dates, rows, top, by_seller, asked=None):
             le = largest(per[d], m)
             if le and le["over_half"]:
                 one_edge.append(le)
-        return {"usdc": usd(total), "usdc_by_day": {d: six(m) for d, m in zip(dates, micros)},
-                "payers_by_day": {d: len({e.payer for e in per[d]}) for d in dates},
+        got = dict(zip(dates, micros))
+        return {"usdc": usd(total), "usdc_by_day": {d: six(got[d]) if d in got else None for d in cal},
+                "payers_by_day": {d: len({e.payer for e in per[d]}) if d in got else None for d in cal},
                 "shape": shape(micros) if whole else None, "spread_pct": spread_pct(micros),
                 "within_schedule": whole and schedule_ok(micros),
                 "days_paid": sum(1 for m in micros if m), "largest_edge": largest(rs, total), "one_edge_days": one_edge}
     out = [dict({"row": "all", "label": "All sellers"}, **row(rows))]
     for x in top:
         out.append(dict(x, row="seller", label=seller_words(x), **row(by_seller[x["wallet"]])))
-    return {"dates": dated(dates), "days": list(dates), "rows": out,
+    return {"dates": dated(dates), "days": cal, "rows": out,
             "shapes": {"flat": "every day within 10% of the median, and the median above $1",
                        "spike": "one day more than half of the window's total",
                        "gone quiet": "the last two days each under 5% of the busiest day, while an earlier day was $20 or more",
@@ -776,8 +778,10 @@ def note_row(note, cols):
 
 
 def whole(micro_text):
-    """A day's money in whole dollars for the daily table: "$0" for a day with no payment, and
+    """A day's money in whole dollars for the daily table: "no data" for a day with no file, "$0" for a day with no payment, and
     "under $1" for a day with some that rounds to nothing."""
+    if micro_text is None:
+        return "no data"
     x = float(micro_text)
     if not x:
         return "$0"
