@@ -69,7 +69,8 @@ jobs:
             echo "::warning::today's build wrote no square.json; the data branch keeps the last one"
           fi
           cd branch
-          git add -A radar flows square
+          git add -A radar flows
+          [ -d square ] && git add -A square
           if git diff --cached --quiet; then echo "the data branch already holds today's window"; exit 0; fi
           git config user.name "Ausrine Jurgutis"                    # a rebase after a lost push race needs a name too
           git config user.email "ausrine@infoharmoni.com"
