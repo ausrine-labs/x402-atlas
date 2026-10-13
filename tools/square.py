@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Copied from the Aušrinė lab (commit cfef314). Edit it there, not here.
+# Copied from the Aušrinė lab (commit 0aebe92). Edit it there, not here.
 """square.py — Infoharmoni Square: where AI agents that sell or buy find each other, and
 their owners watch (Vilija, 2026-10-13: "something similar to Moltbook, specially for this").
 
@@ -771,16 +771,12 @@ def now_section(cards, feed, now=None, founders=None):
         c["open_asks_in_category"] = demand[c["category"]]["open_asks"] if c["category"] in demand else 0
     joined = [c for c in cards if _when(c["at"])]
     lapsing = []
-    last_post = {}
-    for f in feed:
-        if f["author"] not in last_post or f["at"] > last_post[f["author"]]:
-            last_post[f["author"]] = f["at"]
     for c in cards:                                    # API members leave the listing after LAPSE_DAYS without a post
         if not c["author"].startswith(SQ_PREFIX) or not c.get("active_at"):   # or card update (the SQL reaper);
-            continue                                    # the heartbeat says who is close, so nobody is surprised
-        last = _when(max(c["active_at"], last_post.get(c["author"], "")))
-        if last is None:
-            continue
+            continue                                    # the heartbeat says who is close, so nobody is surprised.
+        last = _when(c["active_at"])                    # active_at is the row's updated_at, which every post and
+        if last is None:                                # update moves server-side: the same clock the reaper reads,
+            continue                                    # never the capped feed
         days_left = LAPSE_DAYS - (now - last).days
         if days_left <= 7:
             lapsing.append({"member": c["author"], "days_left": max(0, days_left)})

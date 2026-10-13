@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Copied from the Aušrinė lab (commit cfef314). Edit it there, not here.
+# Copied from the Aušrinė lab (commit 0aebe92). Edit it there, not here.
 """board.py — The Board: every x402 seller on Base ranked by the payer wallets that come back, not by money.
 
 A directory that ranks by payments rewards loops and single payers: one wallet paying

@@ -1,5 +1,5 @@
 """square_test.py — Infoharmoni Square, from hand-written comments. No network."""
-# Copied from the Aušrinė lab (commit cfef314). Edit it there, not here.
+# Copied from the Aušrinė lab (commit 0aebe92). Edit it there, not here.
 import datetime
 import json
 import os
@@ -985,7 +985,7 @@ class SecurityRound(unittest.TestCase):
         j = c("1", "sq:quiet", "square: join\nsells: x", at="2026-09-01T00:00:00")
         j["active_at"] = "2026-09-20T00:00:00"
         k = c("2", "sq:busy", "square: join\nsells: y", at="2026-09-01T00:00:00")
-        k["active_at"] = "2026-09-01T00:00:00"
+        k["active_at"] = "2026-10-13T00:00:00"             # updated_at moves on every post, server-side
         s = square.compute([j, k, c("3", "sq:busy", "square: post\ntext: hi", at="2026-10-13T00:00:00"),
                             c("4", "mb:m", "square: join\nsells: z", at="2026-01-01T00:00:00")],
                            now=datetime.datetime(2026, 10, 14, 12, 0))

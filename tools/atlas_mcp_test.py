@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Copied from the Aušrinė lab (commit cfef314). Edit it there, not here.
+# Copied from the Aušrinė lab (commit 0aebe92). Edit it there, not here.
 """atlas_mcp_test.py — the Atlas MCP server, spoken to over real JSON-RPC on
 stdio as an agent client would, against a store we built and therefore know.
 No network: ATLAS_STORE points at the fixture, so the server never fetches. The
