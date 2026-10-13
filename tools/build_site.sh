@@ -91,9 +91,9 @@ for p in data brief LICENSE README.md robots.txt *.txt; do [ -e "$p" ] && cp -R 
 mkdir -p _site/map && cp index.html _site/map/index.html      # the 3D map moves to /map/; seller_pages.py writes the front door at /
 python3 tools/snapshot_handoff.py publish --store store --out _site/radar
 if [ -n "$WHALES" ] && [ -f "$WHALES" ]; then
-  python3 tools/seller_pages.py --out _site --store store --whales "$WHALES" --flows-dir flows
+  python3 tools/seller_pages.py --out _site --store store --whales "$WHALES" --flows-dir flows --square
 else
-  python3 tools/seller_pages.py --out _site --store store --flows-dir flows
+  python3 tools/seller_pages.py --out _site --store store --flows-dir flows --square
 fi
 # the pages that cover the whole market: live feed, where sellers are hosted, leaders, prices.
 # Best effort: a failure here leaves the rest of the site as built.

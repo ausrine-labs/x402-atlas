@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Copied from the Aušrinė lab (commit f00a5fb). Edit it there, not here.
+# Copied from the Aušrinė lab (commit 054ddf8). Edit it there, not here.
 """atlas_style.py — the one look of the Infoharmoni Atlas: stylesheet, header, footer.
 
 Every page the site build writes carries the same three things, written here once:
@@ -120,6 +120,8 @@ a code{text-decoration:none}
 pre.code{font:13px/1.6 var(--mono);background:var(--panel);border:1px solid var(--rule);border-radius:var(--radius);padding:16px 18px;overflow-x:auto;white-space:pre-wrap;overflow-wrap:anywhere;color:var(--ink);margin:12px 0}
 pre.code .k{color:var(--seller-ink);font-weight:600}pre.code .c{color:var(--muted)}pre.code .p{color:var(--buyer-ink);font-weight:600}
 ul.cav{color:var(--ink-2);font-size:15px;padding-left:20px;max-width:76ch}ul.cav li{margin-bottom:6px}
+/* Infoharmoni Square (square.py): member cards and the feed */
+.card{border:1px solid var(--rule);border-radius:var(--radius);background:var(--paper);padding:12px 16px;margin:12px 0}.card h3{margin:0 0 4px}.feed{padding-left:18px}.feed li{margin:10px 0}
 /* the Board (board.py): the week's money per day, and what each seller sells */
 .board td.days{font:12.5px/1.45 var(--mono);white-space:nowrap;color:var(--ink-2)}.board td.sells{min-width:26ch;max-width:44ch;font-size:14px;color:var(--ink-2)}.board td.shape{white-space:nowrap}
 /* buttons, boxes, cards */
@@ -260,7 +262,7 @@ HEAD = """<!doctype html><html lang="en"><meta charset="utf-8">
 <span class="netchips" title="Covers x402 payments on Base"><span class="chip-sm">x402</span><span class="chip-sm">Base</span></span>
 <form class="hsearch" role="search" action="%(root)s/" method="get"><label class="vh" for="hq">Search the record</label>
 <input id="hq" name="q" type="search" placeholder="Search sellers, operators, wallets, or a job" autocomplete="off"></form>
-<nav class="main" aria-label="Main"><a href="%(root)s/s/">Sellers</a><a href="%(root)s/o/">Operators</a><a href="%(root)s/b/">Buyers</a><a href="%(root)s/map/">Map</a><a href="%(root)s/board/">Board</a><a href="%(root)s/brief/">Brief</a><a href="%(root)s/leaders/">Leaders</a><a href="%(root)s/prices/">Prices</a><a href="%(root)s/where/">Where</a><a href="%(root)s/watch/">Watch</a><a href="%(root)s/pricing/">Pricing</a><a href="%(root)s/docs/">Docs</a><a href="%(root)s/about/">About</a><a href="%(root)s/contact/">Contact</a><a class="pro" href="%(root)s/pro.html">Pro</a></nav>
+<nav class="main" aria-label="Main"><a href="%(root)s/s/">Sellers</a><a href="%(root)s/o/">Operators</a><a href="%(root)s/b/">Buyers</a><a href="%(root)s/map/">Map</a><a href="%(root)s/board/">Board</a><a href="%(root)s/square/">Square</a><a href="%(root)s/brief/">Brief</a><a href="%(root)s/leaders/">Leaders</a><a href="%(root)s/prices/">Prices</a><a href="%(root)s/where/">Where</a><a href="%(root)s/watch/">Watch</a><a href="%(root)s/pricing/">Pricing</a><a href="%(root)s/docs/">Docs</a><a href="%(root)s/about/">About</a><a href="%(root)s/contact/">Contact</a><a class="pro" href="%(root)s/pro.html">Pro</a></nav>
 </div></header>
 """
 
@@ -268,7 +270,7 @@ FOOT = """<footer class="site"><div class="fwrap">
 <div class="fbrand"><a class="brand" href="%(root)s/about/">""" + LOGO + """<span class="bname">""" + market.COMPANY + """</span></a>
 <p>""" + market.COMPANY + """ makes """ + market.PRODUCT + """, the public record of agent commerce: every x402 payment on Base, read off the chain every morning.</p></div>
 <nav class="fcols" aria-label="Footer">
-<div><h2>Product</h2><a href="%(root)s/s/">Sellers</a><a href="%(root)s/o/">Operators</a><a href="%(root)s/b/">Buyers</a><a href="%(root)s/map/">The map</a><a href="%(root)s/leaders/">Leaderboards</a><a href="%(root)s/prices/">Price benchmarks</a><a href="%(root)s/where/">Where sellers are hosted</a><a href="%(root)s/pro.html">Atlas Pro</a><a href="%(root)s/watch/">Watch your agents</a><a href="%(root)s/pricing/">Pricing</a></div>
+<div><h2>Product</h2><a href="%(root)s/s/">Sellers</a><a href="%(root)s/o/">Operators</a><a href="%(root)s/b/">Buyers</a><a href="%(root)s/map/">The map</a><a href="%(root)s/board/">The Board</a><a href="%(root)s/square/">Infoharmoni Square</a><a href="%(root)s/leaders/">Leaderboards</a><a href="%(root)s/prices/">Price benchmarks</a><a href="%(root)s/where/">Where sellers are hosted</a><a href="%(root)s/pro.html">Atlas Pro</a><a href="%(root)s/watch/">Watch your agents</a><a href="%(root)s/pricing/">Pricing</a></div>
 <div><h2>Developers</h2><a href="%(root)s/docs/">Docs</a><a href="%(root)s/docs/#who">Paid API over x402</a><a href="%(root)s/docs/#mcp">MCP server</a><a href="%(root)s/docs/#exports">Pro exports</a></div>
 <div><h2>Company</h2><a href="%(root)s/about/">About """ + market.COMPANY + """</a><a href="%(root)s/claim.html">For sellers</a><a href="%(issue)s">Report an error</a></div>
 <div><h2>Contact</h2><a href="%(root)s/contact/">Contact us</a><a href="mailto:""" + EMAIL + """">""" + EMAIL + """</a><a href="https://x.com/""" + X_HANDLE + """">@""" + X_HANDLE + """ on X</a></div>
