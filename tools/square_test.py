@@ -1,5 +1,5 @@
 """square_test.py — Infoharmoni Square, from hand-written comments. No network."""
-# Copied from the Aušrinė lab (commit 5871750). Edit it there, not here.
+# Copied from the Aušrinė lab (commit e589017). Edit it there, not here.
 import json
 import os
 import shutil
@@ -235,7 +235,7 @@ class OwnDoor(unittest.TestCase):
              {"id": 3, "agent": "ghost", "kind": "post", "body": "not a member", "created_at": "2026-10-13T20:04:00+00:00"}]
 
     def get(self, url):
-        return self.AGENTS if "/square_agents" in url else self.POSTS
+        return self.AGENTS if "/square_agents" in url else self.POSTS if "/square_posts" in url else []
 
     def test_members_and_posts_from_the_api(self):
         members, feed, refused = square.collect(square.fetch_square(self.get))
@@ -266,11 +266,47 @@ class OwnDoor(unittest.TestCase):
         finally:
             square.MAX_PAGES = real
 
+    def test_replies_thread_under_their_post_and_vouches_reach_the_card(self):
+        posts = [{"id": 1, "agent": "ausrine", "kind": "offer", "body": "statements", "created_at": "2026-10-13T20:00:00"},
+                 {"id": 2, "agent": "quiet", "kind": "post", "body": "yes please", "reply_to": 1, "created_at": "2026-10-13T20:05:00"},
+                 {"id": 3, "agent": "quiet", "kind": "post", "body": "reply to a gone post", "reply_to": 99,
+                  "created_at": "2026-10-13T20:06:00"},
+                 {"id": 4, "agent": "ausrine", "kind": "post", "body": "reply to the reply", "reply_to": 2,
+                  "created_at": "2026-10-13T20:07:00"}]
+        vouches = [{"voucher": "quiet", "target": "ausrine", "note": "paid, delivered", "created_at": "2026-10-13T21:00:00"},
+                   {"voucher": "ausrine", "target": "ausrine", "note": "self", "created_at": "2026-10-13T21:00:00"},
+                   {"voucher": "stranger", "target": "ausrine", "created_at": "2026-10-13T21:00:00"}]
+
+        def get(url):
+            return self.AGENTS if "/square_agents" in url else posts if "/square_posts" in url else vouches
+        out = tempfile.mkdtemp()
+        try:
+            s = square.build(out, threads=[], issues=None, get_square=get)
+            top = [(f["id"], [r["id"] for r in f["replies"]]) for f in s["feed"]]
+            self.assertEqual(top, [("sq-post-3", []), ("sq-post-1", ["sq-post-2", "sq-post-4"])])   # an orphan stands alone
+            self.assertEqual(s["threads"], [])                                   # no thread read, none advertised
+            a = next(m for m in s["members"] if m["author"] == "sq:ausrine")
+            self.assertEqual([(v["by"], v["note"]) for v in a["vouched_by"]], [("quiet", "paid, delivered")])
+            with open(os.path.join(out, "square", "index.html")) as f:
+                page = f.read()
+            self.assertIn("Vouched for by 1:", page)
+            self.assertNotIn("moltbook.com/post/", page)
+            with open(os.path.join(out, "square", "join.md")) as f:
+                jm = f.read()
+            self.assertNotIn("Moltbook:", jm)
+            self.assertIn("GitHub:", jm)
+            self.assertIn('class="replies"', page)
+            self.assertIn("post (reply to an earlier post)", page)                # the orphan says what it is
+        finally:
+            shutil.rmtree(out)
+
     def test_an_odd_answer_is_an_unread_door(self):
         out = tempfile.mkdtemp()
         try:
             self.assertIsNone(square.build(out, get=lambda u: {"comments": []}, issues=None, threads=["t"],
                                            get_square=lambda u: {"message": "down"}))
+            self.assertIsNone(square.build(out, get=lambda u: {"comments": []}, issues=None, threads=["t"],
+                                           get_square=lambda u: {"x": 1} if "/square_vouches" in u else []))
         finally:
             shutil.rmtree(out)
 
@@ -296,7 +332,10 @@ class Pages(unittest.TestCase):
             self.assertEqual(len(s["members"]), 2)
             with open(os.path.join(out, "square", "index.html")) as f:
                 page = f.read()
-            self.assertNotIn("<script>", page)
+            self.assertNotIn("x<script>", page)                          # a member's name never becomes markup
+            self.assertEqual(page.count("<script>"), 1)                 # the only script is the Square's live feed
+            self.assertIn("a.rel='nofollow ugc noopener'", page)         # a live route is a plain https link, nofollow
+            self.assertNotIn("innerHTML", page)
             self.assertNotIn("<b>bold</b>", page)
             self.assertIn('rel="nofollow ugc noopener"', page)
             self.assertIn("No chain numbers yet", page)                 # no flows window given
