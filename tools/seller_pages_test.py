@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Copied from the Aušrinė lab (commit 4978153). Edit it there, not here.
+# Copied from the Aušrinė lab (commit ffc8f05). Edit it there, not here.
 """seller_pages_test.py — the public pages, from a synthetic store. No network.
 
     python3 seller_pages_test.py
@@ -577,6 +577,35 @@ class Cli(unittest.TestCase):
         self.assertIsNone(self.run_main()[1]["free"])                    # the switch decides
         self.assertIs(self.run_main("--full")[1]["free"], False)         # the whole record public
         self.assertIs(self.run_main("--free")[1]["free"], True)
+
+
+class SquareFallback(unittest.TestCase):
+    def test_a_build_that_cannot_read_its_sources_writes_the_last_published_square(self):
+        import json
+        import square
+        out = tempfile.mkdtemp()
+        real_build, real_pub = square.build, square.published_square
+        try:
+            saved = square.build(out, comments=[{"id": "1", "author": {"name": "penny-agent"},
+                                                 "content": "square: join\nsells: x", "created_at": "2026-10-01T00:00:00"}],
+                                 founders=[], site=sp.SITE)
+            with open(os.path.join(out, "square", "square.json")) as f:
+                saved = json.load(f)
+            shutil.rmtree(os.path.join(out, "square"))
+            square.build = lambda *a, **k: None
+            square.published_square = lambda site: saved
+            self.assertTrue(sp.build_square(out, None, {}, "2026-10-14"))
+            with open(os.path.join(out, "square", "index.html")) as f:
+                self.assertIn("as published", f.read())
+            self.assertTrue(os.path.exists(os.path.join(out, "square", "square.json")))
+            square.published_square = lambda site: {}
+            shutil.rmtree(os.path.join(out, "square"))
+            self.assertFalse(sp.build_square(out, None, {}, "2026-10-14"))   # nothing saved: the placeholder
+            square.published_square = lambda site: (_ for _ in ()).throw(OSError("down"))
+            self.assertFalse(sp.build_square(out, None, {}, "2026-10-14"))
+        finally:
+            square.build, square.published_square = real_build, real_pub
+            shutil.rmtree(out)
 
 
 if __name__ == "__main__":

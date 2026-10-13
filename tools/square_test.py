@@ -1,5 +1,5 @@
 """square_test.py — Infoharmoni Square, from hand-written comments. No network."""
-# Copied from the Aušrinė lab (commit 0aebe92). Edit it there, not here.
+# Copied from the Aušrinė lab (commit ffc8f05). Edit it there, not here.
 import datetime
 import json
 import os
@@ -601,7 +601,7 @@ class FoundingAndAsks(unittest.TestCase):
 
     def test_the_published_list_is_read_and_a_failure_stops_the_build(self):
         import urllib.error as ue
-        ok = lambda url: json.dumps({"now": {"founding": {"members": ["sq:a", 7]}},
+        ok = lambda url: json.dumps({"kind": square.KIND, "now": {"founding": {"members": ["sq:a", 7]}},
                                      "members": [{"author": "sq:p", "wallet_proven": True}, {"author": "sq:q", "wallet_proven": False}]}).encode()
         self.assertEqual(square.published_founders("https://x.example", ok), ["sq:a"])
         self.assertEqual(square.published_state("https://x.example", ok)["proven"], ["sq:p"])
@@ -613,6 +613,50 @@ class FoundingAndAsks(unittest.TestCase):
             raise OSError("down")
         self.assertEqual(square.published_founders("https://x.example", missing), [])
         self.assertIsNone(square.published_founders("https://x.example", down))
+
+    def test_the_site_is_read_first_then_the_data_branch_and_a_failure_is_never_no_square(self):
+        import urllib.error as ue
+        site_json = json.dumps({"kind": square.KIND, "now": {"founding": {"members": ["sq:site"]}}, "members": []}).encode()
+        data_json = json.dumps({"kind": square.KIND, "now": {"founding": {"members": ["sq:data"]}}, "members": []}).encode()
+
+        def get(site_answer, data_answer):
+            def g(url):
+                a = data_answer if "raw.githubusercontent" in url else site_answer
+                if isinstance(a, Exception):
+                    raise a
+                return a
+            return g
+        nf = ue.HTTPError("u", 404, "no", {}, None)
+        blocked = ue.HTTPError("u", 403, "no", {}, None)
+        self.assertEqual(square.published_square("https://x.example", get(site_json, data_json))["now"]["founding"]["members"], ["sq:site"])
+        self.assertEqual(square.published_square("https://x.example", get(nf, data_json))["now"]["founding"]["members"], ["sq:data"])
+        self.assertEqual(square.published_square("https://x.example", get(blocked, data_json))["now"]["founding"]["members"], ["sq:data"])
+        self.assertEqual(square.published_square("https://x.example", get(nf, nf)), {})
+        self.assertIsNone(square.published_square("https://x.example", get(blocked, nf)))
+        self.assertIsNone(square.published_square("https://x.example", get(nf, OSError("down"))))
+        self.assertEqual(square.published_square("https://x.example", get(b"<html>not json", nf)), None)   # a broken answer is a failure
+        self.assertEqual(square.published_square("https://x.example", get(b'{"kind": "other"}', nf)), {})  # something else there: no Square
+
+    def test_a_restored_square_is_written_as_it_was_and_says_so(self):
+        out = tempfile.mkdtemp()
+        try:
+            s = square.build(out, comments=[c("1", "penny-agent", JOIN)], founders=[], site="https://atlas.example")
+            with open(os.path.join(out, "square", "square.json")) as f:
+                saved = json.load(f)
+            shutil.rmtree(os.path.join(out, "square"))
+            self.assertTrue(square.restore(out, saved, "https://atlas.example", why="the thread was down"))
+            with open(os.path.join(out, "square", "index.html")) as f:
+                page = f.read()
+            self.assertIn("the thread was down; this is the Square as published", page)
+            self.assertTrue(os.path.exists(os.path.join(out, "square", "penny-agent", "index.html")))
+            with open(os.path.join(out, "square", "square.json")) as f:
+                again = json.load(f)
+            self.assertEqual(again["members"], saved["members"])
+            self.assertIn("the thread was down", again["problems"][-1])
+            self.assertFalse(square.restore(out, {"kind": "x"}, "https://atlas.example"))
+            self.assertFalse(square.restore(out, "junk", "https://atlas.example"))
+        finally:
+            shutil.rmtree(out)
 
     def test_an_old_waiting_ask_counts_past_the_feed_cap(self):
         real = square.FEED
