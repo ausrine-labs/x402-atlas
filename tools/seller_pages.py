@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Copied from the Aušrinė lab (commit f2ab14a). Edit it there, not here.
+# Copied from the Aušrinė lab (commit 83713b3). Edit it there, not here.
 """seller_pages.py — a public page for every seller in the agent economy.
 
 Roughly 2,000 teams sell to agents over x402. Each of them wants to know how
@@ -13,6 +13,10 @@ Why static HTML: a seller searching for its own name should find its page.
     seller_pages.py --out /path/to/site        # writes site/s/..., site/claim.html
     seller_pages.py --out site --whales flows/whales-<date>.json --flows-dir flows
     seller_pages.py --out site ... --full      # the whole record public, as before tiers.py
+
+A whole Solana day in the store (flows-sol-<day>.json beside the rollup or in --flows-dir)
+adds /solana/ and /map/solana/, and the "Base | Solana" switch on /map/; without one,
+nothing about Solana is written.
 
 Since 2026-10-05 the site is built in the free tier (tiers.FREE_TIER_ONLY): the basic
 card is free, the full record is paid, and what a page does not show it does not carry.
@@ -28,6 +32,7 @@ import html
 import json
 import os
 import re
+import shutil
 import sys
 from datetime import date
 from urllib.parse import quote
@@ -41,7 +46,9 @@ import buyer_pages  # noqa: E402
 import front_door  # noqa: E402
 import map_page  # noqa: E402
 import atlas_style  # noqa: E402
+import board  # noqa: E402
 import site_pages  # noqa: E402
+import solana_page  # noqa: E402
 import relationships  # noqa: E402
 import tiers  # noqa: E402
 import whales  # noqa: E402  (explorer: a wallet's public page on its own chain)
@@ -536,7 +543,9 @@ def build(out, store=None, site=None, claims=None, whales=None, operators=None, 
                                                                  head=HEAD, foot=foot, issues=ISSUES, buy_url=BUY_OPERATOR,
                                                                  buyers=chain["buyer_pages"], tier=tier)
         group_slugs = operator_pages.built_slugs(groups_listing, tiers.TOP if free else None)   # the sitemap names the pages with a record on them
-    drew_map = build_map(out, whales, chain, flows, A, as_of, foot)
+    drew_sol = build_solana(out, whales, flows, flows_dir, A, as_of, chain, foot)
+    drew_map = build_map(out, whales, chain, flows, A, as_of, foot, other=drew_sol is not None)
+    drew_board = build_board(out, flows_dir, A, as_of, foot, n, top=tiers.TOP if free else None)
 
     for host, me in A.items():
         sl = slug(host)
@@ -790,9 +799,14 @@ location.href='https://buy.'+'polar.sh/'+a.dataset.checkout+'?reference_id='+enc
             f.write("<url><loc>%s/o/%s/</loc><lastmod>%s</lastmod></url>\n" % (SITE, esc(sl), as_of))
         if drew_map:
             f.write("<url><loc>%s/map/</loc><lastmod>%s</lastmod></url>\n" % (SITE, as_of))
+        if drew_board:
+            f.write("<url><loc>%s/board/</loc><lastmod>%s</lastmod></url>\n" % (SITE, as_of))
+        if drew_sol:
+            f.write("<url><loc>%s/map/solana/</loc><lastmod>%s</lastmod></url>\n" % (SITE, as_of))
+            f.write("<url><loc>%s/solana/</loc><lastmod>%s</lastmod></url>\n" % (SITE, as_of))
         f.write("</urlset>\n")
     return {"as_of": as_of, "sellers": n, "groups": len(groups_listing), "door": door, "out": out, "map": drew_map,
-            "free": free, "groups_built": len(group_slugs)}
+            "board": drew_board, "solana": drew_sol, "free": free, "groups_built": len(group_slugs)}
 
 
 def sellers_sample(rel, A, as_of):
@@ -883,9 +897,56 @@ more than %d days old the exports are refused rather than sold stale. The full r
         f.write("".join(p))
 
 
-def build_map(out, whales, chain, flows, A, as_of, foot=FOOT):
+def build_solana(out, whales, flows, flows_dir, A, as_of, chain, foot=FOOT):
+    """/solana/ and /map/solana/ from the newest whole flows-sol-<day>.json in the store: beside
+    the rollup, beside --flows, or in the --flows-dir window. Without one nothing about Solana is
+    written. Both or neither: a file that will not draw costs Solana, not the Atlas."""
+    dirs = [os.path.dirname(os.path.abspath(p)) for p in (whales, flows) if p] + [flows_dir]
+    path, fl = solana_page.newest(dirs)
+    if not path:
+        return None
+    slugs = set((chain or {}).get("buyer_pages") or ())      # the /b/ pages this build wrote
+    try:
+        page = solana_page.build(out, fl, A, SITE, as_of, head=HEAD, foot=foot, issues=ISSUES, buyer_slugs=slugs,
+                                 map_url=SITE + "/map/solana/")
+        drawn = map_page.build(out, path, None, A, SITE, as_of, head=HEAD, foot=foot, issues=ISSUES, chain="Solana",
+                               other=True, buyer_slugs=slugs, numbers=SITE + "/solana/")
+    except (OSError, ValueError, KeyError, TypeError, AttributeError) as e:
+        for d in (os.path.join(out, "solana"), os.path.join(out, "map", "solana")):
+            shutil.rmtree(d, ignore_errors=True)
+        print("solana: %s would not draw (%s: %s); nothing about Solana written" % (path, type(e).__name__, e))
+        return None
+    print("solana: %d x402 payments, $%s, between %d wallets and %d payees; drew %d of %d lines"
+          % (page["payments"], "{:,.2f}".format(page["usd"]), page["payers"], page["payees"], drawn["drawn"], drawn["edges"]))
+    return {"day": page["day"], "path": path, "page": page, "map": drawn}
+
+
+def build_board(out, flows_dir, A, as_of, foot=FOOT, n=None, top=None):
+    """/board/ and /board/board.json from the newest 7 days in the --flows-dir window: sellers ranked
+    by real customers (board.py). With no window or no flows file in it, no Board and nothing else
+    changes but a placeholder at /board/, so the nav link stays whole; a bad window costs the Board,
+    not the Atlas. True when the Board was written."""
+    if not flows_dir:
+        board.placeholder(out, SITE, as_of, foot=foot, n=n)   # every page links /board/: keep it whole
+        return False
+    try:
+        b = board.build(out, flows_dir, A, SITE, as_of, foot=foot, n=n, top=top)
+    except (OSError, ValueError, KeyError, TypeError) as e:
+        print("board: not rebuilt (%s: %s)" % (type(e).__name__, e))
+        board.placeholder(out, SITE, as_of, foot=foot, n=n)
+        return False
+    if b is None:
+        print("board: no flows-<date>.json in %s; /board/ not built" % flows_dir)
+        board.placeholder(out, SITE, as_of, foot=foot, n=n)
+        return False
+    print("board: %d sellers ranked, %s to %s" % (b["sellers_ranked"], b["window"]["from"], b["window"]["to"]))
+    return True
+
+
+def build_map(out, whales, chain, flows, A, as_of, foot=FOOT, other=False):
     """/map/ from the day's flows: the flows file for the rollup's own day, found beside the
-    rollup in the store (or given as --flows). Without one the map is left as it was."""
+    rollup in the store (or given as --flows). Without one the map is left as it was.
+    other: the Solana map was built too, so /map/ carries the switch to it."""
     if chain is None:
         if flows:
             print("map: no rollup to go with %s; /map/ not rebuilt" % flows)
@@ -898,7 +959,7 @@ def build_map(out, whales, chain, flows, A, as_of, foot=FOOT):
         print("map: no flows-%s.json beside the rollup; /map/ not rebuilt" % day)
         return None
     try:
-        r = map_page.build(out, path, whales, A, SITE, as_of, head=HEAD, foot=foot, issues=ISSUES)
+        r = map_page.build(out, path, whales, A, SITE, as_of, head=HEAD, foot=foot, issues=ISSUES, other=other)
     except (OSError, ValueError, KeyError, TypeError) as e:     # a bad day of flows costs the map, not the Atlas
         print("map: %s would not draw (%s: %s); /map/ not rebuilt" % (path, type(e).__name__, e))
         return None

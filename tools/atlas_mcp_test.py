@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Copied from the Aušrinė lab (commit 027aa20). Edit it there, not here.
+# Copied from the Aušrinė lab (commit 83713b3). Edit it there, not here.
 """atlas_mcp_test.py — the Atlas MCP server, spoken to over real JSON-RPC on
 stdio as an agent client would, against a store we built and therefore know.
 No network: ATLAS_STORE points at the fixture, so the server never fetches. The
@@ -127,7 +127,8 @@ class Wire(unittest.TestCase):
         self.assertIn("x402 market on Base", init["instructions"])
         tools = next(x for x in res if x.get("id") == 2)["result"]["tools"]
         import atlas_mcp as m
-        want = ["market_today", "search", "seller", "operator", "agents_at_work", "compare", "agent_spend", "posts"]
+        want = ["market_today", "search", "seller", "operator", "agents_at_work", "compare", "agent_spend", "posts",
+                "market_brief", "find_seller"]
         # buyer_dry_run is listed where the buyer package sits beside the server (the lab), not in the Atlas
         self.assertEqual([t["name"] for t in tools], want + (["buyer_dry_run"] if m.buyer_beside() else []))
         for t in tools:
@@ -740,6 +741,174 @@ class Posts(unittest.TestCase):
         d = call("posts", {"kind": "market", "id": "base"}, env=self.env(self.base + "/moved"))
         self.assertIn("error", d)
         self.assertNotIn("paid_next", d)
+
+
+class MarketBrief(unittest.TestCase):
+    """The newest published brief.json, read through a stubbed fetch: no network."""
+
+    @classmethod
+    def setUpClass(cls):
+        import atlas_mcp
+        import brief
+        import brief_test
+        cls.m = atlas_mcp
+        cls.brief = brief.build(brief_test.FLOWS, "2026-01-01", "2026-01-04", "https://atlas.example")
+        cls.published = brief.dumps(cls.brief).encode()
+
+    def ask(self, served=None, fails=None):
+        from unittest import mock
+        asked = []
+
+        def get(url, limit):
+            asked.append((url, limit))
+            if fails:
+                raise fails
+            return served if served is not None else self.published
+        with mock.patch.object(self.m.flows_handoff, "http_get", get):
+            out = json.loads(self.m.call_tool("market_brief", {}))
+        return out, asked
+
+    def test_returns_the_published_brief_with_its_links_from_here(self):
+        d, asked = self.ask()
+        self.assertEqual(asked, [(self.m.BRIEF, self.m.MAX_BRIEF_JSON)])
+        for k in ("window", "money", "concentration", "robots", "growth", "solana", "what_it_means", "method", "caveats"):
+            self.assertEqual(d[k], self.brief[k], k)
+        self.assertEqual(d["money"]["lead"]["share_pct"], 99.8)
+        self.assertEqual(d["page"], "https://atlas.example/brief/2026-01-01-to-2026-01-04/?via=mcp")
+        self.assertEqual(d["json"], "https://atlas.example/brief/2026-01-01-to-2026-01-04/brief.json?via=mcp")
+        self.assertEqual(list(d["paid_next"]["files"])[0], "day.json")
+        text = json.dumps(d).lower()
+        self.assertNotIn("ver" + "if", text)
+        for w in ("belongs to", "owned by", "is operated by", "identity"):
+            self.assertNotIn(w, text)
+
+    def test_the_default_address_is_the_sites_latest(self):
+        code = ("import os, sys; os.environ.pop('ATLAS_BRIEF', None); sys.path.insert(0, %r); "
+                "import atlas_mcp; print(atlas_mcp.BRIEF)" % HERE)
+        out = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True, timeout=60,
+                             env={k: v for k, v in os.environ.items() if k != "ATLAS_BRIEF"})
+        self.assertEqual(out.stdout.strip(), "https://atlas.infoharmoni.com/brief/latest.json")
+
+    def test_a_failed_read_or_not_a_brief_is_an_error_without_an_offer(self):
+        import flows_handoff
+        for kw in ({"fails": flows_handoff.HandoffError("refusing")}, {"fails": OSError("down")},
+                   {"served": b"{not json"}, {"served": b'{"kind": "something-else", "window": {}}'},
+                   {"served": b'["x402-market-brief"]'}):
+            d, _ = self.ask(**kw)
+            self.assertIn("error", d, kw)
+            self.assertNotIn("paid_next", d, kw)
+
+    def test_listed_with_a_plain_description(self):
+        t = next(t for t in self.m.TOOLS if t["name"] == "market_brief")
+        self.assertEqual(t["inputSchema"], {"type": "object", "properties": {}})
+        self.assertNotIn("ver" + "if", t["description"].lower())
+        self.assertIn("market_brief", self.m.HANDLERS)
+
+
+class FindSeller(unittest.TestCase):
+    """find_seller reads the published board.json through a stubbed fetch: no network. The Board is
+    board_test's hand-counted week, so every row here can be checked against that file's docstring."""
+
+    @classmethod
+    def setUpClass(cls):
+        import shutil
+        import atlas_mcp
+        import board
+        import board_test
+        cls.m = atlas_mcp
+        d, out = board_test.write_week(tempfile.mkdtemp()), tempfile.mkdtemp()
+        cls.board = board.build(out, d, board_test.SNAPSHOT, "https://atlas.example", "2026-01-07", n=3)
+        cls.published = board.dumps(cls.board).encode()
+        shutil.rmtree(d)
+        shutil.rmtree(out)
+
+    def ask(self, args, served=None, fails=None):
+        from unittest import mock
+        asked = []
+
+        def get(url, limit):
+            asked.append((url, limit))
+            if fails:
+                raise fails
+            return served if served is not None else self.published
+        with mock.patch.object(self.m.flows_handoff, "http_get", get):
+            out = json.loads(self.m.call_tool("find_seller", args))
+        return out, asked
+
+    def test_matches_words_and_returns_the_rows_numbers_and_reason(self):
+        d, asked = self.ask({"job": "weather forecast"})
+        self.assertEqual(asked, [(self.m.BOARD, self.m.MAX_BOARD_JSON)])
+        top = d["sellers"][0]
+        self.assertEqual(top["host"], "a.example")
+        self.assertEqual(top["matched_by"], "words")
+        self.assertEqual((top["customers"], top["returning"], top["top_payer_share_pct"]), (3, 2, 33.3))
+        self.assertEqual(top["daily_usdc"], [3.0, 1.0, 1.0, 1.0, 0.0, 0.0, 0.0])
+        self.assertEqual(top["reason"], "2 returning customers of 3, no single payer over 40%")
+        self.assertEqual(top["page"], "https://atlas.example/s/a.example/?via=mcp")
+        self.assertEqual(d["board"], "https://atlas.example/board/?via=mcp")
+        # c.example sells weather alerts too: a word matches, and it is lower on the Board
+        self.assertEqual([r["host"] for r in d["sellers"]], ["a.example", "c.example"])
+        self.assertEqual(d["sellers"][1]["matched_by"], "words")
+        self.assertIn("paid_next", d)
+
+    def test_one_word_is_enough_and_the_board_order_decides(self):
+        d, _ = self.ask({"job": "alerts forecast"})          # one word each: a.example ranks 1, c.example 20
+        self.assertEqual([r["host"] for r in d["sellers"]], ["a.example", "c.example"])
+        d, _ = self.ask({"job": "cast"})                     # inside a word, not at its start: no match
+        self.assertEqual(d["sellers"], [])
+
+    def test_at_most_five_in_the_boards_order(self):
+        d, _ = self.ask({"job": "filler"})
+        self.assertEqual(d["matched"], 18)
+        self.assertEqual([r["host"] for r in d["sellers"]], ["filler%02d.example" % i for i in range(1, 6)])
+        self.assertEqual([r["rank"] for r in d["sellers"]], [2, 3, 4, 5, 6])
+
+    def test_a_category_alone_matches_after_words(self):
+        d, _ = self.ask({"job": "scrape a page"})                   # no word in any row; "scrape" is search & web
+        self.assertEqual(d["intent"], ["search & web"])
+        self.assertEqual([(r["host"], r["matched_by"]) for r in d["sellers"]], [("b.example", "category")])
+        self.assertTrue(d["sellers"][0]["one_payer_most"])
+
+    def test_max_price_leaves_out_what_costs_more_or_has_no_price(self):
+        d, _ = self.ask({"job": "weather", "max_price": 0.02})
+        self.assertEqual([r["host"] for r in d["sellers"]], ["a.example"])          # c.example costs $0.05
+        d, _ = self.ask({"job": "weather", "max_price": 0.001})
+        self.assertEqual(d["sellers"], [])
+        self.assertNotIn("paid_next", d)
+        d, _ = self.ask({"job": "filler", "max_price": 1})
+        self.assertEqual(d["sellers"], [])                                          # not in the registry: no price
+
+    def test_bad_input_and_a_failed_read_are_errors(self):
+        import flows_handoff
+        for args in ({}, {"job": "  "}, {"job": "x", "max_price": 0}, {"job": "x", "max_price": "cheap"},
+                     {"job": "x", "max_price": True}):
+            d, asked = self.ask(args)
+            self.assertIn("error", d, args)
+            self.assertEqual(asked, [], args)
+        for kw in ({"fails": flows_handoff.HandoffError("refusing")}, {"fails": OSError("down")},
+                   {"served": b"{not json"}, {"served": b'{"kind": "x402-market-brief", "sellers": []}'},
+                   {"served": b'["x402-board"]'}):
+            d, _ = self.ask({"job": "weather"}, **kw)
+            self.assertIn("error", d, kw)
+            self.assertNotIn("paid_next", d, kw)
+
+    def test_listed_plainly_and_never_the_word(self):
+        t = next(t for t in self.m.TOOLS if t["name"] == "find_seller")
+        self.assertEqual(t["inputSchema"]["required"], ["job"])
+        self.assertEqual(set(t["inputSchema"]["properties"]), {"job", "max_price"})
+        self.assertIn("find_seller", self.m.HANDLERS)
+        d, _ = self.ask({"job": "weather"})
+        text = (json.dumps(d) + t["description"]).lower()
+        self.assertNotIn("ver" + "if", text)
+        for w in ("belongs to", "owned by", "is operated by", "identity"):
+            self.assertNotIn(w, text)
+
+    def test_the_default_address_is_the_sites_board(self):
+        code = ("import os, sys; os.environ.pop('ATLAS_BOARD', None); sys.path.insert(0, %r); "
+                "import atlas_mcp; print(atlas_mcp.BOARD)" % HERE)
+        out = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True, timeout=60,
+                             env={k: v for k, v in os.environ.items() if k != "ATLAS_BOARD"})
+        self.assertEqual(out.stdout.strip(), "https://atlas.infoharmoni.com/board/board.json")
 
 
 class TheToolListIsWhatTheServerCanAnswer(unittest.TestCase):

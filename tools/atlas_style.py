@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Copied from the Aušrinė lab (commit c8cab21). Edit it there, not here.
+# Copied from the Aušrinė lab (commit 83713b3). Edit it there, not here.
 """atlas_style.py — the one look of the Infoharmoni Atlas: stylesheet, header, footer.
 
 Every page the site build writes carries the same three things, written here once:
@@ -120,6 +120,8 @@ a code{text-decoration:none}
 pre.code{font:13px/1.6 var(--mono);background:var(--panel);border:1px solid var(--rule);border-radius:var(--radius);padding:16px 18px;overflow-x:auto;white-space:pre-wrap;overflow-wrap:anywhere;color:var(--ink);margin:12px 0}
 pre.code .k{color:var(--seller-ink);font-weight:600}pre.code .c{color:var(--muted)}pre.code .p{color:var(--buyer-ink);font-weight:600}
 ul.cav{color:var(--ink-2);font-size:15px;padding-left:20px;max-width:76ch}ul.cav li{margin-bottom:6px}
+/* the Board (board.py): the week's money per day, and what each seller sells */
+.board td.days{font:12.5px/1.45 var(--mono);white-space:nowrap;color:var(--ink-2)}.board td.sells{min-width:26ch;max-width:44ch;font-size:14px;color:var(--ink-2)}.board td.shape{white-space:nowrap}
 /* buttons, boxes, cards */
 .btn{display:inline-flex;align-items:center;min-height:44px;padding:0 18px;border-radius:8px;background:var(--ink);color:#fff;font:600 15px var(--sans);text-decoration:none;border:1px solid var(--ink);cursor:pointer}
 .btn:hover{background:var(--seller-ink);border-color:var(--seller-ink);text-decoration:none}
@@ -258,7 +260,7 @@ HEAD = """<!doctype html><html lang="en"><meta charset="utf-8">
 <span class="netchips" title="Covers x402 payments on Base"><span class="chip-sm">x402</span><span class="chip-sm">Base</span></span>
 <form class="hsearch" role="search" action="%(root)s/" method="get"><label class="vh" for="hq">Search the record</label>
 <input id="hq" name="q" type="search" placeholder="Search sellers, operators, wallets, or a job" autocomplete="off"></form>
-<nav class="main" aria-label="Main"><a href="%(root)s/s/">Sellers</a><a href="%(root)s/o/">Operators</a><a href="%(root)s/b/">Buyers</a><a href="%(root)s/map/">Map</a><a href="%(root)s/brief/">Brief</a><a href="%(root)s/leaders/">Leaders</a><a href="%(root)s/prices/">Prices</a><a href="%(root)s/where/">Where</a><a href="%(root)s/watch/">Watch</a><a href="%(root)s/pricing/">Pricing</a><a href="%(root)s/docs/">Docs</a><a href="%(root)s/about/">About</a><a href="%(root)s/contact/">Contact</a><a class="pro" href="%(root)s/pro.html">Pro</a></nav>
+<nav class="main" aria-label="Main"><a href="%(root)s/s/">Sellers</a><a href="%(root)s/o/">Operators</a><a href="%(root)s/b/">Buyers</a><a href="%(root)s/map/">Map</a><a href="%(root)s/board/">Board</a><a href="%(root)s/brief/">Brief</a><a href="%(root)s/leaders/">Leaders</a><a href="%(root)s/prices/">Prices</a><a href="%(root)s/where/">Where</a><a href="%(root)s/watch/">Watch</a><a href="%(root)s/pricing/">Pricing</a><a href="%(root)s/docs/">Docs</a><a href="%(root)s/about/">About</a><a href="%(root)s/contact/">Contact</a><a class="pro" href="%(root)s/pro.html">Pro</a></nav>
 </div></header>
 """
 
@@ -303,11 +305,13 @@ def foot(free=False):
     return FOOT_FREE if free else FOOT
 
 
-def footer(root, issue, as_of, n=None, free=False):
-    """The house footer, filled in; without a seller count it carries STAMP_DAY."""
+def footer(root, issue, as_of, n=None, free=False, stamp=None):
+    """The house footer, filled in; without a seller count it carries STAMP_DAY. `stamp`, already
+    escaped, stands in for the dated line on a page the daily scan does not rebuild (the weekly brief)."""
     d = {"root": root, "issue": issue, "as_of": as_of, "n": n}
     opening = _FOOT_TEMPLATE.replace("%(line)s", foot_line(free)).replace("%(stamp)s", "")[:-len("</div></footer></html>\n")]
-    return opening % d + (STAMP if n is not None else STAMP_DAY) % d + "</div></footer></html>\n"
+    line = stamp if stamp is not None else (STAMP if n is not None else STAMP_DAY) % d
+    return opening % d + line + "</div></footer></html>\n"
 
 
 # What the free tier adds to the stylesheet: the locked line under a trimmed section. Kept apart

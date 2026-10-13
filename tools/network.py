@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Copied from the Aušrinė lab (commit a0d9190). Edit it there, not here.
+# Copied from the Aušrinė lab (commit 83713b3). Edit it there, not here.
 """network.py — the agent ecosystem tonight, as a movable 3D network.
 
 Infoharmoni's real subject was never a hub with a crowd around it; it was
@@ -419,9 +419,9 @@ function pick(e,stick){const R=cv.getBoundingClientRect(); const m=new THREE.Vec
   if(!hit){if(stick||pinned<0){tip.style.display='none';sel=-1;pinned=-1;cv.style.cursor='grab';}return;}
   const n=N[hit.object.userData.i]; if(!stick&&sel===hit.object.userData.i)return; sel=hit.object.userData.i; if(stick){pinned=sel; target.copy(hit.object.position); dist=Math.max(60,Math.min(dist,110+hit.object.scale.x*16));} cv.style.cursor='pointer';
   const said=L.filter(l=>l.a===n.u).map(l=>l.b), heard=L.filter(l=>l.b===n.u).map(l=>l.a);
-  const onch=/basescan|solscan/.test(n.url||'');
+  const onch=!!G.panels||/basescan|solscan/.test(n.url||'');   // a payments map: every dot is a wallet, whatever it links to
   const what=({human:'a person',agent:onch?'a buyer — the wallet that paid':'an AI agent',buyer:onch?'a seller with a wallet':'an AI agent with a wallet',us:'this shop — an AI agent',repo:'a repository'})[n.k]+(n.chain?' · '+n.chain:'');
-  tip.innerHTML='<div class="kd">'+what+'</div><b>'+(n.k==='repo'?'':AT)+esc(n.u)+'</b>'+(n.n?' · '+esc(n.n):'')+'<br>'+(n.known&&!(n.url||'').includes('basescan')?n.f.toLocaleString()+(n.k==='repo'?' stars · ':(n.url&&n.url.includes('github')?' commits · ':' followers · ')):'')+
+  tip.innerHTML='<div class="kd">'+what+'</div><b>'+(n.k==='repo'?'':AT)+esc(n.u)+'</b>'+(n.n?' · '+esc(n.n):'')+'<br>'+(n.known&&!onch?n.f.toLocaleString()+(n.k==='repo'?' stars · ':(n.url&&n.url.includes('github')?' commits · ':' followers · ')):'')+
     (n.r.length?n.r.map(r=>ROOMNAME[r]).join(' + '):'')+(n.c>=0&&C[n.c].label&&!/^shared market/.test(C[n.c].label)?'<br><span style="color:var(--muted)">in: '+esc(C[n.c].label)+'</span>':'')+
     (said.length?'<br>'+(G.panels?'paid':'spoke to')+': '+said.slice(0,6).map(u=>AT+esc(u)).join(', ')+(said.length>6?' +'+(said.length-6):''):'')+
     (heard.length?'<br>'+(G.panels?'paid by':'named by')+': '+heard.slice(0,6).map(u=>AT+esc(u)).join(', ')+(heard.length>6?' +'+(heard.length-6):''):'')+
@@ -448,9 +448,9 @@ if(!present.has('repo'))document.getElementById('lrepo').remove();
 if(!present.has('human'))document.querySelector('#bar label:has(#fh)').remove();
 if(!present.has('agent'))document.querySelector('#bar label:has(#fa)').remove();
 if(N.every(n=>n.d>0))document.querySelector('#bar label:has(#fd)').remove();
-{const onchain=N.some(n=>(n.url||'').includes('basescan'));
- const la=document.querySelector('#bar label:has(#fa)'); if(la&&onchain)la.lastChild.textContent='buyers — the wallets that paid';
- const lb=[...document.querySelectorAll('#bar label')].find(e=>/wallets/.test(e.textContent)); if(lb&&onchain)lb.lastChild.textContent='sellers with a wallet';}
+{const onchain=!!G.panels||N.some(n=>/basescan|solscan/.test(n.url||''));
+ const la=document.querySelector('#bar label:has(#fa)'), lb=document.querySelector('#bar label:has(#dotB)');   // each chip by its own dot
+ if(la&&onchain)la.lastChild.textContent='buyers — the wallets that paid'; if(lb&&onchain)lb.lastChild.textContent='sellers with a wallet';}
 // the list on the right: every AI agent seen tonight, biggest reach first, linked to X
 const list=document.getElementById('list');
 if(G.panels&&G.panels.length){ document.getElementById('listT').remove(); list.remove();
