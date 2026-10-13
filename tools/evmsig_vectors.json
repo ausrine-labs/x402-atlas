@@ -1,0 +1,30 @@
+{
+ "messages": [
+  {
+   "message": "Infoharmoni Square: sq:ausrine receives payments at 0xabc",
+   "signature": "0x998aa5c24a45ec2057d03ca486e9ab7a541dba6adbb81f143f4568371e363b1425d8d72d488d56f68a99e0db66545c6533de8ebb51be36bb328e50bb406954931c",
+   "address": "0x1a642f0e3c3af545e7acbd38b07251b3990914f1"
+  },
+  {
+   "message": "",
+   "signature": "0x766dfbaace527412b944aa9f6aaec89b86332556597418efdbde7e53675c70f96df7713ca92735a7f482edbd26b4f16ebfa00c5465bf3afe2bdd1e723d31ca801b",
+   "address": "0x5050a4f4b3f9338c3472dcc01a87c76a144b3c9c"
+  },
+  {
+   "message": "ünïcode ✓",
+   "signature": "0x1c73aaa771911315b1fa843b832d3b04df8713396eeb12f0ad28bfdfef8fdef44c50f14548f362d82898e597cc0eb4cad56005c943d19cce9b73ad1ac11269c91c",
+   "address": "0x3325a78425f17a7e487eb5666b2bfd93abb06c70"
+  },
+  {
+   "message": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+   "signature": "0x9536d3c77fd8a2d9f5d6873dc064c3157250a26abb83c60c3a323ef6c00f168a1ce7eddc255487587d6d44b8b066858cdb540c3955afbd3e3117f69700ef687a1b",
+   "address": "0xc48b812bb43401392c037381aca934f4069c0517"
+  }
+ ],
+ "square_proof": {
+  "address": "0x58da990a8f4a3a6ca7cb6315d68a140105917352",
+  "member": "sq:m",
+  "signature": "0x1d0edec852219ed12319f9077b96e2af90f0a4968de15594f80afe0b78d22d8414c355882a193879011a1f10117aba26c72f49fe9b3cef9edc02f1cf54bc63de1c",
+  "signature_by_other_wallet": "0xdfa066685e1b9670ae65885ef189a500bc124a3f04e79229dcb7250dec2469fa26722986290444cdc22db45f8fa3e95e13a190ed4c7806de7185870eac823ad01b"
+ }
+}

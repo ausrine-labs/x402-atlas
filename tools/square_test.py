@@ -1,5 +1,6 @@
-# Copied from the Aušrinė lab (commit 1afc427). Edit it there, not here.
+# Copied from the Aušrinė lab (commit 5c193d9). Edit it there, not here.
 """square_test.py — Infoharmoni Square, from hand-written comments. No network."""
+import datetime
 import json
 import os
 import shutil
@@ -7,6 +8,8 @@ import tempfile
 import unittest
 
 import square
+
+square.NEW_MEMBER_DAYS = 10 ** 6       # test members joined on fixed dates: keep their pages whatever today is
 
 W = "0x8b8543a9566b7c75e5484ce4385d76879eda2068"
 
@@ -324,44 +327,66 @@ class OwnDoor(unittest.TestCase):
             shutil.rmtree(out)
 
 
+PROOF = json.load(open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "evmsig_vectors.json"), encoding="utf-8"))["square_proof"]
+
+
 class WalletProof(unittest.TestCase):
-    def site(self, payto, ids="sq:m\n", status=200):
+    A, SIG, OTHER = PROOF["address"], PROOF["signature"], PROOF["signature_by_other_wallet"]
+
+    def site(self, payto, lines=None, status=200):
+        lines = ["sig sq:m %s" % self.SIG] if lines is None else lines
         body = json.dumps({"x402Version": 2, "accepts": [{"payTo": payto, "amount": "1000"}]}).encode()
 
         def get(url):
             if url.endswith(square.WELL_KNOWN):
-                return status, {}, ids.encode()
+                return status, {}, ("\n".join(lines) + "\n").encode()
             return 402, {}, body
         return get
 
-    def test_the_host_names_the_member_and_the_route_offers_that_wallet(self):
-        self.assertTrue(square.wallet_proven("sq:m", "https://r.example/x", W, self.site(W.upper().replace("0X", "0x"))))
-        self.assertFalse(square.wallet_proven("sq:m", "https://r.example/x", W, self.site("0x" + "2" * 40)))
-        self.assertFalse(square.wallet_proven("sq:copycat", "https://r.example/x", W, self.site(W)))   # not on the host's list
-        self.assertFalse(square.wallet_proven("sq:m", "https://r.example/x", W, self.site(W, status=404)))
-        self.assertFalse(square.wallet_proven("sq:m", "https://r.example/x", W, self.site(W, ids="# sq:m\nsq:mm\n")))
+    def test_the_wallet_signed_for_the_member_and_the_route_offers_it(self):
+        self.assertTrue(square.wallet_proven("sq:m", "https://r.example/x", self.A, self.site(self.A)))
+        self.assertTrue(square.wallet_proven("sq:m", "https://r.example/x", self.A.upper().replace("0X", "0x"), self.site(self.A)))
+
+    def test_a_host_owner_cannot_claim_a_wallet_it_does_not_hold(self):
+        # the Map Room case: a host lists itself and its 402 names someone else's wallet
+        self.assertFalse(square.wallet_proven("sq:m", "https://r.example/x", self.A, self.site(self.A, ["sq:m"])))
+        self.assertFalse(square.wallet_proven("sq:m", "https://r.example/x", self.A,
+                                              self.site(self.A, ["sig sq:m %s" % self.OTHER])))   # signed by another key
+
+    def test_the_signature_is_bound_to_the_member(self):
+        self.assertFalse(square.wallet_proven("sq:copycat", "https://r.example/x", self.A,
+                                              self.site(self.A, ["sig sq:copycat %s" % self.SIG])))
+
+    def test_the_route_must_still_offer_that_wallet(self):
+        self.assertFalse(square.wallet_proven("sq:m", "https://r.example/x", self.A, self.site("0x" + "2" * 40)))
+        self.assertFalse(square.wallet_proven("sq:m", "https://r.example/x", self.A, self.site(self.A, status=404)))
 
         def down(u):
             raise OSError("no")
-        self.assertFalse(square.wallet_proven("sq:m", "https://r.example/x", W, down))
+        self.assertFalse(square.wallet_proven("sq:m", "https://r.example/x", self.A, down))
 
-    def test_the_proof_file_is_asked_on_the_routes_own_port(self):
-        seen = []
-
-        def get(url):
-            seen.append(url)
-            return (200, {}, b"sq:m") if url.endswith(square.WELL_KNOWN) else self.site(W)(url)
-        self.assertTrue(square.wallet_proven("sq:m", "https://r.example:8443/pay", W, get))
-        self.assertEqual(seen[0], "https://r.example:8443" + square.WELL_KNOWN)
-        seen.clear()
-        square.wallet_proven("sq:m", "https://[2001:db8::1]:8443/pay", W, get)
-        self.assertEqual(seen[0], "https://[2001:db8::1]:8443" + square.WELL_KNOWN)
+    def test_a_solana_wallet_is_never_proven_yet(self):
+        self.assertFalse(square.wallet_proven("sq:m", "https://r.example/x", "9SVcuCZxaQLMiLBziPrrr6L3KRAxLhRis56Zq4ovcRVy",
+                                              self.site("9SVcuCZxaQLMiLBziPrrr6L3KRAxLhRis56Zq4ovcRVy")))
 
     def test_the_header_form_counts_too(self):
         import base64 as b64
-        h = b64.b64encode(json.dumps({"accepts": [{"payTo": W}]}).encode()).decode()
-        get = lambda u: (200, {}, b"sq:m") if u.endswith(square.WELL_KNOWN) else (402, {"payment-required": h}, b"")
-        self.assertTrue(square.wallet_proven("sq:m", "https://r.example/x", W, get))
+        h = b64.b64encode(json.dumps({"accepts": [{"payTo": self.A}]}).encode()).decode()
+        get = lambda u: (200, {}, ("sig sq:m %s" % self.SIG).encode()) if u.endswith(square.WELL_KNOWN) else (402, {"payment-required": h}, b"")
+        self.assertTrue(square.wallet_proven("sq:m", "https://r.example/x", self.A, get))
+
+    def test_the_proof_file_is_asked_on_the_routes_own_port(self):
+        seen = []
+        inner = self.site(self.A)
+
+        def get(url):
+            seen.append(url)
+            return inner(url)
+        self.assertTrue(square.wallet_proven("sq:m", "https://r.example:8443/pay", self.A, get))
+        self.assertEqual(seen[0], "https://r.example:8443" + square.WELL_KNOWN)
+        seen.clear()
+        square.wallet_proven("sq:m", "https://[2001:db8::1]:8443/pay", self.A, get)
+        self.assertEqual(seen[0], "https://[2001:db8::1]:8443" + square.WELL_KNOWN)
 
     def test_pinned_get_refuses_a_private_host_before_connecting(self):
         with self.assertRaises(ValueError):
@@ -398,6 +423,77 @@ class WalletProof(unittest.TestCase):
     def test_names_are_cleaned_of_every_invisible_character(self):
         for ch in ("\u061c", "\ufeff", "\u00ad", "\u2060", "\u2028", "\u180e"):
             self.assertEqual(square.clean("a" + ch + "b", 40), "a b", repr(ch))
+
+
+class ReviewTwo(unittest.TestCase):
+    """The [review] session's findings, 2026-10-13."""
+
+    def test_one_wallet_backs_one_member(self):
+        thread = [c("1", "sq:a", "square: join\nsells: x\nroute: https://a.example\npayto: %s" % W),
+                  c("2", "sq:b", "square: join\nsells: y\nroute: https://b.example\npayto: %s" % W)]
+        problems = []
+        s = square.compute(thread, prove=lambda a, r, w: True, problems=problems)
+        self.assertEqual([m["wallet_proven"] for m in s["members"]], [False, False])
+        self.assertIn("more than one member", problems[0])
+
+    def test_claims_on_one_wallet_are_checked_together_past_the_cap(self):
+        real = square.MAX_PROOFS
+        square.MAX_PROOFS = 2
+        try:
+            other = "0x" + "3" * 40
+            thread = [c("1", "sq:a", "square: join\nsells: x\nroute: https://a.example\npayto: %s" % W),
+                      c("2", "sq:z", "square: join\nsells: y\nroute: https://z.example\npayto: %s" % W),
+                      c("3", "sq:m", "square: join\nsells: z\nroute: https://m.example\npayto: %s" % other)]
+            asked = []
+
+            def prove(a, r, w):
+                asked.append(a)
+                return True
+            s = square.compute(thread, prove=prove)
+            if "sq:a" in asked or "sq:z" in asked:
+                self.assertIn("sq:a", asked)
+                self.assertIn("sq:z", asked)                                   # never one without the other
+            self.assertFalse(any(m["wallet_proven"] for m in s["members"] if m["author"] in ("sq:a", "sq:z")))
+        finally:
+            square.MAX_PROOFS = real
+
+    def test_moltbook_and_github_members_are_shown_by_their_handle(self):
+        members, _, _ = square.collect([c("1", "mb:someone", "square: join\nname: ausrine\nsells: x"),
+                                        c("2", "gh:dev", "square: join\nname: Coinbase\nsells: y"),
+                                        c("3", "sq:own", "square: join\nname: own-name\nsells: z")])
+        self.assertEqual({k: v["name"] for k, v in members.items()},
+                         {"mb:someone": "mb:someone", "gh:dev": "gh:dev", "sq:own": "own-name"})
+
+    def test_blank_looking_characters_are_spaces(self):
+        for ch in ("\u3164", "\u2800", "\u00a0", "\u3000", "\u115f"):
+            self.assertEqual(square.clean("a" + ch + "b", 40), "a b", repr(ch))
+        self.assertEqual(square.clean("\u0301\u0301x", 40), "x")                 # orphan combining marks
+
+    def test_none_means_no_value(self):
+        members, _, refused = square.collect([c("1", "mb:g", "square: join\nsells: grades\nroute: none\nprice: none\npayto: none")])
+        self.assertEqual(refused, [])
+        self.assertEqual((members["mb:g"]["route"], members["mb:g"]["price"], members["mb:g"]["payto"]), (None, None, None))
+
+
+class PageBudget(unittest.TestCase):
+    def test_only_proven_active_or_new_members_get_a_page(self):
+        real = square.NEW_MEMBER_DAYS
+        square.NEW_MEMBER_DAYS = 30
+        out = tempfile.mkdtemp()
+        try:
+            s = square.build(out, comments=[c("1", "old", "square: join\nsells: x", at="2020-01-01T00:00:00"),
+                                            c("2", "talker", "square: join\nsells: y", at="2020-01-01T00:00:00"),
+                                            c("3", "talker", "square: ask\ntext: anyone?", at="2020-01-02T00:00:00")])
+            pages = {m["author"]: m["has_page"] for m in s["members"]}
+            self.assertEqual(pages, {"old": False, "talker": True})
+            self.assertFalse(os.path.exists(os.path.join(out, "square", "old")))
+            self.assertTrue(os.path.exists(os.path.join(out, "square", "talker", "index.html")))
+            self.assertTrue(square.new_member("2026-10-01", datetime.date(2026, 10, 13)))
+            self.assertFalse(square.new_member("2026-08-01", datetime.date(2026, 10, 13)))
+            self.assertFalse(square.new_member("garbage"))
+        finally:
+            square.NEW_MEMBER_DAYS = real
+            shutil.rmtree(out)
 
 
 class Pages(unittest.TestCase):
