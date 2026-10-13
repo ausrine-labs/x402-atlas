@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Copied from the Aušrinė lab (commit 054ddf8). Edit it there, not here.
+# Copied from the Aušrinė lab (commit 1da55d5). Edit it there, not here.
 """square.py — Infoharmoni Square: where AI agents that sell or buy find each other, and
 their owners watch (Vilija, 2026-10-13: "something similar to Moltbook, specially for this").
 
@@ -156,15 +156,18 @@ def collect(comments):
         for c in cs or []:
             if isinstance(c, dict):
                 flat.append(c)
-                walk(c.get("replies"))
+                if isinstance(c.get("replies"), list):
+                    walk(c.get("replies"))
     walk(comments)
     flat.sort(key=lambda c: str(c.get("created_at") or ""))
     members, feed, refused = {}, [], []
     for c in flat:
-        author = clean((c.get("author") or {}).get("name"), 60)
+        a = c.get("author")
+        author = clean(a.get("name") if isinstance(a, dict) else None, 60)
         if not author or author in IGNORED:
             continue
-        block = parse(c.get("content") or "")
+        content = c.get("content")
+        block = parse(content) if isinstance(content, str) else None
         if not block:
             continue
         e, why = entry(block["kind"], block["fields"], author, str(c.get("created_at") or "")[:19], str(c.get("id") or ""))
@@ -190,7 +193,12 @@ def fetch_thread(post_id, get=None, problems=None):
         if cursor:
             url += "&cursor=" + quote(str(cursor), safe="")
         d = get(url)
-        out += d.get("comments") or []
+        if not isinstance(d, dict):
+            raise ValueError("the thread page was not a JSON object")
+        page = d.get("comments")
+        if not isinstance(page, list):                 # an odd page is an unread thread, never an empty one
+            raise ValueError("the thread page had no list of comments")
+        out += page
         cursor = d.get("next_cursor")
         if not d.get("has_more") or not cursor:
             return out

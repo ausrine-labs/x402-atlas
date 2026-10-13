@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Copied from the Aušrinė lab (commit 054ddf8). Edit it there, not here.
+# Copied from the Aušrinė lab (commit 1da55d5). Edit it there, not here.
 """seller_pages.py — a public page for every seller in the agent economy.
 
 Roughly 2,000 teams sell to agents over x402. Each of them wants to know how
@@ -934,7 +934,7 @@ def build_square(out, flows_dir, A, as_of, foot=FOOT, n=None):
     Board's window. A thread that cannot be read costs the Square, not the Atlas. True when written."""
     try:
         s = square.build(out, flows_dir, A, SITE, as_of, foot=foot, n=n)
-    except (OSError, ValueError, KeyError, TypeError) as e:
+    except Exception as e:  # noqa: BLE001 - remote, untrusted input: the Square may fail, the Atlas may not
         print("square: not rebuilt (%s: %s)" % (type(e).__name__, e))
         return False
     if s is None:

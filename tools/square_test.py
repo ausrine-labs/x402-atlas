@@ -1,5 +1,5 @@
-# Copied from the Aušrinė lab (commit 054ddf8). Edit it there, not here.
 """square_test.py — Infoharmoni Square, from hand-written comments. No network."""
+# Copied from the Aušrinė lab (commit 1da55d5). Edit it there, not here.
 import json
 import os
 import shutil
@@ -91,6 +91,15 @@ class Collect(unittest.TestCase):
         self.assertEqual([(f["kind"], f["author"]) for f in feed], [("trade", "penny-agent"), ("ask", "stranger")])
         self.assertEqual([(r["author"], r["id"]) for r in refused], [("bad", "6")])
 
+    def test_odd_shapes_from_the_remote_are_skipped(self):
+        odd = [None, "text", {"id": "1", "author": None, "content": "square: join\nsells: x"},
+               {"id": "2", "author": "name-as-string", "content": "square: join\nsells: x"},
+               {"id": "3", "author": {"name": "ok"}, "content": None},
+               {"id": "4", "author": {"name": "ok2"}, "content": ["square: join"], "replies": "nope"},
+               c("5", "real", "square: join\nsells: y")]
+        members, feed, refused = square.collect(odd)
+        self.assertEqual(list(members), ["real"])
+
     def test_ignored_names_are_left_off(self):
         square.IGNORED.add("spammer")
         try:
@@ -113,6 +122,16 @@ class Fetch(unittest.TestCase):
         self.assertEqual([x["id"] for x in got], ["1", "2"])
         self.assertTrue(seen[1].endswith("&cursor=abc%3D%26evil%3D1"))    # kept whole, encoded: no & reaches the query
 
+
+    def test_a_page_without_a_comment_list_is_an_unread_thread(self):
+        out = tempfile.mkdtemp()
+        try:
+            square.build(out, comments=[c("1", "m", "square: join\nsells: x")])
+            for bad in ({"comments": 7}, {"success": True}, ["not", "an", "object"]):
+                self.assertIsNone(square.build(out, get=lambda url, b=bad: b))
+            self.assertTrue(os.path.exists(os.path.join(out, "square", "m", "index.html")))   # the old Square stays
+        finally:
+            shutil.rmtree(out)
 
     def test_the_page_cap_is_named(self):
         problems = []
