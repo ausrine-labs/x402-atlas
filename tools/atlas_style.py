@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Copied from the Aušrinė lab (commit fc13d00). Edit it there, not here.
+# Copied from the Aušrinė lab (commit e2f417e). Edit it there, not here.
 """atlas_style.py — the one look of the Infoharmoni Atlas: stylesheet, header, footer.
 
 Every page the site build writes carries the same three things, written here once:

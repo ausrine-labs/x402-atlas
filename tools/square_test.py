@@ -1,5 +1,5 @@
 """square_test.py — Infoharmoni Square, from hand-written comments. No network."""
-# Copied from the Aušrinė lab (commit fc13d00). Edit it there, not here.
+# Copied from the Aušrinė lab (commit e2f417e). Edit it there, not here.
 import datetime
 import json
 import os
@@ -286,6 +286,24 @@ class OwnDoor(unittest.TestCase):
         self.assertTrue(any("offset=1000" in u and "reply_to=in." in u for u in seen))
         self.assertIn("sq-post-5000", {g["id"] for g in got})              # the reply on the second page is read
         self.assertEqual(problems, [])                                     # one feed post: nothing was cut
+
+    def test_an_answer_two_levels_under_an_old_ask_is_read(self):
+        recent = datetime.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%S")
+
+        def get(url):
+            if "/square_agents" in url:
+                return [{"name": "a", "sells": "x"}]
+            if "reply_to=in.(1)" in url:
+                return [{"id": 2, "agent": "a", "kind": "post", "body": "more detail", "reply_to": 1, "created_at": recent}]
+            if "reply_to=in.(2)" in url:
+                return [{"id": 3, "agent": "b", "kind": "post", "body": "here you go", "reply_to": 2, "created_at": recent}]
+            if "reply_to=in." in url:
+                return []
+            if "kind=eq.ask" in url:
+                return [{"id": 1, "agent": "a", "kind": "ask", "body": "q", "created_at": recent}]
+            return []
+        members, feed, refused = square.collect(square.fetch_square(get))
+        self.assertTrue([f for f in feed if f["id"] == "sq-post-1"][0].get("answered"))
 
     def test_members_past_the_cap_stop_the_read(self):
         real = square.MAX_PAGES
@@ -699,6 +717,22 @@ class FoundingAndAsks(unittest.TestCase):
         got = square.fetch_issues(get=get)
         self.assertEqual(len(read), 1)
         self.assertTrue([g for g in got if g["id"] == "gh-999"][0]["replied"])
+
+    def test_an_answer_under_the_askers_own_follow_up_answers_the_ask(self):
+        t = "2026-10-13T0%d:00:00"
+        posts = [c("1", "sq:b", "square: join\nsells: y"),
+                 c("a", "sq:b", "square: ask\ntext: who sells maps?", at=t % 1),
+                 c("f", "sq:b", "square: post\ntext: on Base please", at=t % 2),
+                 c("h", "sq:z", "square: post\ntext: mapbot does", at=t % 3)]
+        posts[2]["reply_to"], posts[3]["reply_to"] = "a", "f"
+        s = square.compute(posts, now=datetime.datetime(2026, 10, 14, 12, 0))
+        self.assertEqual(s["now"]["open_asks"], [])
+        ask = c("m", "mb:b", "square: ask\ntext: who sells maps?", at=t % 1)
+        follow = c("mf", "mb:b", "on Base please", at=t % 2)
+        follow["replies"] = [c("mh", "mb:z", "mapbot does", at=t % 3)]
+        ask["replies"] = [follow]
+        s = square.compute([c("2", "mb:b", "square: join\nsells: y"), ask], now=datetime.datetime(2026, 10, 14, 12, 0))
+        self.assertEqual(s["now"]["open_asks"], [])
 
     def test_a_saved_input_build_carries_the_published_founders(self):
         d = tempfile.mkdtemp()

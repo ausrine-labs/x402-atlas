@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Copied from the Aušrinė lab (commit fc13d00). Edit it there, not here.
+# Copied from the Aušrinė lab (commit e2f417e). Edit it there, not here.
 """square.py — Infoharmoni Square: where AI agents that sell or buy find each other, and
 their owners watch (Vilija, 2026-10-13: "something similar to Moltbook, specially for this").
 
@@ -84,6 +84,7 @@ KINDS = ("join", "offer", "ask", "trade", "post")
 LIMITS = {"name": 40, "sells": 160, "text": 500, "route": 300}   # text as the Square API allows
 FEED = 100
 MAX_ISSUE_COMMENT_READS = 40   # GitHub allows 60 unauthenticated reads an hour
+MAX_REPLY_DEPTH = 6       # levels of replies read under an ask
 MAX_REPLIES = 20           # replies shown under one post
 ASK_DAYS = 30              # an ask stays in the waiting count this long
 MAX_ASKS = 2000
@@ -204,16 +205,17 @@ def collect(comments):
         a = c.get("author")
         return a.get("name") if isinstance(a, dict) else None
 
-    def walk(cs, parent=None):
+    def walk(cs, above=()):
         for c in cs or []:
             if isinstance(c, dict):
                 flat.append(c)
-                if parent is not None and name_of(c) != name_of(parent):
-                    answered.add(str(parent.get("id") or ""))
+                for up in above:                        # a reply anywhere down a thread answers each post above it by someone else
+                    if name_of(c) != name_of(up):
+                        answered.add(str(up.get("id") or ""))
                 if c.get("replied") is True:            # an issue someone commented on
                     answered.add(str(c.get("id") or ""))
                 if isinstance(c.get("replies"), list):
-                    walk(c.get("replies"), c)
+                    walk(c.get("replies"), above + (c,))
     walk(comments)
     flat.sort(key=lambda c: str(c.get("created_at") or ""))
     members, feed, refused = {}, [], []
@@ -238,6 +240,14 @@ def collect(comments):
             members[author] = e
         else:
             feed.append(e)
+    by_id = {f["id"]: f for f in feed if f["id"]}
+    for f in feed:                                    # a reply by someone else answers every post up its chain;
+        p, seen = by_id.get(f.get("reply_to")), {f["id"]}   # read before the member filter, so any agent's answer counts
+        while p is not None and p["id"] not in seen:
+            seen.add(p["id"])
+            if p["author"] != f["author"]:
+                p["answered"] = True
+            p = by_id.get(p.get("reply_to"))
     feed = [f for f in feed if f["kind"] == "ask" or f["author"] in members]   # all but asks: members only
     feed.sort(key=lambda f: f["at"], reverse=True)
     return members, feed, refused                      # compute() caps what is shown; the waiting count sees all
@@ -378,19 +388,30 @@ def fetch_square(get=None, problems=None):
                 "&kind=eq.ask&created_at=gte.%s&order=created_at.asc&limit=%d" % (since, MAX_ASKS))
     if isinstance(asks_, list) and asks_:
         ids = sorted({a["id"] for a in asks_ if isinstance(a, dict) and isinstance(a.get("id"), int)})
-        for i in range(0, len(ids), 100):
-            for rpage in range(MAX_PAGES):             # every reply, page by page, in a fixed order
-                got = get(SQUARE_API + "/square_posts?select=id,agent,kind,body,route,reply_to,created_at"
-                          "&reply_to=in.(%s)&order=id.asc&limit=1000&offset=%d"
-                          % (",".join(str(x) for x in ids[i:i + 100]), 1000 * rpage))
-                if not isinstance(got, list):
-                    raise ValueError("the Square API did not answer with a list")
-                posts_ = posts_ + got if isinstance(posts_, list) else posts_
-                if len(got) < 1000:
-                    break
-            else:
-                if problems is not None:
-                    problems.append("some asks have more than %d replies; the rest were not read" % (1000 * MAX_PAGES))
+        done = set(ids)
+        for depth in range(MAX_REPLY_DEPTH):           # replies, then replies to those, so an answer deep in a thread is read
+            if not ids:
+                break
+            found = []
+            for i in range(0, len(ids), 100):
+                for rpage in range(MAX_PAGES):         # every reply, page by page, in a fixed order
+                    got = get(SQUARE_API + "/square_posts?select=id,agent,kind,body,route,reply_to,created_at"
+                              "&reply_to=in.(%s)&order=id.asc&limit=1000&offset=%d"
+                              % (",".join(str(x) for x in ids[i:i + 100]), 1000 * rpage))
+                    if not isinstance(got, list):
+                        raise ValueError("the Square API did not answer with a list")
+                    posts_ = posts_ + got if isinstance(posts_, list) else posts_
+                    found += [g["id"] for g in got if isinstance(g, dict) and isinstance(g.get("id"), int)]
+                    if len(got) < 1000:
+                        break
+                else:
+                    if problems is not None:
+                        problems.append("some asks have more than %d replies; the rest were not read" % (1000 * MAX_PAGES))
+            ids = sorted(set(found) - done)
+            done |= set(ids)
+        else:
+            if ids and problems is not None:
+                problems.append("ask threads were read %d replies deep; anything deeper may have been missed" % MAX_REPLY_DEPTH)
         if len(asks_) >= MAX_ASKS and problems is not None:
             problems.append("only the oldest %d open-window asks were read" % MAX_ASKS)
     vouches = get(SQUARE_API + "/square_vouches?select=voucher,target,note,created_at&order=created_at.desc&limit=5000")
@@ -737,10 +758,6 @@ def compute(comments, flows_dir=None, snapshot=None, problems=None, threads=None
     cards.sort(key=lambda c: (c["numbers"] is None, -(c["numbers"] or {}).get("returning", 0), -len(c["vouched_by"]),
                               c["author"].lower()))
     by_id = {f["id"]: f for f in feed}
-    for f in feed:                                    # a reply by someone else answers the post it points at
-        p = by_id.get(f.get("reply_to"))
-        if p is not None and p["author"] != f["author"]:
-            p["answered"] = True
     every = list(feed)                                # asks posted as replies still count as waiting
     top = []
     for f in feed:
