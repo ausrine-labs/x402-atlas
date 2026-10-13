@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Copied from the Aušrinė lab (commit 027aa20). Edit it there, not here.
+# Copied from the Aušrinė lab (commit f00a5fb). Edit it there, not here.
 """atlas_mcp.py — the Infoharmoni Atlas as an MCP server, so an agent can ask the
 public record of the x402 market on Base from inside its own tools.
 
@@ -15,6 +15,8 @@ the pages are built from, and nothing else:
   compare           two to five hosts side by side, each row with its data date
   agent_spend       what one wallet paid over x402 in the window, and to whom, in brief
   posts             what agents have posted about a seller, an operator, a wallet or the market
+  market_brief      the newest weekly x402 Market Brief, as published for agents (brief.py writes it)
+  find_seller       the Board's top sellers for a job: ranked by real customers who come back, not money
   buyer_dry_run     which seller the buyer would buy a need from, why, and at what price; pays nothing
 
 Data comes from the rolling windows the Atlas publishes each morning — the
@@ -104,6 +106,18 @@ INSTALL = "uvx --from git+https://github.com/ausrine-labs/x402-atlas infoharmoni
 POST_PRICE = "$0.01"
 POST_KINDS = ("seller", "operator", "wallet", "market")
 MAX_POSTS_JSON = 512 * 1024
+# The newest published weekly brief: brief.py writes brief/latest.json beside each week's page.
+BRIEF = os.environ.get("ATLAS_BRIEF") or "https://atlas.infoharmoni.com/brief/latest.json"
+BRIEF_KIND = "x402-market-brief"
+MAX_BRIEF_JSON = 4 * 1024 * 1024
+# The Board: every seller ranked by real customers; board.py writes board/board.json each morning.
+BOARD = os.environ.get("ATLAS_BOARD") or "https://atlas.infoharmoni.com/board/board.json"
+BOARD_KIND = "x402-board"
+MAX_BOARD_JSON = 8 * 1024 * 1024
+FIND_TOP = 5
+# words that say nothing about the job
+JOB_STOP = {"the", "and", "for", "with", "that", "this", "from", "into", "api", "apis", "need", "want", "get", "find",
+            "some", "any", "can", "you", "who", "what", "data", "service", "agent", "x402", "pay", "per", "call"}
 FILE_PRICES = {"sellers.csv": "$0.25", "buyers.csv": "$0.25", "operators.csv": "$0.25", "day.json": "$1.00"}
 FREE = tiers.free(tiers.from_argv(sys.argv[1:]))      # the tier this server answers in: the switch, or --full / --free
 
@@ -171,6 +185,24 @@ TOOLS = [
                                                  "wallet: a 0x address; market: base"},
          "limit": {"type": "integer", "description": "posts to return, default 10, max 50"}},
                      "required": ["kind", "id"]}},
+    {"name": "market_brief",
+     "description": "The newest weekly x402 Market Brief from the " + market.BRAND + ", as published for agents: where "
+                    "the money went (x402 USDC and payments, the top three sellers' share, and for each top seller the "
+                    "share from its largest payer), concentration (sellers with one paying wallet, median payers), "
+                    "growth from many wallets or from one, Solana when it is in, and a short list of what it means. "
+                    "Every number carries its dates; a total that one edge makes up more than half of is marked.",
+     "inputSchema": {"type": "object", "properties": {}}},
+    {"name": "find_seller",
+     "description": "Which x402 sellers on Base other buyers come back to, for a job. Matches the job's words against "
+                    "each seller's category and what it sells, and returns the top 5 rows of the " + market.BRAND + "'s "
+                    "Board, where sellers are ranked by real customers (paying wallets, robots that pay 20 or more "
+                    "sellers left out), then by returning customers, never by money. Each row has its customers, "
+                    "returning customers, top payer share, money a day for 7 days, a shape word, and a one-line reason.",
+     "inputSchema": {"type": "object", "properties": {
+         "job": {"type": "string", "description": "the job to get done, in plain words, e.g. 'weather forecast' or 'enrich a company'"},
+         "max_price": {"type": "number", "description": "the most to pay for one call, in USD; a seller whose cheapest "
+                                                       "listed price is above it is left out"}},
+                     "required": ["job"]}},
     {"name": "buyer_dry_run",
      "description": "Which x402 seller the Atlas's buyer would buy a need from, why, and at what price: a dry run of "
                     "the buyer loop for fetch_page (a url), web_search (a query) or enrich_company (a domain). It lists the "
@@ -699,6 +731,81 @@ def t_posts(args):
             "notes": [d.get("note") or "", NOTE_WALLET], "paid_next": paid_post(kind, ident)}
 
 
+def t_market_brief(_args):
+    """The newest published brief.json, as it is: read once from BRIEF, https only, no redirect.
+    Its two links to the Atlas say they came from here."""
+    try:
+        d = json.loads(flows_handoff.http_get(BRIEF, MAX_BRIEF_JSON))
+    except Exception as e:  # noqa: BLE001 - the reason, never a crash
+        return {"error": "the newest brief could not be read from %s: %s" % (BRIEF, type(e).__name__)}
+    if not isinstance(d, dict) or d.get("kind") != BRIEF_KIND or not isinstance(d.get("window"), dict):
+        return {"error": "%s did not answer with a market brief" % BRIEF}
+    for k in ("page", "json"):
+        if isinstance(d.get(k), str) and d[k].startswith("https://"):
+            d[k] = via(d[k])
+    d["paid_next"] = paid_files("day.json")
+    return d
+
+
+def _job_words(text):
+    return {w for w in re.findall(r"[a-z0-9]{3,}", text.lower()) if w not in JOB_STOP}
+
+
+def t_find_seller(args):
+    """The Board's top rows for a job, read once from BOARD, https only, no redirect. Rows where a
+    word of the job starts a word of the host, what it sells or its category come first, then rows
+    matched only by the job's category; each part in the Board's own order, never by money."""
+    job = str(args.get("job") or "").strip()
+    if not job:
+        return {"error": "say what job you need done"}
+    cap = args.get("max_price")
+    if cap is not None and (isinstance(cap, bool) or not isinstance(cap, (int, float)) or cap <= 0):
+        return {"error": "max_price must be a number of USD above 0"}
+    try:
+        b = json.loads(flows_handoff.http_get(BOARD, MAX_BOARD_JSON))
+    except Exception as e:  # noqa: BLE001 - the reason, never a crash
+        return {"error": "the Board could not be read from %s: %s" % (BOARD, type(e).__name__)}
+    if not isinstance(b, dict) or b.get("kind") != BOARD_KIND or not isinstance(b.get("sellers"), list):
+        return {"error": "%s did not answer with the Board" % BOARD}
+    jl = job.lower()
+    want = _job_words(job)
+    cats = [name for name, _, rx in market.CATS if re.search(rx, jl) or name in jl]
+    hits = []
+    for r in b["sellers"]:
+        if not isinstance(r, dict) or not isinstance(r.get("rank"), int):
+            continue
+        pm = r.get("price_min")
+        if cap is not None and (isinstance(pm, bool) or not isinstance(pm, (int, float)) or not 0 <= pm <= cap):
+            continue        # no price, or above the cap; a free route ($0) is under any cap
+        text = " ".join(str(r.get(k) or "") for k in ("host", "sells", "category")).lower()
+        if any(re.search(r"\b" + re.escape(w), text) for w in want):
+            tier, how = 0, "words"
+        elif r.get("category") in cats:
+            tier, how = 1, "category"
+        else:
+            continue
+        hits.append((tier, r["rank"], how, r))
+    hits.sort(key=lambda h: (h[0], h[1]))
+    keep = ("rank", "host", "category", "sells", "price", "customers", "returning", "top_payer_share_pct",
+            "one_payer_most", "daily_usdc", "shape", "reason")
+    rows = []
+    for _tier, _rank, how, r in hits[:FIND_TOP]:
+        row = {k: r.get(k) for k in keep}
+        row["matched_by"] = how
+        row["page"] = via(r["page"]) if isinstance(r.get("page"), str) and r["page"].startswith("https://") else None
+        rows.append(row)
+    out = {"job": job, "max_price": cap, "intent": cats, "matched": len(hits), "sellers": rows,
+           "window": b.get("window"),
+           "board": via(b["page"]) if isinstance(b.get("page"), str) and b["page"].startswith("https://") else None,
+           "notes": ["ranked by returning customers, then customers; a seller whose largest payer sent over half its "
+                     "money comes after every seller that is not; money never sets the order",
+                     "a customer is a paying wallet; wallets that paid 20 or more sellers in the week are left out",
+                     NOTE_WALLET]}
+    if rows:
+        out["paid_next"] = paid_files("sellers.csv")
+    return out
+
+
 DRY_RUN_MAX_USD = 0.02
 DRY_RUN_NETWORK = "testnet"      # the dry run reads terms and signs nothing; the pin is still Base Sepolia unless BUYER_NET says mainnet
 
@@ -741,7 +848,9 @@ def t_buyer_dry_run(args):
 
 HANDLERS = {"market_today": t_market_today, "search": t_search, "seller": t_seller,
             "operator": t_operator, "agents_at_work": t_agents, "compare": t_compare,
-            "agent_spend": t_agent_spend, "posts": t_posts, "buyer_dry_run": t_buyer_dry_run}
+            "agent_spend": t_agent_spend, "posts": t_posts, "market_brief": t_market_brief,
+            "find_seller": t_find_seller,
+            "buyer_dry_run": t_buyer_dry_run}
 
 
 def call_tool(name, args):
