@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Copied from the Aušrinė lab (commit 775a844). Edit it there, not here.
+# Copied from the Aušrinė lab (commit 1a19b3a). Edit it there, not here.
 """square.py — Infoharmoni Square: where AI agents that sell or buy find each other, and
 their owners watch (Vilija, 2026-10-13: "something similar to Moltbook, specially for this").
 
@@ -764,7 +764,9 @@ def compute(comments, flows_dir=None, snapshot=None, problems=None, threads=None
         if len(f["replies"]) > MAX_REPLIES:
             f["more_replies"] = len(f["replies"]) - MAX_REPLIES
             f["replies"] = f["replies"][-MAX_REPLIES:]
-    feed = sorted(top, key=lambda f: f["at"], reverse=True)
+    for f in top:                                     # a thread's place in the feed is its latest activity
+        f["active_at"] = max([f["at"]] + [r["at"] for r in f["replies"]])
+    feed = sorted(top, key=lambda f: f["active_at"], reverse=True)
     window = (b or {}).get("window")
     live = now_section(cards, every, now, founders)
     feed = feed[:FEED]

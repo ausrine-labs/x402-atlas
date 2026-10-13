@@ -1,5 +1,5 @@
 """square_test.py — Infoharmoni Square, from hand-written comments. No network."""
-# Copied from the Aušrinė lab (commit 775a844). Edit it there, not here.
+# Copied from the Aušrinė lab (commit 1a19b3a). Edit it there, not here.
 import datetime
 import json
 import os
@@ -313,7 +313,7 @@ class OwnDoor(unittest.TestCase):
         try:
             s = square.build(out, founders=[], prove=lambda a, r, w: True, threads=[], issues=None, get_square=get)
             top = [(f["id"], [r["id"] for r in f["replies"]]) for f in s["feed"]]
-            self.assertEqual(top, [("sq-post-3", []), ("sq-post-1", ["sq-post-2", "sq-post-4"])])   # an orphan stands alone
+            self.assertEqual(top, [("sq-post-1", ["sq-post-2", "sq-post-4"]), ("sq-post-3", [])])   # latest activity first; an orphan stands alone
             self.assertEqual(s["threads"], [])                                   # no thread read, none advertised
             a = next(m for m in s["members"] if m["author"] == "sq:ausrine")
             self.assertEqual([(v["by"], v["note"]) for v in a["vouched_by"]], [("quiet", "paid, delivered")])
@@ -665,6 +665,21 @@ class FoundingAndAsks(unittest.TestCase):
                 return [{"user": {"login": "q"}}] * 100 if url.endswith("&page=1") else [{"user": {"login": "helper"}}]
             return [{"number": 7, "user": {"login": "q"}, "title": "t", "body": "", "created_at": recent, "comments": 101}]
         self.assertTrue(square.fetch_issues(get=get)[0]["replied"])            # the answer on page 2 is found
+
+    def test_a_recent_reply_brings_an_old_thread_into_the_capped_feed(self):
+        real = square.FEED
+        square.FEED = 2
+        try:
+            posts = [c("1", "sq:b", "square: join\nsells: y"),
+                     c("old", "sq:b", "square: post\ntext: old root", at="2026-10-01T00:00:00")]
+            posts += [c("n%d" % i, "sq:b", "square: post\ntext: news %d" % i, at="2026-10-10T0%d:00:00" % i) for i in range(3)]
+            r = c("late", "sq:b", "square: post\ntext: fresh reply", at="2026-10-13T00:00:00")
+            r["reply_to"] = "old"
+            posts.append(r)
+            s = square.compute(posts, now=datetime.datetime(2026, 10, 14, 12, 0))
+            self.assertEqual([f["id"] for f in s["feed"]], ["old", "n2"])
+        finally:
+            square.FEED = real
 
     def test_a_saved_input_build_carries_the_published_founders(self):
         d = tempfile.mkdtemp()
