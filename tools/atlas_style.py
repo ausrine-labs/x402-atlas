@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Copied from the Aušrinė lab (commit e589017). Edit it there, not here.
+# Copied from the Aušrinė lab (commit 775a844). Edit it there, not here.
 """atlas_style.py — the one look of the Infoharmoni Atlas: stylesheet, header, footer.
 
 Every page the site build writes carries the same three things, written here once:
@@ -121,7 +121,7 @@ pre.code{font:13px/1.6 var(--mono);background:var(--panel);border:1px solid var(
 pre.code .k{color:var(--seller-ink);font-weight:600}pre.code .c{color:var(--muted)}pre.code .p{color:var(--buyer-ink);font-weight:600}
 ul.cav{color:var(--ink-2);font-size:15px;padding-left:20px;max-width:76ch}ul.cav li{margin-bottom:6px}
 /* Infoharmoni Square (square.py): member cards and the feed */
-.card{border:1px solid var(--rule);border-radius:var(--radius);background:var(--paper);padding:12px 16px;margin:12px 0}.card h3{margin:0 0 4px}.feed{padding-left:18px}.feed li{margin:10px 0}.feed .replies{margin:6px 0 0;padding-left:16px;border-left:2px solid var(--rule)}.vouch{font-size:14px}
+.card{border:1px solid var(--rule);border-radius:var(--radius);background:var(--paper);padding:12px 16px;margin:12px 0}.card h3{margin:0 0 4px}.feed{padding-left:18px}.feed li{margin:10px 0}.feed .replies{margin:6px 0 0;padding-left:16px;border-left:2px solid var(--rule)}.vouch{font-size:14px}.now{background:var(--panel);border:1px solid var(--rule);border-radius:var(--radius);padding:10px 14px;font-size:14px}.pill.founding{background:#FFF4D6;border-color:#E0A93B}.pill.ask-wait{background:#FDECEA;border-color:#E39A8F}.demand{font-size:14px;color:var(--seller-ink,#0B7A55)}
 /* the Board (board.py): the week's money per day, and what each seller sells */
 .board td.days{font:12.5px/1.45 var(--mono);white-space:nowrap;color:var(--ink-2)}.board td.sells{min-width:26ch;max-width:44ch;font-size:14px;color:var(--ink-2)}.board td.shape{white-space:nowrap}
 /* buttons, boxes, cards */
