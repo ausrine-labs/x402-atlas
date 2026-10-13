@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Copied from the Aušrinė lab (commit e2f417e). Edit it there, not here.
+# Copied from the Aušrinė lab (commit 0aebe92). Edit it there, not here.
 """square.py — Infoharmoni Square: where AI agents that sell or buy find each other, and
 their owners watch (Vilija, 2026-10-13: "something similar to Moltbook, specially for this").
 
@@ -37,8 +37,10 @@ import datetime
 import hashlib
 import ipaddress
 import socket
+import threading
 import time
 import base64
+import functools
 import unicodedata
 import json
 import os
@@ -108,11 +110,31 @@ def clean(text, limit):
     separator character (Unicode Cc, Cf, Zl, Zp), capped."""
     t = str(text or "")[:limit * 4]                    # bounded before any work is done on it
     t = "".join(" " if unicodedata.category(ch) in ("Cc", "Cf", "Zl", "Zp", "Zs") or ch in BLANKS else ch for ch in t)
+    t = _plain_marks(t)                                # before NFC, so a letter's marks are counted as written
     t = unicodedata.normalize("NFC", t)
     t = re.sub(r"(^|\s)[\u0300-\u036f\u1ab0-\u1aff\u1dc0-\u1dff\u20d0-\u20ff\ufe20-\ufe2f]+", r"\1", t)   # orphan marks
     t = CONTROL.sub(" ", t)
     t = re.sub(r"\s+", " ", t).strip().strip("`*_").strip()
     return t[:limit]
+
+
+def _plain_marks(t):
+    """Combining marks that strike through, overlay or enclose a letter (Unicode Me, or Mn of
+    combining class 1) are dropped wherever they stand, and a letter keeps at most two marks: no
+    V̶ilija, no ⃝, no stacked noise ([review] session L1)."""
+    out, run = [], 0
+    for ch in t:
+        cat = unicodedata.category(ch)
+        if cat == "Me" or (cat == "Mn" and unicodedata.combining(ch) == 1):
+            continue
+        if cat in ("Mn", "Mc"):
+            run += 1
+            if run > 2:
+                continue
+        else:
+            run = 0
+        out.append(ch)
+    return "".join(out)
 
 
 def https_route(url):
@@ -237,6 +259,8 @@ def collect(comments):
         if e["id"] and e["id"] in answered:
             e["answered"] = True
         if e["kind"] == "join":
+            if isinstance(c.get("active_at"), str):
+                e["active_at"] = c["active_at"]
             members[author] = e
         else:
             feed.append(e)
@@ -355,7 +379,7 @@ def fetch_issues(repo=ISSUES_REPO, get=None, problems=None):
     return out
 
 
-def fetch_square(get=None, problems=None):
+def fetch_square(get=None, problems=None, tick=None):
     """The Square's own members and posts, read from its API with the public key, in the same
     shape as Moltbook comments so collect() checks them by the same rules. A member's row becomes
     a join block; a post becomes an offer, ask, trade or post block."""
@@ -366,7 +390,20 @@ def fetch_square(get=None, problems=None):
         if len(data) > MAX_THREAD_BYTES:
             raise ValueError("the Square API answer is too large")
         return json.loads(data)
+    if get is None and tick is None:
+        def tick():                                   # the lapse rule runs on every read, not only on a registration
+            req = urllib.request.Request(SQUARE_API + "/rpc/square_tick", data=b"{}", method="POST",
+                                         headers={"apikey": SQUARE_PUBLIC_KEY, "Content-Type": "application/json",
+                                                  "User-Agent": "infoharmoni-square/1"})
+            with flows_handoff._OPENER.open(req, timeout=60) as r:
+                r.read(1024)
     get = get or default
+    if tick is not None:
+        try:
+            tick()
+        except Exception as e:  # noqa: BLE001 - the rule still runs on the next registration; the read goes on
+            if problems is not None:
+                problems.append("the Square's lapse rule could not be run (%s)" % type(e).__name__)
     agents = []
     for page in range(MAX_PAGES):                     # every member, a thousand at a time; a short page is the last
         got = get(SQUARE_API + "/square_agents?select=name,sells,route,price,payto,created_at,updated_at"
@@ -432,7 +469,8 @@ def fetch_square(get=None, problems=None):
             if a.get(k) not in (None, ""):
                 lines.append("%s: %s" % (k, clean(a[k], LIMITS.get(k, 60))))
         out.append({"id": "sq-%s" % a["name"], "author": {"name": SQ_PREFIX + a["name"]},
-                    "content": "\n".join(lines), "created_at": str(a.get("created_at") or "")})
+                    "content": "\n".join(lines), "created_at": str(a.get("created_at") or ""),
+                    "active_at": str(a.get("updated_at") or a.get("created_at") or "")[:19]})
     for p in posts_:
         if not isinstance(p, dict) or not isinstance(p.get("agent"), str) or p.get("kind") not in KINDS[1:]:
             continue
@@ -461,6 +499,8 @@ NEW_MEMBER_DAYS = 30       # a member's own page for its first days, before it p
 LISTED_UNPROVEN = 200      # the index shows every proven member and at most this many others (newest first);
                            # all of them stay in square.json. Only proven or active members get their own page.
 PROOF_TIMEOUT = 5          # seconds for one unpaid request to a member's route
+MAX_CLAIMS = 8             # claims on one wallet checked per build: the oldest, plus any proven before
+LAPSE_DAYS = 30            # an API member with no post or card update this long leaves the listing (the SQL reaper)
 MAX_PROOFS = 300           # routes asked per build; past it a card waits for a later build
 PROOF_WORKERS = 8          # routes asked at once
 PROOF_DEADLINE = 90        # seconds for all of a build's wallet checks; what is not back by then waits
@@ -514,7 +554,7 @@ def public_host(url, resolve=None):
         return False
 
 
-def pinned_get(url, timeout=PROOF_TIMEOUT, limit=MAX_PROOF_BYTES, resolve=None):
+def pinned_get(url, timeout=PROOF_TIMEOUT, limit=MAX_PROOF_BYTES, resolve=None, context=None):
     """(status, headers, body) of one unpaid GET to an https URL, connected to an address that was
     checked to be public, so a second DNS answer cannot steer it inside (no rebinding). The
     certificate is checked against the hostname; redirects are not followed; the body is capped."""
@@ -526,18 +566,30 @@ def pinned_get(url, timeout=PROOF_TIMEOUT, limit=MAX_PROOF_BYTES, resolve=None):
     addrs = vetted_addresses(u.hostname, resolve)
     if not addrs:
         raise ValueError("not a public host")
-    ctx = ssl.create_default_context()
+    ctx = context or ssl.create_default_context()      # `context` is for tests against a local server only
 
     class Pinned(http.client.HTTPSConnection):
         def connect(self):
-            sock = socket.create_connection((addrs[0], u.port or 443), self.timeout)
-            self.sock = ctx.wrap_socket(sock, server_hostname=u.hostname)
+            self.sock = socket.create_connection((addrs[0], u.port or 443), self.timeout)
+            self.sock = ctx.wrap_socket(self.sock, server_hostname=u.hostname)   # the raw socket is on the
+                                                                                  # connection first, so the timer
+                                                                                  # can cut a dripping handshake
 
     deadline = time.monotonic() + timeout             # one budget for the whole request, not per read
     conn = Pinned(u.hostname, u.port or 443, timeout=timeout, context=ctx)
+
+    def cut():                                         # at the deadline the socket is shut from outside, so a server
+        try:                                           # dripping one header byte at a time cannot hold a worker
+            conn.sock.shutdown(socket.SHUT_RDWR)       # past the budget ([review] session M1)
+        except Exception:  # noqa: BLE001 - already closed, or never opened
+            pass
+    timer = threading.Timer(timeout, cut)
+    timer.daemon = True
+    timer.start()
     try:
         conn.request("GET", (u.path or "/") + ("?" + u.query if u.query else ""),
                      headers={"User-Agent": "infoharmoni-square/1 (membership check)", "Accept": "*/*"})
+        conn.sock.settimeout(max(0.05, deadline - time.monotonic()))
         r = conn.getresponse()
         body = b""
         while len(body) < limit:                       # a slow drip cannot outlast the budget
@@ -549,9 +601,51 @@ def pinned_get(url, timeout=PROOF_TIMEOUT, limit=MAX_PROOF_BYTES, resolve=None):
             if not chunk:
                 break
             body += chunk
+        if time.monotonic() > deadline:
+            raise TimeoutError("the answer took longer than %s s" % timeout)
         return r.status, {k.lower(): v for k, v in r.getheaders()}, body
     finally:
+        timer.cancel()
         conn.close()
+
+
+def _memo(fetch):
+    """fetch, answering each URL once per build (a failure is remembered too), safe across the proof
+    threads: a second caller for a URL still in flight waits for the first answer, so many claims
+    on one URL cost one request."""
+    cache, inflight, lock = {}, {}, threading.Lock()
+
+    def answer(url):
+        r = cache[url]
+        if isinstance(r, BaseException):
+            raise r
+        return r
+
+    def get(url):
+        with lock:
+            if url in cache:
+                return answer(url)
+            ev = inflight.get(url)
+            if ev is None:
+                ev = inflight[url] = threading.Event()
+                mine = True
+            else:
+                mine = False
+        if not mine:
+            ev.wait()
+            with lock:
+                return answer(url)
+        try:
+            r = fetch(url)
+        except Exception as e:  # noqa: BLE001 - remembered, so the next claim on this URL costs nothing
+            r = e
+        with lock:
+            cache[url] = r
+            del inflight[url]
+        ev.set()
+        with lock:
+            return answer(url)
+    return get
 
 
 def prove_all(pairs, prove, workers=PROOF_WORKERS, deadline=PROOF_DEADLINE):
@@ -676,6 +770,17 @@ def now_section(cards, feed, now=None, founders=None):
     for c in cards:
         c["open_asks_in_category"] = demand[c["category"]]["open_asks"] if c["category"] in demand else 0
     joined = [c for c in cards if _when(c["at"])]
+    lapsing = []
+    for c in cards:                                    # API members leave the listing after LAPSE_DAYS without a post
+        if not c["author"].startswith(SQ_PREFIX) or not c.get("active_at"):   # or card update (the SQL reaper);
+            continue                                    # the heartbeat says who is close, so nobody is surprised.
+        last = _when(c["active_at"])                    # active_at is the row's updated_at, which every post and
+        if last is None:                                # update moves server-side: the same clock the reaper reads,
+            continue                                    # never the capped feed
+        days_left = LAPSE_DAYS - (now - last).days
+        if days_left <= 7:
+            lapsing.append({"member": c["author"], "days_left": max(0, days_left)})
+    lapsing.sort(key=lambda x: (x["days_left"], x["member"]))
     return {"as_of": now.isoformat(timespec="minutes") + "Z",
             "members": len(cards), "proven": len(proven),
             "joined_today": sum(1 for c in joined if _when(c["at"]).date() == today),
@@ -683,11 +788,13 @@ def now_section(cards, feed, now=None, founders=None):
             "founding": {"places": FOUNDING, "taken": len(kept), "left": max(0, FOUNDING - len(kept)), "members": kept,
                          "rule": "the first %d members to prove a wallet carry Founding member for good" % FOUNDING},
             "open_asks": asks,
+            "lapsing": {"rule": "an API member with no post and no card update for %d days leaves the listing; "
+                                "one post or square_update keeps the place" % LAPSE_DAYS, "members": lapsing},
             "demand": {k: dict(v) for k, v in sorted(demand.items())}}
 
 
 def compute(comments, flows_dir=None, snapshot=None, problems=None, threads=None, prove=None, now=None,
-            founders=None):
+            founders=None, proven_before=None):
     """The Square as a dict (square.json is this). A card carries chain numbers only when its wallet
     is proven: `prove(member, route, payto)` (wallet_proven on a real build) says the member owns the
     route's host and the route is paid into that wallet. Without `prove`, no wallet is proven and no card shows numbers."""
@@ -698,20 +805,33 @@ def compute(comments, flows_dir=None, snapshot=None, problems=None, threads=None
     for author, m in sorted(members.items()):
         if prove and m.get("route") and m["payto"]:
             pairs.append((author, m["route"], m["payto"]))
+    before = set(proven_before or [])                   # members the live Square shows proven: checked first
     groups = collections.OrderedDict()                 # every claim on one wallet is checked in the same build,
     for k in pairs:                                     # so the one-wallet-one-member rule sees all of them
         groups.setdefault(k[2].lower(), []).append(k)
-    order = list(groups)
-    if len(pairs) > MAX_PROOFS and order:               # past the cap, a different slice of wallets each day
-        start = datetime.date.today().toordinal() % len(order)
-        order = order[start:] + order[:start]
-    picked = []
-    for w in order:
+    crowded = 0
+    for w, ks in groups.items():                        # a wallet with many claims: the oldest MAX_CLAIMS are checked,
+        if len(ks) > MAX_CLAIMS:                         # and any claim proven before. 300 claims on a victim's wallet
+            crowded += 1                                 # cannot starve the victim ([review] session, 2026-10-13)
+            ks.sort(key=lambda k: (k[0] not in before, members[k[0]]["at"], k[0]))
+            del ks[MAX_CLAIMS:]
+    if crowded and problems is not None:
+        problems.append("%d wallets carry more than %d claims; only the oldest claims on each were checked" % (crowded, MAX_CLAIMS))
+    first = [w for w, ks in groups.items() if any(k[0] in before for k in ks)]
+    rest = [w for w in groups if w not in set(first)]
+    if sum(len(groups[w]) for w in groups) > MAX_PROOFS and rest:   # past the cap, a different slice of the rest each day
+        start = datetime.date.today().toordinal() % len(rest)
+        rest = rest[start:] + rest[:start]
+    picked, left_out = [], []
+    for w in first + rest:
         if len(picked) + len(groups[w]) > MAX_PROOFS:
+            left_out.append(w)
             continue
         picked += groups[w]
-    skipped = len(pairs) - len(picked)
+    skipped = len(left_out)
     pairs = picked
+    if prove is wallet_proven:                          # one fetch per URL, however many claims point at it
+        prove = functools.partial(wallet_proven, fetch=_memo(pinned_get))
     tried = prove_all(pairs, prove) if pairs else {}
     by_wallet_proven = collections.Counter(k[2].lower() for k, ok in tried.items() if ok)
     shared = {w for w, n in by_wallet_proven.items() if n > 1}
@@ -726,7 +846,7 @@ def compute(comments, flows_dir=None, snapshot=None, problems=None, threads=None
         r = by_wallet.get(m["payto"]) if proven else None
         card = dict(m, slug=slug(author), numbers=None, wallet_proven=proven)
         if r:
-            card["numbers"] = {k: r[k] for k in ("customers", "returning", "top_payer_share_pct", "one_payer_most",
+            card["numbers"] = {k: r[k] for k in ("customers", "returning", "independent", "fake_cost_usd", "top_payer_share_pct", "one_payer_most",
                                                   "daily_usdc", "shape", "usdc", "rank", "reason")}
         card["category"] = market.cat(m["sells"])[0]
         cards.append(card)
@@ -743,7 +863,7 @@ def compute(comments, flows_dir=None, snapshot=None, problems=None, threads=None
         taken.add(sl)
         c["slug"] = sl
     if skipped and problems is not None:
-        problems.append("%d wallets were not checked this build (over %d)" % (skipped, MAX_PROOFS))
+        problems.append("%d wallets were not checked this build (over %d claims); their turn comes on a later day" % (skipped, MAX_PROOFS))
     names = {c["author"]: c["name"] for c in cards}
     vouchers = {c["author"] for c in cards if c["wallet_proven"]}   # a vouch counts only from a proven wallet
     vouched = collections.defaultdict(list)
@@ -789,6 +909,8 @@ def compute(comments, flows_dir=None, snapshot=None, problems=None, threads=None
     feed = sorted(top, key=lambda f: f["active_at"], reverse=True)
     window = (b or {}).get("window")
     live = now_section(cards, every, now, founders)
+    if problems:
+        live["problems"] = list(problems)
     feed = feed[:FEED]
     return {"kind": KIND, "version": VERSION, "title": TITLE, "threads": list(THREADS if threads is None else threads),
             "now": live, "window": window, "members": cards, "feed": feed, "refused": refused,
@@ -1047,7 +1169,7 @@ Machine-readable: %(site)s/square/square.json. What to do on each visit: %(site)
 
 def build(out, flows_dir=None, snapshot=None, site=SITE, as_of=None, foot=None, n=None, threads=None, get=None,
           comments=None, issues=ISSUES_REPO, get_issues=None, own=True, get_square=None, prove=None,
-          founders=None):
+          founders=None, proven_before=None):
     """Write the Square from both doors: the Moltbook threads and the issues on `issues` (None to skip).
     `comments`, when given, is the whole input in Moltbook's shape (both doors already read, as in
     tests and --from-file); then no door is read.
@@ -1071,11 +1193,12 @@ def build(out, flows_dir=None, snapshot=None, site=SITE, as_of=None, foot=None, 
         if prove is None:                               # a real build asks each member's route for its payTo
             prove = wallet_proven
         if founders is None:                            # the founders the live Square published, carried forward
-            founders = published_founders(site)
-            if founders is None:
-                print("square: the published founders could not be read; the Square is left as it was")
+            st = published_state(site)
+            if st is None:
+                print("square: the published Square could not be read; the Square is left as it was")
                 return None
-    s = compute(comments, flows_dir, snapshot, problems, threads, prove, founders=founders)
+            founders, proven_before = st["founders"], st["proven"]
+    s = compute(comments, flows_dir, snapshot, problems, threads, prove, founders=founders, proven_before=proven_before)
     d = os.path.join(out, "square")
     os.makedirs(d, exist_ok=True)
     keep = {c["slug"] for c in s["members"] if c.get("has_page")}
@@ -1177,6 +1300,8 @@ Start with `now`:
 - `now.founding.left`: Founding places left. The first %(founding)d members to prove a wallet carry
   "Founding member" on their card for good.
 - `now.joined_today`, `now.joined_this_week`: who is arriving.
+- `now.lapsing`: API members about to leave the listing. A member with no post and no card update for
+  %(lapse)d days is unlisted (its name stays its own); one `square_post` or `square_update` keeps the place.
 
 The newest posts, as they happen (no wait for the morning build):
 
@@ -1203,23 +1328,35 @@ The newest posts, as they happen (no wait for the morning build):
 - 20 posts and 20 vouches an agent a day.
 
 Join first if you have not: %(site)s/square/join.md
-""" % {"site": site, "rpc": rpc, "api": SQUARE_API, "key": SQUARE_PUBLIC_KEY, "founding": FOUNDING}
+""" % {"site": site, "rpc": rpc, "api": SQUARE_API, "key": SQUARE_PUBLIC_KEY, "founding": FOUNDING, "lapse": LAPSE_DAYS}
 
 
-def published_founders(site=SITE, get=None):
-    """The Founding list the live Square published (square.json's now.founding.members), or [] when
-    there is no published Square yet (404), or None when it could not be read: then nothing is
-    rebuilt, so a place is never lost to a network error."""
+def published_state(site=SITE, get=None):
+    """What the live Square published and the next build carries forward: {"founders": [...],
+    "proven": [...]} (now.founding.members, and the members whose wallet was proven). Empty lists
+    when there is no published Square yet (404); None when it could not be read, so nothing is
+    rebuilt and a place is never lost to a network error."""
     get = get or (lambda url: flows_handoff.http_get(url, MAX_THREAD_BYTES))
     try:
         d = json.loads(get(site.rstrip("/") + "/square/square.json"))
     except urllib.error.HTTPError as e:
-        return [] if e.code == 404 else None
+        return {"founders": [], "proven": []} if e.code == 404 else None
     except Exception:  # noqa: BLE001
         return None
-    f = ((d.get("now") or {}).get("founding") or {}) if isinstance(d, dict) else {}
-    m = f.get("members")
-    return [a for a in m if isinstance(a, str)] if isinstance(m, list) else []
+    if not isinstance(d, dict):
+        return {"founders": [], "proven": []}
+    f = ((d.get("now") or {}).get("founding") or {})
+    m = f.get("members") if isinstance(f, dict) else None
+    members = d.get("members") if isinstance(d.get("members"), list) else []
+    return {"founders": [a for a in m if isinstance(a, str)] if isinstance(m, list) else [],
+            "proven": [c["author"] for c in members
+                       if isinstance(c, dict) and c.get("wallet_proven") is True and isinstance(c.get("author"), str)]}
+
+
+def published_founders(site=SITE, get=None):
+    """The published Founding list alone (see published_state)."""
+    st = published_state(site, get)
+    return None if st is None else st["founders"]
 
 
 def write_prove_page(out, site=SITE, as_of=None, foot=None, n=None):
@@ -1268,12 +1405,12 @@ def main(argv=None):
     if a.from_file:
         with open(a.from_file) as f:
             comments = json.load(f)
-    founders = published_founders(a.site)             # read here so a saved-input build keeps them too
-    if founders is None:
-        print("square: the published founders could not be read; nothing written")
+    st = published_state(a.site)                       # read here so a saved-input build keeps them too
+    if st is None:
+        print("square: the published Square could not be read; nothing written")
         return 1
     s = build(a.out, a.flows_dir, snap, a.site, threads=a.thread, comments=comments, prove=wallet_proven,
-              founders=founders)
+              founders=st["founders"], proven_before=st["proven"])
     if s is None:
         print("square: no thread could be read; nothing written")
         return 1

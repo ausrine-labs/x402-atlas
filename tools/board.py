@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Copied from the Aušrinė lab (commit 5c193d9). Edit it there, not here.
+# Copied from the Aušrinė lab (commit 0aebe92). Edit it there, not here.
 """board.py — The Board: every x402 seller on Base ranked by the payer wallets that come back, not by money.
 
 A directory that ranks by payments rewards loops and single payers: one wallet paying
@@ -70,13 +70,18 @@ ROBOT = brief.ROBOT          # 20: a wallet that paid this many different seller
 TOP = 50                     # rows in the overall list
 TOP_CAT = 10                 # rows in each category
 MICRO = brief.MICRO
+MIN_CUSTOMER_USD = 0.01      # a payer counts as a customer only from this much in the window: dust is not a customer
+GAS_USD = 0.001              # about what one Base transfer costs the payer; the floor of what faking a row costs
 ONE_PAYER = "one payer is most of it"
 
 MEANS = ("x402 payments on Base, the newest %d daily pulls. A customer is a wallet that paid the seller's "
          "payTo wallet; a robot wallet (one that paid %d or more different sellers in the window) is left out of "
          "customer counts, and its money still counts. Returning means paid on 2 or more days. Ranked by returning "
-         "customers, then customers; a seller whose largest payer sent over half its money is ranked after every "
-         "seller that is not. A wallet is not a person, and nothing here says who holds or runs one." % (DAYS, ROBOT))
+         "customers, then independent customers (ones that also paid another seller in the window), then customers; "
+         "a seller whose largest payer sent over half its money is ranked after every seller that is not. A payer "
+         "counts as a customer only from $%s in the window, so dust payments make no customer. Faking a returning "
+         "customer costs a fresh wallet, two payments on two days and the gas: the cost of faking a row is printed "
+         "on it. A wallet is not a person, and nothing here says who holds or runs one." % (DAYS, ROBOT, MIN_CUSTOMER_USD))
 
 
 # ── counting ─────────────────────────────────────────────────────────────
@@ -134,6 +139,8 @@ def reason(r, raw_share=None):
     top payer's exact share in percent; without it the row's rounded share is used."""
     ret = "%d returning customer%s" % (r["returning"], "" if r["returning"] == 1 else "s")
     ret += " of %d" % r["customers"]
+    if r.get("independent") is not None and r["customers"]:
+        ret += ", %d also paid other sellers" % r["independent"]
     p = r["top_payer_share_pct"]
     if r["one_payer_most"]:
         return "%s; one payer sent %g%% of its money" % (ret, p)
@@ -157,15 +164,20 @@ def compute(folder, snapshot, days=DAYS):
         rows += r
         if bad:
             problems.append("%d edges on %s were not in the shape chain_flows writes and were left out" % (bad, day))
-    sellers_of = collections.defaultdict(set)
+    floor = int(round(MIN_CUSTOMER_USD * MICRO))
+    paid = collections.Counter()                       # (payer, payee) -> micro in the window
     for e in rows:
-        sellers_of[e.payer].add(e.payee)
-    robots = {w for w, ss in sellers_of.items() if len(ss) >= ROBOT}
+        paid[(e.payer, e.payee)] += e.micro
+    real_sellers_of = collections.defaultdict(set)    # the sellers a payer sent at least the floor: dust makes
+    for (payer, payee), micro in paid.items():         # no customer, no independence and no robot
+        if micro >= floor:
+            real_sellers_of[payer].add(payee)
+    robots = {w for w, ss in real_sellers_of.items() if len(ss) >= ROBOT}
     pos = {d: i for i, d in enumerate(dates)}
     present = {d for d, _ in base}
 
     by = collections.defaultdict(lambda: {"micro": 0, "payments": 0, "daily": [0] * len(dates),
-                                          "payer_micro": collections.Counter(), "days_of": collections.defaultdict(set)})
+                                          "payer_micro": collections.Counter(), "day_micro": collections.Counter()})
     for e in rows:
         s = by[e.payee]
         s["micro"] += e.micro
@@ -173,14 +185,22 @@ def compute(folder, snapshot, days=DAYS):
         s["daily"][pos[e.date]] += e.micro
         s["payer_micro"][e.payer] += e.micro
         if e.payer not in robots:
-            s["days_of"][e.payer].add(e.date)
+            s["day_micro"][(e.payer, e.date)] += e.micro
 
     out = []
     for w, s in by.items():
-        customers = len(s["days_of"])
+        days_of = collections.defaultdict(set)         # a day counts when the wallet sent at least the floor that
+        for (payer, date), micro in s["day_micro"].items():   # day; a customer sent the floor in the window. Dust
+            if micro >= floor:                                 # is no customer and no return visit.
+                days_of[payer].add(date)
+        for payer in [p for p in s["payer_micro"] if p not in robots and s["payer_micro"][p] >= floor]:
+            days_of.setdefault(payer, set())
+        s["days_of"] = days_of
+        customers = len(days_of)
         if not customers:
             continue
-        returning = sum(1 for ds in s["days_of"].values() if len(ds) >= 2)
+        returning = sum(1 for ds in days_of.values() if len(ds) >= 2)
+        independent = sum(1 for p in days_of if len(real_sellers_of[p]) >= 2)   # also paid someone else the floor
         top_micro = max(s["payer_micro"].values()) if s["payer_micro"] else 0
         share = brief.pct(top_micro, s["micro"]) if s["micro"] else None
         hosts = names.get(w, [])
@@ -196,14 +216,15 @@ def compute(folder, snapshot, days=DAYS):
              "sells": brief.label(sells), "in_registry": bool(rec),
              "price": radar.price_label(rec) if rec else None,
              "price_min": rec.get("price_min") if rec else None, "price_max": rec.get("price_max") if rec else None,
-             "customers": customers, "returning": returning,
+             "customers": customers, "returning": returning, "independent": independent,
+             "fake_cost_usd": round(returning * 2 * (MIN_CUSTOMER_USD + GAS_USD) + (customers - returning) * (MIN_CUSTOMER_USD + GAS_USD), 2),
              "robot_payers": len(set(s["payer_micro"]) & robots),
              "usdc": round(s["micro"] / MICRO, 2), "payments": s["payments"],
              "top_payer_share_pct": share, "one_payer_most": bool(s["micro"]) and 2 * top_micro > s["micro"],
              "daily_usdc": daily, "shape": shape(daily)}
         r["reason"] = reason(r, 100.0 * top_micro / s["micro"] if s["micro"] else None)
         out.append(r)
-    out.sort(key=lambda r: (r["one_payer_most"], -r["returning"], -r["customers"], r["host"], r["wallet"]))
+    out.sort(key=lambda r: (r["one_payer_most"], -r["returning"], -r["independent"], -r["customers"], r["host"], r["wallet"]))
     cat_n = collections.Counter()
     for i, r in enumerate(out, 1):
         r["rank"] = i
@@ -215,6 +236,10 @@ def compute(folder, snapshot, days=DAYS):
                        "files": len(base)},
             "registry": {"sellers": len(snapshot)},
             "robots": {"rule": "paid %d or more different sellers in the window" % ROBOT, "wallets": len(robots)},
+            "customer_floor_usd": MIN_CUSTOMER_USD,
+            "fake_cost": {"rule": "a fresh wallet per customer, two payments on two days per returning one, "
+                                  "at least $%s each plus about $%s gas; printed per row as fake_cost_usd"
+                                  % (MIN_CUSTOMER_USD, GAS_USD)},
             "sellers_ranked": len(out), "one_payer_most": sum(1 for r in out if r["one_payer_most"]),
             "categories": cats, "means": MEANS, "problems": problems, "sellers": out}
 
