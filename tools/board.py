@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Copied from the Aušrinė lab (commit f00a5fb). Edit it there, not here.
+# Copied from the Aušrinė lab (commit 1afc427). Edit it there, not here.
 """board.py — The Board: every x402 seller on Base ranked by real customers, not by money.
 
 A directory that ranks by payments rewards loops and single payers: one wallet paying
@@ -46,6 +46,7 @@ import argparse
 import collections
 import datetime
 import json
+import math
 import os
 import re
 import statistics
@@ -123,18 +124,21 @@ def shape(daily):
 
 
 def ceil10(p):
-    return min(100, -(-int(round(p * 10)) // 100) * 10) if p is not None else None
+    """The next multiple of 10 at or above p; p is the exact share, never a rounded one, so a
+    true 40.04%% is "over 40" (adversarial review 2026-10-13)."""
+    return min(100, int(math.ceil(p / 10.0)) * 10) if p is not None else None
 
 
-def reason(r):
-    """One line on why a row stands where it does, every number from the row."""
+def reason(r, raw_share=None):
+    """One line on why a row stands where it does, every number from the row. `raw_share` is the
+    top payer's exact share in percent; without it the row's rounded share is used."""
     ret = "%d returning customer%s" % (r["returning"], "" if r["returning"] == 1 else "s")
     ret += " of %d" % r["customers"]
     p = r["top_payer_share_pct"]
     if r["one_payer_most"]:
         return "%s; one payer sent %g%% of its money" % (ret, p)
     if p is not None and p < 100:
-        return "%s, no single payer over %d%%" % (ret, max(ceil10(p), 10))
+        return "%s, no single payer over %d%%" % (ret, max(ceil10(p if raw_share is None else raw_share), 10))
     return ret
 
 
@@ -197,7 +201,7 @@ def compute(folder, snapshot, days=DAYS):
              "usdc": round(s["micro"] / MICRO, 2), "payments": s["payments"],
              "top_payer_share_pct": share, "one_payer_most": bool(s["micro"]) and 2 * top_micro > s["micro"],
              "daily_usdc": daily, "shape": shape(daily)}
-        r["reason"] = reason(r)
+        r["reason"] = reason(r, 100.0 * top_micro / s["micro"] if s["micro"] else None)
         out.append(r)
     out.sort(key=lambda r: (r["one_payer_most"], -r["returning"], -r["customers"], r["host"], r["wallet"]))
     cat_n = collections.Counter()
