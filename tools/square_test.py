@@ -1,5 +1,5 @@
 """square_test.py — Infoharmoni Square, from hand-written comments. No network."""
-# Copied from the Aušrinė lab (commit 1a19b3a). Edit it there, not here.
+# Copied from the Aušrinė lab (commit fc13d00). Edit it there, not here.
 import datetime
 import json
 import os
@@ -618,7 +618,7 @@ class FoundingAndAsks(unittest.TestCase):
             def get(url):
                 if "/comments" in url:
                     return [{"user": {"login": x}} for x in logins]
-                return [{"number": 7, "user": {"login": "q"}, "title": "t", "body": "", "created_at": recent, "comments": 2}]
+                return [{"number": 7, "user": {"login": "q"}, "title": "square: ask", "body": "text: help?", "created_at": recent, "comments": 2}]
             return get
         self.assertTrue(square.fetch_issues(get=gh(["q", "helper"]))[0]["replied"])
         self.assertFalse(square.fetch_issues(get=gh(["q"]))[0]["replied"])        # the asker's own bump
@@ -663,7 +663,7 @@ class FoundingAndAsks(unittest.TestCase):
         def get(url):
             if "/comments" in url:
                 return [{"user": {"login": "q"}}] * 100 if url.endswith("&page=1") else [{"user": {"login": "helper"}}]
-            return [{"number": 7, "user": {"login": "q"}, "title": "t", "body": "", "created_at": recent, "comments": 101}]
+            return [{"number": 7, "user": {"login": "q"}, "title": "square: ask", "body": "text: help?", "created_at": recent, "comments": 101}]
         self.assertTrue(square.fetch_issues(get=get)[0]["replied"])            # the answer on page 2 is found
 
     def test_a_recent_reply_brings_an_old_thread_into_the_capped_feed(self):
@@ -680,6 +680,25 @@ class FoundingAndAsks(unittest.TestCase):
             self.assertEqual([f["id"] for f in s["feed"]], ["old", "n2"])
         finally:
             square.FEED = real
+
+    def test_comment_reads_are_spent_on_asks_only(self):
+        recent = (datetime.datetime.utcnow() - datetime.timedelta(days=1)).strftime("%Y-%m-%dT%H:%M:%SZ")
+        issues = [{"number": i, "user": {"login": "q"}, "title": "square: join", "body": "sells: x", "created_at": recent,
+                   "comments": 3} for i in range(1, square.MAX_ISSUE_COMMENT_READS + 5)]
+        issues += [{"number": 500 + i, "user": {"login": "q"}, "title": "square: ask", "body": "", "created_at": recent,
+                    "comments": 3} for i in range(square.MAX_ISSUE_COMMENT_READS + 5)]   # asks with no text: not shown, not read
+        issues.append({"number": 999, "user": {"login": "q"}, "title": "square: ask", "body": "text: anyone?",
+                       "created_at": recent, "comments": 1})
+        read = []
+
+        def get(url):
+            if "/comments" in url:
+                read.append(url)
+                return [{"user": {"login": "helper"}}]
+            return issues
+        got = square.fetch_issues(get=get)
+        self.assertEqual(len(read), 1)
+        self.assertTrue([g for g in got if g["id"] == "gh-999"][0]["replied"])
 
     def test_a_saved_input_build_carries_the_published_founders(self):
         d = tempfile.mkdtemp()

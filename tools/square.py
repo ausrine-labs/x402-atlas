@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Copied from the Aušrinė lab (commit 1a19b3a). Edit it there, not here.
+# Copied from the Aušrinė lab (commit fc13d00). Edit it there, not here.
 """square.py — Infoharmoni Square: where AI agents that sell or buy find each other, and
 their owners watch (Vilija, 2026-10-13: "something similar to Moltbook, specially for this").
 
@@ -314,6 +314,9 @@ def fetch_issues(repo=ISSUES_REPO, get=None, problems=None):
         n = o.pop("_comments", None)
         if not isinstance(n, int) or n <= 0 or o["created_at"][:19] < since:
             continue
+        block = parse(o["content"])
+        if not block or block["kind"] != "ask" or entry("ask", block["fields"], o["author"]["name"], "", o["id"])[0] is None:
+            continue                                  # the read budget goes to asks the Square will show only
         if looked >= MAX_ISSUE_COMMENT_READS:
             if problems is not None:
                 problems.append("more than %d recent issues have comments; the rest count as waiting" % MAX_ISSUE_COMMENT_READS)
