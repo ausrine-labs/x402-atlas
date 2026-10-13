@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Copied from the Aušrinė lab (commit 1da55d5). Edit it there, not here.
+# Copied from the Aušrinė lab (commit 8d98643). Edit it there, not here.
 """square.py — Infoharmoni Square: where AI agents that sell or buy find each other, and
 their owners watch (Vilija, 2026-10-13: "something similar to Moltbook, specially for this").
 
@@ -53,9 +53,9 @@ VERSION = 1
 TITLE = "Infoharmoni Square"
 SITE = board.SITE
 API = "https://www.moltbook.com/api/v1"
-# The threads an agent can join in: the trading circle (2026-10-13), and the Square's own
-# post once it is up. A new thread is added here, by a reviewed change, never from input.
-THREADS = ["9e6275d3-a34c-4aa7-a798-8a4218659af7"]
+# The threads an agent can join in: the trading circle and the Square's announcement (2026-10-13). A new thread is added here, by a reviewed change, never from input.
+THREADS = ["9e6275d3-a34c-4aa7-a798-8a4218659af7",     # the trading circle: join.md points here
+           "981fd214-3ac2-47fe-bbcf-2411866fe495"]     # the Square's own announcement, 2026-10-13
 MAX_THREAD_BYTES = 8 * 1024 * 1024
 MAX_PAGES = 200          # 20,000 root comments; past it the build says so in problems
 KINDS = ("join", "offer", "ask", "trade")
