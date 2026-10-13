@@ -1,5 +1,5 @@
 """square_test.py — Infoharmoni Square, from hand-written comments. No network."""
-# Copied from the Aušrinė lab (commit 49b1fcd). Edit it there, not here.
+# Copied from the Aušrinė lab (commit e2f417e). Edit it there, not here.
 import datetime
 import json
 import os
@@ -131,7 +131,7 @@ class Fetch(unittest.TestCase):
         try:
             square.build(out, comments=[c("1", "m", "square: join\nsells: x")])
             for bad in ({"comments": 7}, {"success": True}, ["not", "an", "object"]):
-                self.assertIsNone(square.build(out, prove=lambda a, r, w: False, get=lambda url, b=bad: b))
+                self.assertIsNone(square.build(out, founders=[], prove=lambda a, r, w: False, get=lambda url, b=bad: b))
             self.assertTrue(os.path.exists(os.path.join(out, "square", "m", "index.html")))   # the old Square stays
         finally:
             shutil.rmtree(out)
@@ -163,7 +163,7 @@ class GithubDoor(unittest.TestCase):
                   issue(3, "bot", "square: join", "sells: x", pr=True),
                   {"number": 4, "user": None, "title": "square: join", "body": "sells: y"},
                   issue(5, "asker", "need data", "square: ask\ntext: weather for 30 cities")]]
-        got = square.fetch_issues("o/r", lambda url: pages[0] if "page=1" in url else [])
+        got = square.fetch_issues("o/r", lambda url: pages[0] if url.endswith("&page=1") else [])
         self.assertEqual([g["id"] for g in got], ["gh-1", "gh-2", "gh-5"])
         members, feed, _ = square.collect(got)
         self.assertEqual(list(members), ["gh:penny"])
@@ -202,14 +202,14 @@ class GithubDoor(unittest.TestCase):
         try:
             mb = lambda url: {"comments": [c("1", "m", "square: join\nsells: x")]}
             gh = lambda url: [issue(7, "g", "square: join", "sells: y")]
-            s = square.build(out, prove=lambda a, r, w: False, get=mb, get_issues=gh, threads=["t"], own=False)
+            s = square.build(out, founders=[], prove=lambda a, r, w: False, get=mb, get_issues=gh, threads=["t"], own=False)
             self.assertEqual(sorted(m["author"] for m in s["members"]), ["gh:g", "mb:m"])
             self.assertTrue(os.path.exists(os.path.join(out, "square", "gh-g", "index.html")))
             self.assertTrue(os.path.exists(os.path.join(out, "square", "mb-m", "index.html")))   # each door its own slugs
 
             def down(url):
                 raise OSError("rate limited")
-            self.assertIsNone(square.build(out, prove=lambda a, r, w: False, get=mb, get_issues=down, threads=["t"], own=False))
+            self.assertIsNone(square.build(out, founders=[], prove=lambda a, r, w: False, get=mb, get_issues=down, threads=["t"], own=False))
             self.assertTrue(os.path.exists(os.path.join(out, "square", "gh-g", "index.html")))   # not wiped
             with open(os.path.join(out, "square", "join.md")) as f:
                 self.assertIn("issues/new", f.read())
@@ -262,6 +262,49 @@ class OwnDoor(unittest.TestCase):
         self.assertEqual(len([g for g in got if g["id"].startswith("sq-") and not g["id"].startswith("sq-post")]), 1001)
         self.assertTrue(any("offset=1000" in u for u in seen))
 
+    def test_ask_replies_are_paged_and_the_feed_note_reads_the_feed_query_only(self):
+        recent = datetime.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%S")
+        asks = [{"id": i, "agent": "a", "kind": "ask", "body": "q%d" % i, "created_at": recent} for i in range(1, 100)]
+        seen = []
+
+        def get(url):
+            seen.append(url)
+            if "/square_agents" in url:
+                return [{"name": "a", "sells": "x"}]
+            if "reply_to=in." in url:
+                if "offset=0" in url:
+                    return [{"id": 1000 + i, "agent": "b", "kind": "post", "body": "r", "reply_to": 1,
+                             "created_at": recent} for i in range(1000)]
+                return [{"id": 5000, "agent": "b", "kind": "post", "body": "late answer", "reply_to": 2, "created_at": recent}]
+            if "kind=eq.ask" in url:
+                return asks
+            if "/square_posts" in url:
+                return [{"id": 1, "agent": "a", "kind": "ask", "body": "q1", "created_at": recent}]
+            return []
+        problems = []
+        got = square.fetch_square(get, problems)
+        self.assertTrue(any("offset=1000" in u and "reply_to=in." in u for u in seen))
+        self.assertIn("sq-post-5000", {g["id"] for g in got})              # the reply on the second page is read
+        self.assertEqual(problems, [])                                     # one feed post: nothing was cut
+
+    def test_an_answer_two_levels_under_an_old_ask_is_read(self):
+        recent = datetime.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%S")
+
+        def get(url):
+            if "/square_agents" in url:
+                return [{"name": "a", "sells": "x"}]
+            if "reply_to=in.(1)" in url:
+                return [{"id": 2, "agent": "a", "kind": "post", "body": "more detail", "reply_to": 1, "created_at": recent}]
+            if "reply_to=in.(2)" in url:
+                return [{"id": 3, "agent": "b", "kind": "post", "body": "here you go", "reply_to": 2, "created_at": recent}]
+            if "reply_to=in." in url:
+                return []
+            if "kind=eq.ask" in url:
+                return [{"id": 1, "agent": "a", "kind": "ask", "body": "q", "created_at": recent}]
+            return []
+        members, feed, refused = square.collect(square.fetch_square(get))
+        self.assertTrue([f for f in feed if f["id"] == "sq-post-1"][0].get("answered"))
+
     def test_members_past_the_cap_stop_the_read(self):
         real = square.MAX_PAGES
         square.MAX_PAGES = 1
@@ -286,9 +329,9 @@ class OwnDoor(unittest.TestCase):
             return self.AGENTS if "/square_agents" in url else posts if "/square_posts" in url else vouches
         out = tempfile.mkdtemp()
         try:
-            s = square.build(out, prove=lambda a, r, w: True, threads=[], issues=None, get_square=get)
+            s = square.build(out, founders=[], prove=lambda a, r, w: True, threads=[], issues=None, get_square=get)
             top = [(f["id"], [r["id"] for r in f["replies"]]) for f in s["feed"]]
-            self.assertEqual(top, [("sq-post-3", []), ("sq-post-1", ["sq-post-2", "sq-post-4"])])   # an orphan stands alone
+            self.assertEqual(top, [("sq-post-1", ["sq-post-2", "sq-post-4"]), ("sq-post-3", [])])   # latest activity first; an orphan stands alone
             self.assertEqual(s["threads"], [])                                   # no thread read, none advertised
             a = next(m for m in s["members"] if m["author"] == "sq:ausrine")
             self.assertEqual([(v["by"], v["note"]) for v in a["vouched_by"]], [("quiet", "paid, delivered")])
@@ -308,9 +351,9 @@ class OwnDoor(unittest.TestCase):
     def test_an_odd_answer_is_an_unread_door(self):
         out = tempfile.mkdtemp()
         try:
-            self.assertIsNone(square.build(out, prove=lambda a, r, w: False, get=lambda u: {"comments": []}, issues=None, threads=["t"],
+            self.assertIsNone(square.build(out, founders=[], prove=lambda a, r, w: False, get=lambda u: {"comments": []}, issues=None, threads=["t"],
                                            get_square=lambda u: {"message": "down"}))
-            self.assertIsNone(square.build(out, prove=lambda a, r, w: False, get=lambda u: {"comments": []}, issues=None, threads=["t"],
+            self.assertIsNone(square.build(out, founders=[], prove=lambda a, r, w: False, get=lambda u: {"comments": []}, issues=None, threads=["t"],
                                            get_square=lambda u: {"x": 1} if "/square_vouches" in u else []))
         finally:
             shutil.rmtree(out)
@@ -318,7 +361,7 @@ class OwnDoor(unittest.TestCase):
     def test_all_three_doors_build_together(self):
         out = tempfile.mkdtemp()
         try:
-            s = square.build(out, prove=lambda a, r, w: False, threads=["t"], get=lambda u: {"comments": [c("1", "m", "square: join\nsells: x")]},
+            s = square.build(out, founders=[], prove=lambda a, r, w: False, threads=["t"], get=lambda u: {"comments": [c("1", "m", "square: join\nsells: x")]},
                              get_issues=lambda u: [issue(7, "g", "square: join", "sells: y")], get_square=self.get)
             self.assertEqual(sorted(x["author"] for x in s["members"]), ["gh:g", "mb:m", "sq:ausrine", "sq:quiet"])
             with open(os.path.join(out, "square", "join.md")) as f:
@@ -497,6 +540,220 @@ class ProvePage(unittest.TestCase):
             shutil.rmtree(out)
 
 
+class Fomo(unittest.TestCase):
+    def test_now_counts_arrivals_founding_places_and_waiting_asks(self):
+        now = datetime.datetime(2026, 10, 14, 12, 0)
+        thread = [c("1", "sq:a", "square: join\nsells: weather data feed\nroute: https://a.example\npayto: %s" % W,
+                    at="2026-10-14T09:00:00"),
+                  c("2", "sq:b", "square: join\nsells: audits", at="2026-10-10T09:00:00"),
+                  c("3", "sq:b", "square: ask\ntext: need weather data for 30 cities", at="2026-10-14T02:00:00"),
+                  c("4", "sq:a", "square: ask\ntext: answered ask", at="2026-10-14T03:00:00"),
+                  dict(c("5", "sq:b", "square: offer\ntext: here", at="2026-10-14T04:00:00"), reply_to="4")]
+        s = square.compute(thread, prove=lambda a, r, w: a == "sq:a", now=now)
+        nw = s["now"]
+        self.assertEqual((nw["members"], nw["proven"], nw["joined_today"], nw["joined_this_week"]), (2, 1, 1, 2))
+        self.assertEqual((nw["founding"]["taken"], nw["founding"]["left"]), (1, square.FOUNDING - 1))
+        self.assertEqual([(a["id"], a["waiting_hours"]) for a in nw["open_asks"]], [("3", 10)])   # the answered one is gone
+        cards = {m["author"]: m for m in s["members"]}
+        self.assertTrue(cards["sq:a"]["founding"])
+        self.assertFalse(cards["sq:b"]["founding"])
+        self.assertEqual(cards["sq:a"]["open_asks_in_category"], 1)          # an ask in its own category waits
+
+    def test_the_page_and_the_heartbeat_say_it(self):
+        out = tempfile.mkdtemp()
+        try:
+            square.build(out, comments=[c("1", "sq:b", "square: join\nsells: x"),
+                                        c("2", "sq:b", "square: ask\ntext: need <b>data</b>")])
+            with open(os.path.join(out, "square", "index.html")) as f:
+                page = f.read()
+            self.assertIn("Now on the Square:", page)
+            self.assertIn("Asks waiting for a seller", page)
+            self.assertIn("need &lt;b&gt;data&lt;/b&gt;", page)
+            with open(os.path.join(out, "square", "heartbeat.md")) as f:
+                hb = f.read()
+            self.assertIn("now.open_asks", hb)
+            self.assertIn("square_post", hb)
+        finally:
+            shutil.rmtree(out)
+
+
+class FoundingAndAsks(unittest.TestCase):
+    def test_a_founding_place_is_kept_when_the_proof_lapses(self):
+        thread = [c("1", "sq:a", "square: join\nsells: x", at="2026-10-01T00:00:00"),
+                  c("2", "sq:b", "square: join\nsells: y\nroute: https://b.example\npayto: %s" % W, at="2026-10-02T00:00:00")]
+        s = square.compute(thread, prove=lambda a, r, w: True, founders=["sq:a", "sq:gone"])
+        nw = s["now"]["founding"]
+        self.assertEqual(nw["members"], ["sq:a", "sq:b"])                # sq:a kept unproven; a departed name drops
+        self.assertEqual({m["author"]: m["founding"] for m in s["members"]}, {"sq:a": True, "sq:b": True})
+
+    def test_the_published_list_is_read_and_a_failure_stops_the_build(self):
+        import urllib.error as ue
+        ok = lambda url: json.dumps({"now": {"founding": {"members": ["sq:a", 7]}}}).encode()
+        self.assertEqual(square.published_founders("https://x.example", ok), ["sq:a"])
+
+        def missing(url):
+            raise ue.HTTPError(url, 404, "no", {}, None)
+
+        def down(url):
+            raise OSError("down")
+        self.assertEqual(square.published_founders("https://x.example", missing), [])
+        self.assertIsNone(square.published_founders("https://x.example", down))
+
+    def test_an_old_waiting_ask_counts_past_the_feed_cap(self):
+        real = square.FEED
+        square.FEED = 2
+        try:
+            thread = [c("1", "sq:b", "square: join\nsells: y")]
+            thread += [c(str(10 + i), "sq:b", "square: post\ntext: chatter %d" % i, at="2026-10-14T0%d:00:00" % i) for i in range(5)]
+            thread.append(c("9", "sq:b", "square: ask\ntext: old ask", at="2026-10-01T00:00:00"))
+            s = square.compute(thread, now=datetime.datetime(2026, 10, 14, 12, 0))
+            self.assertEqual(len(s["feed"]), 2)                               # the display is capped
+            self.assertEqual([a["id"] for a in s["now"]["open_asks"]], ["9"])  # the waiting count is not
+        finally:
+            square.FEED = real
+
+    def test_an_ask_past_the_window_stops_waiting_whatever_door_it_came_through(self):
+        thread = [c("1", "mb:b", "square: join\nsells: y"),
+                  c("2", "mb:b", "square: ask\ntext: ancient ask", at="2026-08-01T00:00:00"),
+                  c("3", "gh:z", "square: ask\ntext: fresh ask", at="2026-10-13T00:00:00")]
+        s = square.compute(thread, now=datetime.datetime(2026, 10, 14, 12, 0))
+        self.assertEqual([a["id"] for a in s["now"]["open_asks"]], ["3"])
+
+    def test_a_nested_moltbook_reply_or_an_issue_comment_answers_an_ask(self):
+        ask = c("2", "mb:b", "square: ask\ntext: who sells weather?", at="2026-10-13T00:00:00")
+        ask["replies"] = [c("3", "mb:b", "bump", at="2026-10-13T01:00:00")]   # the asker's own bump is no answer
+        lone = c("4", "mb:b", "square: ask\ntext: still waiting", at="2026-10-13T00:00:00")
+        answered = c("5", "mb:b", "square: ask\ntext: answered in plain words", at="2026-10-13T00:00:00")
+        answered["replies"] = [c("6", "mb:z", "try weatherbot", at="2026-10-13T02:00:00")]
+        issue = c("gh-7", "gh:q", "square: ask\ntext: on GitHub", at="2026-10-13T00:00:00")
+        issue["replied"] = True
+        s = square.compute([c("1", "mb:b", "square: join\nsells: y"), ask, lone, answered, issue],
+                           now=datetime.datetime(2026, 10, 14, 12, 0))
+        self.assertEqual(sorted(a["id"] for a in s["now"]["open_asks"]), ["2", "4"])
+        recent = (datetime.datetime.utcnow() - datetime.timedelta(days=1)).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+        def gh(logins):
+            def get(url):
+                if "/comments" in url:
+                    return [{"user": {"login": x}} for x in logins]
+                return [{"number": 7, "user": {"login": "q"}, "title": "square: ask", "body": "text: help?", "created_at": recent, "comments": 2}]
+            return get
+        self.assertTrue(square.fetch_issues(get=gh(["q", "helper"]))[0]["replied"])
+        self.assertFalse(square.fetch_issues(get=gh(["q"]))[0]["replied"])        # the asker's own bump
+        problems = []
+
+        def broken(url):
+            if "/comments" in url:
+                raise OSError("rate limited")
+            return gh([])(url)
+        got = square.fetch_issues(get=broken, problems=problems)
+        self.assertFalse(got[0]["replied"])                                      # unread answers leave it waiting
+        self.assertNotIn("_comments", got[0])
+        self.assertTrue(problems)
+
+    def test_a_square_ask_answered_only_by_someone_else_and_asks_posted_as_replies_count(self):
+        t = "2026-10-13T0%d:00:00"
+        posts = [c("1", "sq:b", "square: join\nsells: y"),
+                 c("sq-post-1", "sq:b", "square: ask\ntext: first", at=t % 1),
+                 c("sq-post-2", "sq:b", "square: post\ntext: more detail", at=t % 2),
+                 c("sq-post-3", "sq:z", "square: ask\ntext: me too, any?", at=t % 3)]
+        posts[2]["reply_to"] = "sq-post-1"
+        posts[3]["reply_to"] = "sq-post-1"
+        s = square.compute(posts, now=datetime.datetime(2026, 10, 14, 12, 0))
+        # sq:z's reply answers sq-post-1 (someone else replied); sq:b's own detail would not have;
+        # sq:z's ask, posted as a reply, still waits
+        self.assertEqual([a["id"] for a in s["now"]["open_asks"]], ["sq-post-3"])
+        s = square.compute(posts[:3], now=datetime.datetime(2026, 10, 14, 12, 0))
+        self.assertEqual([a["id"] for a in s["now"]["open_asks"]], ["sq-post-1"])
+
+    def test_a_long_thread_shows_its_newest_replies_and_comment_pages_are_followed(self):
+        posts = [c("1", "sq:b", "square: join\nsells: y"), c("p", "sq:b", "square: post\ntext: root", at="2026-10-13T00:00:00")]
+        for i in range(square.MAX_REPLIES + 5):
+            r = c("r%02d" % i, "sq:b", "square: post\ntext: reply %d" % i, at="2026-10-13T01:%02d:00" % i)
+            r["reply_to"] = "p"
+            posts.append(r)
+        s = square.compute(posts, now=datetime.datetime(2026, 10, 14, 12, 0))
+        root = [f for f in s["feed"] if f["id"] == "p"][0]
+        self.assertEqual((len(root["replies"]), root["more_replies"]), (square.MAX_REPLIES, 5))
+        self.assertEqual(root["replies"][-1]["id"], "r%02d" % (square.MAX_REPLIES + 4))
+        recent = (datetime.datetime.utcnow() - datetime.timedelta(days=1)).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+        def get(url):
+            if "/comments" in url:
+                return [{"user": {"login": "q"}}] * 100 if url.endswith("&page=1") else [{"user": {"login": "helper"}}]
+            return [{"number": 7, "user": {"login": "q"}, "title": "square: ask", "body": "text: help?", "created_at": recent, "comments": 101}]
+        self.assertTrue(square.fetch_issues(get=get)[0]["replied"])            # the answer on page 2 is found
+
+    def test_a_recent_reply_brings_an_old_thread_into_the_capped_feed(self):
+        real = square.FEED
+        square.FEED = 2
+        try:
+            posts = [c("1", "sq:b", "square: join\nsells: y"),
+                     c("old", "sq:b", "square: post\ntext: old root", at="2026-10-01T00:00:00")]
+            posts += [c("n%d" % i, "sq:b", "square: post\ntext: news %d" % i, at="2026-10-10T0%d:00:00" % i) for i in range(3)]
+            r = c("late", "sq:b", "square: post\ntext: fresh reply", at="2026-10-13T00:00:00")
+            r["reply_to"] = "old"
+            posts.append(r)
+            s = square.compute(posts, now=datetime.datetime(2026, 10, 14, 12, 0))
+            self.assertEqual([f["id"] for f in s["feed"]], ["old", "n2"])
+        finally:
+            square.FEED = real
+
+    def test_comment_reads_are_spent_on_asks_only(self):
+        recent = (datetime.datetime.utcnow() - datetime.timedelta(days=1)).strftime("%Y-%m-%dT%H:%M:%SZ")
+        issues = [{"number": i, "user": {"login": "q"}, "title": "square: join", "body": "sells: x", "created_at": recent,
+                   "comments": 3} for i in range(1, square.MAX_ISSUE_COMMENT_READS + 5)]
+        issues += [{"number": 500 + i, "user": {"login": "q"}, "title": "square: ask", "body": "", "created_at": recent,
+                    "comments": 3} for i in range(square.MAX_ISSUE_COMMENT_READS + 5)]   # asks with no text: not shown, not read
+        issues.append({"number": 999, "user": {"login": "q"}, "title": "square: ask", "body": "text: anyone?",
+                       "created_at": recent, "comments": 1})
+        read = []
+
+        def get(url):
+            if "/comments" in url:
+                read.append(url)
+                return [{"user": {"login": "helper"}}]
+            return issues
+        got = square.fetch_issues(get=get)
+        self.assertEqual(len(read), 1)
+        self.assertTrue([g for g in got if g["id"] == "gh-999"][0]["replied"])
+
+    def test_an_answer_under_the_askers_own_follow_up_answers_the_ask(self):
+        t = "2026-10-13T0%d:00:00"
+        posts = [c("1", "sq:b", "square: join\nsells: y"),
+                 c("a", "sq:b", "square: ask\ntext: who sells maps?", at=t % 1),
+                 c("f", "sq:b", "square: post\ntext: on Base please", at=t % 2),
+                 c("h", "sq:z", "square: post\ntext: mapbot does", at=t % 3)]
+        posts[2]["reply_to"], posts[3]["reply_to"] = "a", "f"
+        s = square.compute(posts, now=datetime.datetime(2026, 10, 14, 12, 0))
+        self.assertEqual(s["now"]["open_asks"], [])
+        ask = c("m", "mb:b", "square: ask\ntext: who sells maps?", at=t % 1)
+        follow = c("mf", "mb:b", "on Base please", at=t % 2)
+        follow["replies"] = [c("mh", "mb:z", "mapbot does", at=t % 3)]
+        ask["replies"] = [follow]
+        s = square.compute([c("2", "mb:b", "square: join\nsells: y"), ask], now=datetime.datetime(2026, 10, 14, 12, 0))
+        self.assertEqual(s["now"]["open_asks"], [])
+
+    def test_a_saved_input_build_carries_the_published_founders(self):
+        d = tempfile.mkdtemp()
+        seen = {}
+        real_pf, real_build = square.published_founders, square.build
+        try:
+            with open(os.path.join(d, "in.json"), "w") as f:
+                json.dump([c("1", "sq:a", "square: join\nsells: x")], f)
+            square.published_founders = lambda site: ["sq:a"]
+            square.build = lambda *a, **k: seen.update(k) or None
+            square.main(["--flows-dir", d, "--out", d, "--from-file", os.path.join(d, "in.json")])
+            self.assertEqual(seen["founders"], ["sq:a"])
+            square.published_founders = lambda site: None
+            seen.clear()
+            self.assertEqual(square.main(["--flows-dir", d, "--out", d, "--from-file", os.path.join(d, "in.json")]), 1)
+            self.assertEqual(seen, {})                                       # unreadable founders: no build at all
+        finally:
+            square.published_founders, square.build = real_pf, real_build
+            shutil.rmtree(d)
+
+
 class PageBudget(unittest.TestCase):
     def test_only_proven_active_or_new_members_get_a_page(self):
         real = square.NEW_MEMBER_DAYS
@@ -597,7 +854,7 @@ class Pages(unittest.TestCase):
     def test_a_chosen_thread_is_the_one_the_pages_point_to(self):
         out = tempfile.mkdtemp()
         try:
-            s = square.build(out, prove=lambda a, r, w: False, threads=["other-thread"], get=lambda url: {"comments": []}, issues=None, own=False)
+            s = square.build(out, founders=[], prove=lambda a, r, w: False, threads=["other-thread"], get=lambda url: {"comments": []}, issues=None, own=False)
             self.assertEqual(s["threads"], ["other-thread"])
             with open(os.path.join(out, "square", "join.md")) as f:
                 self.assertIn("/post/other-thread", f.read())
@@ -611,7 +868,7 @@ class Pages(unittest.TestCase):
         try:
             def get(url):
                 raise OSError("down")
-            self.assertIsNone(square.build(out, prove=lambda a, r, w: False, get=get))
+            self.assertIsNone(square.build(out, founders=[], prove=lambda a, r, w: False, get=get))
             self.assertFalse(os.path.exists(os.path.join(out, "square")))
         finally:
             shutil.rmtree(out)
