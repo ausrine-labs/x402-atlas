@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Copied from the Aušrinė lab (commit 83713b3). Edit it there, not here.
+# Copied from the Aušrinė lab (commit f00a5fb). Edit it there, not here.
 """solana_page.py — /solana/: one day of x402 payments on Solana, in numbers.
 
 The map at /map/solana/ draws the day; this page counts it. It reads the newest

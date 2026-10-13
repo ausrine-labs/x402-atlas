@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Copied from the Aušrinė lab (commit 83713b3). Edit it there, not here.
+# Copied from the Aušrinė lab (commit f00a5fb). Edit it there, not here.
 """atlas_mcp_test.py — the Atlas MCP server, spoken to over real JSON-RPC on
 stdio as an agent client would, against a store we built and therefore know.
 No network: ATLAS_STORE points at the fixture, so the server never fetches. The
@@ -877,6 +877,18 @@ class FindSeller(unittest.TestCase):
         self.assertNotIn("paid_next", d)
         d, _ = self.ask({"job": "filler", "max_price": 1})
         self.assertEqual(d["sellers"], [])                                          # not in the registry: no price
+
+    def test_a_free_route_is_under_any_cap(self):
+        import atlas_mcp as m
+        rows = [{"rank": 1, "host": "free.example", "sells": "weather", "category": "other", "price_min": 0},
+                {"rank": 2, "host": "flag.example", "sells": "weather", "category": "other", "price_min": True}]
+        real = m.flows_handoff.http_get
+        m.flows_handoff.http_get = lambda url, cap: json.dumps({"kind": m.BOARD_KIND, "sellers": rows}).encode()
+        try:
+            d = m.t_find_seller({"job": "weather", "max_price": 0.001})
+        finally:
+            m.flows_handoff.http_get = real
+        self.assertEqual([r["host"] for r in d["sellers"]], ["free.example"])     # a bool is not a price
 
     def test_bad_input_and_a_failed_read_are_errors(self):
         import flows_handoff

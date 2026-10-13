@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Copied from the Aušrinė lab (commit 83713b3). Edit it there, not here.
+# Copied from the Aušrinė lab (commit f00a5fb). Edit it there, not here.
 """map_page.py — the Atlas map, rebuilt each morning from the day's real flows.
 
 The map at /map/ was a copy of a page drawn once, on 2026-09-11. Every other

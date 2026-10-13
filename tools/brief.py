@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Copied from the Aušrinė lab (commit 83713b3). Edit it there, not here.
+# Copied from the Aušrinė lab (commit f00a5fb). Edit it there, not here.
 """brief.py — the weekly x402 Market Brief, written from the data: one command, one page
 for people and one JSON file for agents, every number computed and dated.
 

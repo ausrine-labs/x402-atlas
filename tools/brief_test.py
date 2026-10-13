@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Copied from the Aušrinė lab (commit 83713b3). Edit it there, not here.
+# Copied from the Aušrinė lab (commit f00a5fb). Edit it there, not here.
 """brief_test.py — the weekly brief, built from a window small enough to count by hand.
 
 Four Base days (2026-01-01 to 2026-01-04: halves 1-2 and 3-4) and two Solana days. Every

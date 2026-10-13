@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Copied from the Aušrinė lab (commit 83713b3). Edit it there, not here.
+# Copied from the Aušrinė lab (commit f00a5fb). Edit it there, not here.
 """atlas_mcp.py — the Infoharmoni Atlas as an MCP server, so an agent can ask the
 public record of the x402 market on Base from inside its own tools.
 
@@ -774,8 +774,9 @@ def t_find_seller(args):
     for r in b["sellers"]:
         if not isinstance(r, dict) or not isinstance(r.get("rank"), int):
             continue
-        if cap is not None and not (isinstance(r.get("price_min"), (int, float)) and 0 < r["price_min"] <= cap):
-            continue
+        pm = r.get("price_min")
+        if cap is not None and (isinstance(pm, bool) or not isinstance(pm, (int, float)) or not 0 <= pm <= cap):
+            continue        # no price, or above the cap; a free route ($0) is under any cap
         text = " ".join(str(r.get(k) or "") for k in ("host", "sells", "category")).lower()
         if any(re.search(r"\b" + re.escape(w), text) for w in want):
             tier, how = 0, "words"
