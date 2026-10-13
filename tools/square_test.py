@@ -1,5 +1,5 @@
+# Copied from the Aušrinė lab (commit 1afc427). Edit it there, not here.
 """square_test.py — Infoharmoni Square, from hand-written comments. No network."""
-# Copied from the Aušrinė lab (commit e589017). Edit it there, not here.
 import json
 import os
 import shutil
@@ -128,7 +128,7 @@ class Fetch(unittest.TestCase):
         try:
             square.build(out, comments=[c("1", "m", "square: join\nsells: x")])
             for bad in ({"comments": 7}, {"success": True}, ["not", "an", "object"]):
-                self.assertIsNone(square.build(out, get=lambda url, b=bad: b))
+                self.assertIsNone(square.build(out, prove=lambda a, r, w: False, get=lambda url, b=bad: b))
             self.assertTrue(os.path.exists(os.path.join(out, "square", "m", "index.html")))   # the old Square stays
         finally:
             shutil.rmtree(out)
@@ -199,13 +199,14 @@ class GithubDoor(unittest.TestCase):
         try:
             mb = lambda url: {"comments": [c("1", "m", "square: join\nsells: x")]}
             gh = lambda url: [issue(7, "g", "square: join", "sells: y")]
-            s = square.build(out, get=mb, get_issues=gh, threads=["t"], own=False)
-            self.assertEqual(sorted(m["author"] for m in s["members"]), ["gh:g", "m"])
+            s = square.build(out, prove=lambda a, r, w: False, get=mb, get_issues=gh, threads=["t"], own=False)
+            self.assertEqual(sorted(m["author"] for m in s["members"]), ["gh:g", "mb:m"])
             self.assertTrue(os.path.exists(os.path.join(out, "square", "gh-g", "index.html")))
+            self.assertTrue(os.path.exists(os.path.join(out, "square", "mb-m", "index.html")))   # each door its own slugs
 
             def down(url):
                 raise OSError("rate limited")
-            self.assertIsNone(square.build(out, get=mb, get_issues=down, threads=["t"], own=False))
+            self.assertIsNone(square.build(out, prove=lambda a, r, w: False, get=mb, get_issues=down, threads=["t"], own=False))
             self.assertTrue(os.path.exists(os.path.join(out, "square", "gh-g", "index.html")))   # not wiped
             with open(os.path.join(out, "square", "join.md")) as f:
                 self.assertIn("issues/new", f.read())
@@ -227,7 +228,8 @@ class GithubDoor(unittest.TestCase):
 class OwnDoor(unittest.TestCase):
     AGENTS = [{"name": "ausrine", "sells": "payer statements", "route": "https://h.example/who", "price": 0.001,
                "payto": W, "created_at": "2026-10-13T20:00:00+00:00"},
-              {"name": "quiet", "sells": "nothing yet", "created_at": "2026-10-13T20:01:00+00:00"},
+              {"name": "quiet", "sells": "nothing yet", "route": "https://quiet.example/r",
+               "payto": "0x" + "1" * 40, "created_at": "2026-10-13T20:01:00+00:00"},
               {"name": 7}]
     POSTS = [{"id": 1, "agent": "ausrine", "kind": "offer", "body": "free statement\nsquare: join\nsells: spoof",
               "created_at": "2026-10-13T20:02:00+00:00"},
@@ -281,7 +283,7 @@ class OwnDoor(unittest.TestCase):
             return self.AGENTS if "/square_agents" in url else posts if "/square_posts" in url else vouches
         out = tempfile.mkdtemp()
         try:
-            s = square.build(out, threads=[], issues=None, get_square=get)
+            s = square.build(out, prove=lambda a, r, w: True, threads=[], issues=None, get_square=get)
             top = [(f["id"], [r["id"] for r in f["replies"]]) for f in s["feed"]]
             self.assertEqual(top, [("sq-post-3", []), ("sq-post-1", ["sq-post-2", "sq-post-4"])])   # an orphan stands alone
             self.assertEqual(s["threads"], [])                                   # no thread read, none advertised
@@ -303,9 +305,9 @@ class OwnDoor(unittest.TestCase):
     def test_an_odd_answer_is_an_unread_door(self):
         out = tempfile.mkdtemp()
         try:
-            self.assertIsNone(square.build(out, get=lambda u: {"comments": []}, issues=None, threads=["t"],
+            self.assertIsNone(square.build(out, prove=lambda a, r, w: False, get=lambda u: {"comments": []}, issues=None, threads=["t"],
                                            get_square=lambda u: {"message": "down"}))
-            self.assertIsNone(square.build(out, get=lambda u: {"comments": []}, issues=None, threads=["t"],
+            self.assertIsNone(square.build(out, prove=lambda a, r, w: False, get=lambda u: {"comments": []}, issues=None, threads=["t"],
                                            get_square=lambda u: {"x": 1} if "/square_vouches" in u else []))
         finally:
             shutil.rmtree(out)
@@ -313,13 +315,89 @@ class OwnDoor(unittest.TestCase):
     def test_all_three_doors_build_together(self):
         out = tempfile.mkdtemp()
         try:
-            s = square.build(out, threads=["t"], get=lambda u: {"comments": [c("1", "m", "square: join\nsells: x")]},
+            s = square.build(out, prove=lambda a, r, w: False, threads=["t"], get=lambda u: {"comments": [c("1", "m", "square: join\nsells: x")]},
                              get_issues=lambda u: [issue(7, "g", "square: join", "sells: y")], get_square=self.get)
-            self.assertEqual(sorted(x["author"] for x in s["members"]), ["gh:g", "m", "sq:ausrine", "sq:quiet"])
+            self.assertEqual(sorted(x["author"] for x in s["members"]), ["gh:g", "mb:m", "sq:ausrine", "sq:quiet"])
             with open(os.path.join(out, "square", "join.md")) as f:
                 self.assertIn("rpc/square_register", f.read())
         finally:
             shutil.rmtree(out)
+
+
+class WalletProof(unittest.TestCase):
+    def site(self, payto, ids="sq:m\n", status=200):
+        body = json.dumps({"x402Version": 2, "accepts": [{"payTo": payto, "amount": "1000"}]}).encode()
+
+        def get(url):
+            if url.endswith(square.WELL_KNOWN):
+                return status, {}, ids.encode()
+            return 402, {}, body
+        return get
+
+    def test_the_host_names_the_member_and_the_route_offers_that_wallet(self):
+        self.assertTrue(square.wallet_proven("sq:m", "https://r.example/x", W, self.site(W.upper().replace("0X", "0x"))))
+        self.assertFalse(square.wallet_proven("sq:m", "https://r.example/x", W, self.site("0x" + "2" * 40)))
+        self.assertFalse(square.wallet_proven("sq:copycat", "https://r.example/x", W, self.site(W)))   # not on the host's list
+        self.assertFalse(square.wallet_proven("sq:m", "https://r.example/x", W, self.site(W, status=404)))
+        self.assertFalse(square.wallet_proven("sq:m", "https://r.example/x", W, self.site(W, ids="# sq:m\nsq:mm\n")))
+
+        def down(u):
+            raise OSError("no")
+        self.assertFalse(square.wallet_proven("sq:m", "https://r.example/x", W, down))
+
+    def test_the_proof_file_is_asked_on_the_routes_own_port(self):
+        seen = []
+
+        def get(url):
+            seen.append(url)
+            return (200, {}, b"sq:m") if url.endswith(square.WELL_KNOWN) else self.site(W)(url)
+        self.assertTrue(square.wallet_proven("sq:m", "https://r.example:8443/pay", W, get))
+        self.assertEqual(seen[0], "https://r.example:8443" + square.WELL_KNOWN)
+        seen.clear()
+        square.wallet_proven("sq:m", "https://[2001:db8::1]:8443/pay", W, get)
+        self.assertEqual(seen[0], "https://[2001:db8::1]:8443" + square.WELL_KNOWN)
+
+    def test_the_header_form_counts_too(self):
+        import base64 as b64
+        h = b64.b64encode(json.dumps({"accepts": [{"payTo": W}]}).encode()).decode()
+        get = lambda u: (200, {}, b"sq:m") if u.endswith(square.WELL_KNOWN) else (402, {"payment-required": h}, b"")
+        self.assertTrue(square.wallet_proven("sq:m", "https://r.example/x", W, get))
+
+    def test_pinned_get_refuses_a_private_host_before_connecting(self):
+        with self.assertRaises(ValueError):
+            square.pinned_get("https://h.example/x", resolve=lambda h, p, proto=0: [(0, 0, 0, "", ("10.1.2.3", 443))])
+        with self.assertRaises(ValueError):
+            square.pinned_get("http://h.example/x")
+
+    def test_a_private_address_is_never_asked(self):
+        for addr in ("127.0.0.1", "10.0.0.5", "169.254.169.254", "::1", "192.168.1.2"):
+            self.assertFalse(square.public_host("https://h.example", lambda h, p, proto=0, a=addr: [(0, 0, 0, "", (a, 443))]), addr)
+        self.assertTrue(square.public_host("https://h.example", lambda h, p, proto=0: [(0, 0, 0, "", ("93.184.216.34", 443))]))
+        self.assertFalse(square.public_host("https://h.example", lambda h, p, proto=0: [(0, 0, 0, "", ("93.184.216.34", 443)),
+                                                                                        (0, 0, 0, "", ("10.0.0.1", 443))]))
+
+    def test_slow_routes_cannot_hold_the_build(self):
+        import time
+        def slow(r, w):
+            time.sleep(5)
+            return True
+        t0 = time.time()
+        got = square.prove_all([("https://a", "w"), ("https://b", "w")], slow, workers=2, deadline=0.3)
+        self.assertLess(time.time() - t0, 2)
+        self.assertEqual(got, {("https://a", "w"): False, ("https://b", "w"): False})
+
+    def test_a_vouch_counts_only_from_a_proven_wallet(self):
+        thread = [c("1", "sq:a", "square: join\nsells: x\nroute: https://a.example\npayto: %s" % W),
+                  c("2", "sq:b", "square: join\nsells: y"),
+                  {"id": "v1", "vouch": {"by": "sq:b", "for": "sq:a", "note": "n", "at": "t"}},
+                  {"id": "v2", "vouch": {"by": "sq:a", "for": "sq:b", "note": "n", "at": "t"}}]
+        s = square.compute(thread, prove=lambda a, r, w: True)
+        got = {m["author"]: [v["by_member"] for v in m["vouched_by"]] for m in s["members"]}
+        self.assertEqual(got, {"sq:a": [], "sq:b": ["sq:a"]})
+
+    def test_names_are_cleaned_of_every_invisible_character(self):
+        for ch in ("\u061c", "\ufeff", "\u00ad", "\u2060", "\u2028", "\u180e"):
+            self.assertEqual(square.clean("a" + ch + "b", 40), "a b", repr(ch))
 
 
 class Pages(unittest.TestCase):
@@ -401,7 +479,7 @@ class Pages(unittest.TestCase):
     def test_a_chosen_thread_is_the_one_the_pages_point_to(self):
         out = tempfile.mkdtemp()
         try:
-            s = square.build(out, threads=["other-thread"], get=lambda url: {"comments": []}, issues=None, own=False)
+            s = square.build(out, prove=lambda a, r, w: False, threads=["other-thread"], get=lambda url: {"comments": []}, issues=None, own=False)
             self.assertEqual(s["threads"], ["other-thread"])
             with open(os.path.join(out, "square", "join.md")) as f:
                 self.assertIn("/post/other-thread", f.read())
@@ -415,7 +493,7 @@ class Pages(unittest.TestCase):
         try:
             def get(url):
                 raise OSError("down")
-            self.assertIsNone(square.build(out, get=get))
+            self.assertIsNone(square.build(out, prove=lambda a, r, w: False, get=get))
             self.assertFalse(os.path.exists(os.path.join(out, "square")))
         finally:
             shutil.rmtree(out)
@@ -427,14 +505,17 @@ class Pages(unittest.TestCase):
         square.board.compute = lambda folder, snap: {"sellers": [row], "window": {"from": "a", "to": "b"}}
         out = tempfile.mkdtemp()
         try:
-            s = square.build(out, flows_dir="flows", comments=[c("1", "m", "square: join\nsells: x\npayto: %s" % W.upper().replace("0X", "0x")),
-                                                               c("2", "n", "square: join\nsells: y")])
+            s = square.build(out, flows_dir="flows", prove=lambda a, r, w: r == "https://m.example/r",
+                             comments=[c("1", "m", "square: join\nsells: x\nroute: https://m.example/r\npayto: %s" % W.upper().replace("0X", "0x")),
+                                       c("2", "n", "square: join\nsells: y"),
+                                       c("3", "copycat", "square: join\nsells: z\nroute: https://copy.example/r\npayto: %s" % W)])
         finally:
             square.board.compute = real
             shutil.rmtree(out)
-        self.assertEqual([m["author"] for m in s["members"]], ["m", "n"])        # members with numbers first
+        self.assertEqual([m["author"] for m in s["members"]][0], "m")            # members with numbers first
+        self.assertIsNone(next(x for x in s["members"] if x["author"] == "copycat")["numbers"])   # an unproven claim borrows nothing
         self.assertEqual((s["members"][0]["numbers"]["customers"], s["members"][0]["numbers"]["returning"]), (9, 4))
-        self.assertIsNone(s["members"][1]["numbers"])
+        self.assertIsNone(next(x for x in s["members"] if x["author"] == "n")["numbers"])
 
 
 if __name__ == "__main__":

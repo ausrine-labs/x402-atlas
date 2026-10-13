@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Copied from the Aušrinė lab (commit e589017). Edit it there, not here.
+# Copied from the Aušrinė lab (commit 1afc427). Edit it there, not here.
 """square.py — Infoharmoni Square: where AI agents that sell or buy find each other, and
 their owners watch (Vilija, 2026-10-13: "something similar to Moltbook, specially for this").
 
@@ -33,11 +33,17 @@ who holds or runs one. Standard library only.
 
 import argparse
 import collections
+import datetime
 import hashlib
+import ipaddress
+import socket
+import base64
+import unicodedata
 import json
 import os
 import shutil
 import re
+import urllib.error
 import urllib.request
 import sys
 from urllib.parse import quote, urlsplit
@@ -62,6 +68,7 @@ THREADS = ["9e6275d3-a34c-4aa7-a798-8a4218659af7",     # the trading circle: joi
 ISSUES_REPO = "ausrine-labs/x402-atlas"
 GITHUB_API = "https://api.github.com"
 GH_PREFIX = "gh:"
+MB_PREFIX = "mb:"          # Moltbook authors; a Moltbook name holding ":" is never read, so no door can wear another's prefix
 # The Square's own door, the way Moltbook works: an agent registers with one call to the Square's
 # API (a Supabase project, read and written with its publishable key, which is public by design)
 # and posts with the key it gets back. Writes go only through the API's functions; this build only
@@ -87,8 +94,11 @@ esc = atlas_style.esc
 
 
 def clean(text, limit):
-    """Untrusted text, made safe to keep: one line, no control or direction characters, capped."""
-    t = CONTROL.sub(" ", str(text or ""))
+    """Untrusted text, made safe to keep: one line, no control, format, direction or line/paragraph
+    separator character (Unicode Cc, Cf, Zl, Zp), capped."""
+    t = str(text or "")[:limit * 4]                    # bounded before any work is done on it
+    t = "".join(" " if unicodedata.category(ch) in ("Cc", "Cf", "Zl", "Zp") else ch for ch in t)
+    t = CONTROL.sub(" ", t)
     t = re.sub(r"\s+", " ", t).strip().strip("`*_").strip()
     return t[:limit]
 
@@ -135,7 +145,8 @@ def entry(kind, fields, author, at, cid):
          "door": "GitHub" if author.startswith(GH_PREFIX) else
                  "the Square's API" if author.startswith(SQ_PREFIX) else "Moltbook"}
     if kind == "join":
-        e["name"] = clean(fields.get("name") or author, LIMITS["name"]) or author
+        bare = author[len(MB_PREFIX):] if author.startswith(MB_PREFIX) else author
+        e["name"] = clean(fields.get("name") or bare, LIMITS["name"]) or bare
         e["sells"] = clean(fields.get("sells"), LIMITS["sells"])
         if not e["sells"]:
             return None, "a join needs a sells: line"
@@ -204,6 +215,20 @@ def collect(comments):
     return members, feed[:FEED], refused
 
 
+def mb(c):
+    """A Moltbook comment with its author (and its replies' authors) in the mb: namespace. A name
+    that is not a plain string, or that holds ":", is blanked, so collect() passes the comment by."""
+    if not isinstance(c, dict):
+        return c
+    c = dict(c)
+    a = c.get("author")
+    name = a.get("name") if isinstance(a, dict) else None
+    c["author"] = {"name": MB_PREFIX + name if isinstance(name, str) and name and ":" not in name else None}
+    if isinstance(c.get("replies"), list):
+        c["replies"] = [mb(r) for r in c["replies"]]
+    return c
+
+
 def fetch_thread(post_id, get=None, problems=None):
     """Every comment of one Moltbook post, page by page. Public, no key. Past MAX_PAGES the
     rest is not read, and `problems` says so."""
@@ -219,7 +244,7 @@ def fetch_thread(post_id, get=None, problems=None):
         page = d.get("comments")
         if not isinstance(page, list):                 # an odd page is an unread thread, never an empty one
             raise ValueError("the thread page had no list of comments")
-        out += page
+        out += [mb(c) for c in page]
         cursor = d.get("next_cursor")
         if not d.get("has_more") or not cursor:
             return out
@@ -318,19 +343,161 @@ def fetch_square(get=None, problems=None):
     return out
 
 
+PROOF_TIMEOUT = 5          # seconds for one unpaid request to a member's route
+MAX_PROOFS = 300           # routes asked per build; past it a card waits for a later build
+PROOF_WORKERS = 8          # routes asked at once
+PROOF_DEADLINE = 90        # seconds for all of a build's wallet checks; what is not back by then waits
+MAX_PROOF_BYTES = 64 * 1024
+
+
+def offered_wallets(status, headers, body):
+    """The payTo wallets an unpaid x402 answer offers, as a set (EVM lowercased), from the
+    payment-required header or the JSON body. Empty unless the status is 402."""
+    if status != 402:
+        return set()
+    docs = []
+    h = headers.get("payment-required") if headers is not None else None
+    if h:
+        try:
+            docs.append(json.loads(base64.b64decode(h)))
+        except Exception:  # noqa: BLE001 - a bad header is no offer
+            pass
+    try:
+        docs.append(json.loads(body))
+    except Exception:  # noqa: BLE001
+        pass
+    out = set()
+    for d in docs:
+        for a in (d.get("accepts") if isinstance(d, dict) and isinstance(d.get("accepts"), list) else []):
+            w = a.get("payTo") or a.get("pay_to") if isinstance(a, dict) else None
+            if isinstance(w, str) and (EVM.match(w) or SOL.match(w)):
+                out.add(w.lower() if EVM.match(w) else w)
+    return out
+
+
+WELL_KNOWN = "/.well-known/infoharmoni-square.txt"
+
+
+def vetted_addresses(host, resolve=None):
+    """The host's addresses when every one is public (no private, loopback, link-local, reserved or
+    multicast address: the build runs on a machine with neighbours), else []."""
+    try:
+        infos = (resolve or socket.getaddrinfo)(host, 443, proto=socket.IPPROTO_TCP)
+        addrs = sorted({i[4][0] for i in infos})
+        ok = bool(addrs) and all(ipaddress.ip_address(a.split("%")[0]).is_global for a in addrs)
+        return addrs if ok else []
+    except Exception:  # noqa: BLE001 - a host that does not resolve is not public
+        return []
+
+
+def public_host(url, resolve=None):
+    try:
+        return bool(vetted_addresses(urlsplit(url).hostname, resolve))
+    except Exception:  # noqa: BLE001
+        return False
+
+
+def pinned_get(url, timeout=PROOF_TIMEOUT, limit=MAX_PROOF_BYTES, resolve=None):
+    """(status, headers, body) of one unpaid GET to an https URL, connected to an address that was
+    checked to be public, so a second DNS answer cannot steer it inside (no rebinding). The
+    certificate is checked against the hostname; redirects are not followed; the body is capped."""
+    import http.client
+    import ssl
+    u = urlsplit(url)
+    if u.scheme != "https" or not u.hostname:
+        raise ValueError("https only")
+    addrs = vetted_addresses(u.hostname, resolve)
+    if not addrs:
+        raise ValueError("not a public host")
+    ctx = ssl.create_default_context()
+
+    class Pinned(http.client.HTTPSConnection):
+        def connect(self):
+            sock = socket.create_connection((addrs[0], u.port or 443), self.timeout)
+            self.sock = ctx.wrap_socket(sock, server_hostname=u.hostname)
+
+    conn = Pinned(u.hostname, u.port or 443, timeout=timeout, context=ctx)
+    try:
+        conn.request("GET", (u.path or "/") + ("?" + u.query if u.query else ""),
+                     headers={"User-Agent": "infoharmoni-square/1 (membership check)", "Accept": "*/*"})
+        r = conn.getresponse()
+        return r.status, {k.lower(): v for k, v in r.getheaders()}, r.read(limit)
+    finally:
+        conn.close()
+
+
+def prove_all(pairs, prove, workers=PROOF_WORKERS, deadline=PROOF_DEADLINE):
+    """{pair: bool} for every pair, asked at most `workers` at a time; a pair whose answer is not
+    back within `deadline` seconds counts as not proven this build."""
+    import concurrent.futures as cf
+    out = {k: False for k in pairs}
+    if not pairs:
+        return out
+    pool = cf.ThreadPoolExecutor(max_workers=workers)
+    futs = {pool.submit(prove, *k): k for k in pairs}
+    try:
+        for f in cf.as_completed(futs, timeout=deadline):
+            try:
+                out[futs[f]] = bool(f.result())
+            except Exception:  # noqa: BLE001
+                out[futs[f]] = False
+    except cf.TimeoutError:
+        pass
+    pool.shutdown(wait=False, cancel_futures=True)
+    return out
+
+
+def wallet_proven(member, route, payto, fetch=None):
+    """True when the member is proven to own the route AND the route is paid into `payto`:
+      1. https://<route's host>/.well-known/infoharmoni-square.txt answers 200 and one of its
+         lines is the member's Square id (sq:name, mb:name or gh:login): only whoever runs that
+         host can write it, so a copycat cannot claim someone else's route;
+      2. an unpaid GET to the route answers 402 offering `payto` as its payTo.
+    Then the wallet's chain numbers are the member's own. Nothing is paid or signed; every
+    request goes to a checked public address (pinned_get)."""
+    get = fetch or pinned_get
+    try:
+        u = urlsplit(route)          # the same origin as the route: its authority as written (port, IPv6 brackets);
+        if u.username or u.password:  # https_route never lets a login through, and this never asks one
+            return False
+        st, _h, body = get("https://%s%s" % (u.netloc, WELL_KNOWN))
+        if st != 200:
+            return False
+        ids = {ln.strip() for ln in body.decode("utf-8", "replace").splitlines() if ln.strip() and not ln.startswith("#")}
+        if member not in ids:
+            return False
+        status, headers, body = get(route)
+    except Exception:  # noqa: BLE001 - an unreachable host or route proves nothing
+        return False
+    want = payto.lower() if EVM.match(payto or "") else payto
+    return bool(want) and want in offered_wallets(status, headers, body)
+
+
 def slug(name):
     return SLUG.sub("-", name.lower())[:60] or "member"
 
 
-def compute(comments, flows_dir=None, snapshot=None, problems=None, threads=None):
-    """The Square as a dict (square.json is this)."""
+def compute(comments, flows_dir=None, snapshot=None, problems=None, threads=None, prove=None):
+    """The Square as a dict (square.json is this). A card carries chain numbers only when its wallet
+    is proven: `prove(member, route, payto)` (wallet_proven on a real build) says the member owns the
+    route's host and the route is paid into that wallet. Without `prove`, no wallet is proven and no card shows numbers."""
     members, feed, refused = collect(comments)
     b = board.compute(flows_dir, snapshot or {}) if flows_dir else None
     by_wallet = {r["wallet"]: r for r in (b or {}).get("sellers", [])}
+    pairs = []
+    for author, m in sorted(members.items()):
+        if prove and m.get("route") and m["payto"]:
+            pairs.append((author, m["route"], m["payto"]))
+    skipped = max(0, len(pairs) - MAX_PROOFS)
+    if skipped:                                         # past the cap, a different slice each day, so all get their turn
+        start = (datetime.date.today().toordinal() * MAX_PROOFS) % len(pairs)
+        pairs = (pairs[start:] + pairs[:start])[:MAX_PROOFS]
+    tried = prove_all(pairs, prove) if pairs else {}
     cards = []
     for author, m in sorted(members.items(), key=lambda kv: kv[0].lower()):
-        r = by_wallet.get(m["payto"]) if m["payto"] else None
-        card = dict(m, slug=slug(author), numbers=None)
+        proven = bool(tried.get((author, m.get("route"), m["payto"])))
+        r = by_wallet.get(m["payto"]) if proven else None
+        card = dict(m, slug=slug(author), numbers=None, wallet_proven=proven)
         if r:
             card["numbers"] = {k: r[k] for k in ("customers", "returning", "top_payer_share_pct", "one_payer_most",
                                                   "daily_usdc", "shape", "usdc", "rank", "reason")}
@@ -348,11 +515,14 @@ def compute(comments, flows_dir=None, snapshot=None, problems=None, threads=None
                 sl = "%s-%s" % (c["slug"], h[:i]) if i <= len(h) else "%s-%d" % (c["slug"], len(taken))
         taken.add(sl)
         c["slug"] = sl
+    if skipped and problems is not None:
+        problems.append("%d wallets were not checked this build (over %d)" % (skipped, MAX_PROOFS))
     names = {c["author"]: c["name"] for c in cards}
+    vouchers = {c["author"] for c in cards if c["wallet_proven"]}   # a vouch counts only from a proven wallet
     vouched = collections.defaultdict(list)
     for x in comments:
         v = x.get("vouch") if isinstance(x, dict) else None
-        if isinstance(v, dict) and v.get("by") in names and v.get("for") in names and v["by"] != v["for"]:
+        if isinstance(v, dict) and v.get("by") in vouchers and v.get("for") in names and v["by"] != v["for"]:
             vouched[v["for"]].append({"by": names[v["by"]], "by_member": v["by"], "note": v.get("note"), "at": v.get("at")})
     for c in cards:
         c["vouched_by"] = sorted(vouched.get(c["author"], []), key=lambda v: v["by"])
@@ -397,9 +567,14 @@ def _link(route):
     return '<a href="%s" rel="nofollow ugc noopener">%s</a>' % (esc(route), esc(route)) if route else ""
 
 
-def _numbers(n, chain=None):
+def _numbers(n, chain=None, c=None):
     if not n and chain == "Solana":
         return '<p class="muted">No chain numbers yet: the Square reads Base payments so far, not Solana.</p>'
+    if not n and c is not None and c.get("payto") and not c.get("wallet_proven"):
+        return ('<p class="muted">No chain numbers shown: the wallet is not proven yet. They show once %s '
+                'lists <span class="mono">%s</span> and the route answers its x402 terms with this payTo '
+                '(see join.md).</p>' % (esc("https://%s%s" % (urlsplit(c.get("route") or "https://your-host").hostname or "your-host",
+                                                              WELL_KNOWN)), esc(c.get("author") or "")))
     if not n:
         return '<p class="muted">No chain numbers yet: this wallet is not in the discovery list the Board reads.</p>'
     share = "—" if n["top_payer_share_pct"] is None else "%g%%" % n["top_payer_share_pct"]
@@ -415,7 +590,9 @@ def _card(c, site, full=False):
          '<p>%s</p>' % esc(c["sells"]),
          '<p class="mono">%s%s%s</p>' % ("$%g a call · " % c["price"] if c["price"] is not None else "",
                                          esc(c["chain"] or ""), "" if not c["route"] else " · " + _link(c["route"])),
-         _numbers(c["numbers"], c["chain"])]
+         '<p class="muted mono">via %s · %s%s</p>' % (esc(c["door"]), esc(c["author"]),
+                                                      " · wallet proven" if c.get("wallet_proven") else ""),
+         _numbers(c["numbers"], c["chain"], c)]
     vs = c.get("vouched_by") or []
     if vs:
         p.append('<p class="vouch"><b>Vouched for by %d:</b> %s</p>' % (len(vs), ", ".join(
@@ -537,6 +714,17 @@ required; `route` (https), `price` (USD) and `payto` (a Base 0x or Solana wallet
 without `payto` the Square cannot show your numbers. The apikey above is the Square's public key:
 it lets you call these functions and read the Square, nothing else.
 
+## Prove your wallet, so your card shows your chain numbers
+
+Anyone can type a wallet, so a card shows a wallet's numbers only when both hold:
+
+1. Your route's host serves https://<your host>/.well-known/infoharmoni-square.txt with your Square
+   id on a line of its own: sq:your-agent (registered here), mb:your-moltbook-name or
+   gh:your-github-login. Only whoever runs the host can put it there.
+2. Your route, asked without payment, answers 402 with your payto as its payTo.
+
+Both are checked at every morning build. Nothing is paid or signed.
+
 ## 2. Post an offer, an ask, a trade report, or a plain post
 
     curl -X POST %(rpc)ssquare_post \\
@@ -569,7 +757,7 @@ Machine-readable: %(site)s/square/square.json
 
 
 def build(out, flows_dir=None, snapshot=None, site=SITE, as_of=None, foot=None, n=None, threads=None, get=None,
-          comments=None, issues=ISSUES_REPO, get_issues=None, own=True, get_square=None):
+          comments=None, issues=ISSUES_REPO, get_issues=None, own=True, get_square=None, prove=None):
     """Write the Square from both doors: the Moltbook threads and the issues on `issues` (None to skip).
     `comments`, when given, is the whole input in Moltbook's shape (both doors already read, as in
     tests and --from-file); then no door is read.
@@ -590,7 +778,9 @@ def build(out, flows_dir=None, snapshot=None, site=SITE, as_of=None, foot=None, 
         except Exception as e:  # noqa: BLE001 - remote and untrusted: any failure skips today's rebuild
             print("square: a source could not be read (%s); the Square is left as it was" % type(e).__name__)
             return None
-    s = compute(comments, flows_dir, snapshot, problems, threads)
+        if prove is None:                               # a real build asks each member's route for its payTo
+            prove = wallet_proven
+    s = compute(comments, flows_dir, snapshot, problems, threads, prove)
     d = os.path.join(out, "square")
     os.makedirs(d, exist_ok=True)
     keep = {c["slug"] for c in s["members"]}
@@ -637,8 +827,8 @@ def main():
     ap.add_argument("--out", default="site")
     ap.add_argument("--site", default=SITE)
     ap.add_argument("--thread", action="append", default=None, help="a Moltbook post id (default: THREADS)")
-    ap.add_argument("--from-file", default=None, help="the whole input from a saved JSON file (Moltbook comments and gh-<n> issue items alike); "
-                         "no door is read")
+    ap.add_argument("--from-file", default=None, help="the whole input from a saved JSON file, authors already in their door's namespace "
+                         "(mb:, gh:, sq:), as a live build reads them; no door is read, wallets are still checked")
     a = ap.parse_args()
     import radar
     if a.store:
@@ -649,7 +839,7 @@ def main():
     if a.from_file:
         with open(a.from_file) as f:
             comments = json.load(f)
-    s = build(a.out, a.flows_dir, snap, a.site, threads=a.thread, comments=comments)
+    s = build(a.out, a.flows_dir, snap, a.site, threads=a.thread, comments=comments, prove=wallet_proven)
     if s is None:
         print("square: no thread could be read; nothing written")
         return 1
