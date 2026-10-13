@@ -1,9 +1,10 @@
 """square_test.py — Infoharmoni Square, from hand-written comments. No network."""
-# Copied from the Aušrinė lab (commit e2f417e). Edit it there, not here.
+# Copied from the Aušrinė lab (commit cfef314). Edit it there, not here.
 import datetime
 import json
 import os
 import shutil
+import socket
 import tempfile
 import unittest
 
@@ -286,6 +287,18 @@ class OwnDoor(unittest.TestCase):
         self.assertTrue(any("offset=1000" in u and "reply_to=in." in u for u in seen))
         self.assertIn("sq-post-5000", {g["id"] for g in got})              # the reply on the second page is read
         self.assertEqual(problems, [])                                     # one feed post: nothing was cut
+
+    def test_the_lapse_rule_is_ticked_before_a_read_and_a_failure_is_only_noted(self):
+        ticks, problems = [], []
+        get = lambda url: [] if "/square_posts" in url or "/square_vouches" in url else [{"name": "a", "sells": "x"}]
+        square.fetch_square(get, problems, tick=lambda: ticks.append(1))
+        self.assertEqual(ticks, [1])
+
+        def broken():
+            raise OSError("down")
+        got = square.fetch_square(get, problems, tick=broken)
+        self.assertEqual(len([g for g in got if g["id"] == "sq-a"]), 1)
+        self.assertTrue(any("lapse rule" in p for p in problems))
 
     def test_an_answer_two_levels_under_an_old_ask_is_read(self):
         recent = datetime.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%S")
@@ -588,8 +601,10 @@ class FoundingAndAsks(unittest.TestCase):
 
     def test_the_published_list_is_read_and_a_failure_stops_the_build(self):
         import urllib.error as ue
-        ok = lambda url: json.dumps({"now": {"founding": {"members": ["sq:a", 7]}}}).encode()
+        ok = lambda url: json.dumps({"now": {"founding": {"members": ["sq:a", 7]}},
+                                     "members": [{"author": "sq:p", "wallet_proven": True}, {"author": "sq:q", "wallet_proven": False}]}).encode()
         self.assertEqual(square.published_founders("https://x.example", ok), ["sq:a"])
+        self.assertEqual(square.published_state("https://x.example", ok)["proven"], ["sq:p"])
 
         def missing(url):
             raise ue.HTTPError(url, 404, "no", {}, None)
@@ -737,20 +752,20 @@ class FoundingAndAsks(unittest.TestCase):
     def test_a_saved_input_build_carries_the_published_founders(self):
         d = tempfile.mkdtemp()
         seen = {}
-        real_pf, real_build = square.published_founders, square.build
+        real_pf, real_build = square.published_state, square.build
         try:
             with open(os.path.join(d, "in.json"), "w") as f:
                 json.dump([c("1", "sq:a", "square: join\nsells: x")], f)
-            square.published_founders = lambda site: ["sq:a"]
+            square.published_state = lambda site: {"founders": ["sq:a"], "proven": ["sq:p"]}
             square.build = lambda *a, **k: seen.update(k) or None
             square.main(["--flows-dir", d, "--out", d, "--from-file", os.path.join(d, "in.json")])
-            self.assertEqual(seen["founders"], ["sq:a"])
-            square.published_founders = lambda site: None
+            self.assertEqual((seen["founders"], seen["proven_before"]), (["sq:a"], ["sq:p"]))
+            square.published_state = lambda site: None
             seen.clear()
             self.assertEqual(square.main(["--flows-dir", d, "--out", d, "--from-file", os.path.join(d, "in.json")]), 1)
             self.assertEqual(seen, {})                                       # unreadable founders: no build at all
         finally:
-            square.published_founders, square.build = real_pf, real_build
+            square.published_state, square.build = real_pf, real_build
             shutil.rmtree(d)
 
 
@@ -874,7 +889,7 @@ class Pages(unittest.TestCase):
             shutil.rmtree(out)
 
     def test_numbers_come_from_the_board_row_of_the_payto_wallet(self):
-        row = {"wallet": W, "customers": 9, "returning": 4, "top_payer_share_pct": 20.0, "one_payer_most": False,
+        row = {"wallet": W, "customers": 9, "returning": 4, "independent": 3, "fake_cost_usd": 0.14, "top_payer_share_pct": 20.0, "one_payer_most": False,
                "daily_usdc": [1, 2, 3, 4, 5, 6, 7], "shape": "ramping", "usdc": 28.0, "rank": 3, "reason": "r"}
         real = square.board.compute
         square.board.compute = lambda folder, snap: {"sellers": [row], "window": {"from": "a", "to": "b"}}
@@ -891,6 +906,139 @@ class Pages(unittest.TestCase):
         self.assertIsNone(next(x for x in s["members"] if x["author"] == "copycat")["numbers"])   # an unproven claim borrows nothing
         self.assertEqual((s["members"][0]["numbers"]["customers"], s["members"][0]["numbers"]["returning"]), (9, 4))
         self.assertIsNone(next(x for x in s["members"] if x["author"] == "n")["numbers"])
+
+
+class SecurityRound(unittest.TestCase):
+    """The [review] session's recheck of #212, 2026-10-13: starvation, slow drip, marks, lapsing."""
+
+    def test_three_hundred_claims_on_a_wallet_cannot_starve_its_owner(self):
+        thread = [c("v", "sq:victim", "square: join\nsells: real\nroute: https://v.example\npayto: %s" % W, at="2026-10-01T00:00:00")]
+        thread += [c("a%03d" % i, "sq:att%03d" % i, "square: join\nsells: fake\nroute: https://v.example\npayto: %s" % W,
+                     at="2026-09-01T00:00:00") for i in range(301)]                 # older than the victim, all unsigned
+        asked, problems = [], []
+
+        def prove(a, r, w):
+            asked.append(a)
+            return a == "sq:victim"
+        s = square.compute(thread, prove=prove, problems=problems, proven_before=["sq:victim"])
+        self.assertIn("sq:victim", asked)
+        self.assertLessEqual(len(asked), square.MAX_CLAIMS)
+        self.assertTrue([m for m in s["members"] if m["author"] == "sq:victim"][0]["wallet_proven"])
+        self.assertTrue(any("more than %d claims" % square.MAX_CLAIMS in p for p in problems))
+        asked.clear()
+        s = square.compute(thread, prove=prove, problems=[], proven_before=[])  # never proven before: the oldest claims go first
+        self.assertEqual(len(asked), square.MAX_CLAIMS)
+        self.assertNotIn("sq:victim", asked)                                  # that is the known residue: a wallet claimed
+        self.assertTrue(s["now"]["problems"])                                   # by 300 strangers first is reported, not silent
+
+    def test_a_wallet_group_left_out_is_reported_and_proven_members_go_first(self):
+        real = square.MAX_PROOFS
+        square.MAX_PROOFS = 1
+        try:
+            other = "0x" + "3" * 40
+            thread = [c("1", "sq:a", "square: join\nsells: x\nroute: https://a.example\npayto: %s" % W),
+                      c("2", "sq:b", "square: join\nsells: y\nroute: https://b.example\npayto: %s" % other)]
+            asked, problems = [], []
+            square.compute(thread, prove=lambda a, r, w: asked.append(a) or True, problems=problems, proven_before=["sq:b"])
+            self.assertEqual(asked, ["sq:b"])
+            self.assertTrue(any("not checked this build" in p for p in problems))
+        finally:
+            square.MAX_PROOFS = real
+
+    def test_one_url_is_fetched_once_for_many_claims(self):
+        calls = []
+
+        def fetch(url):
+            calls.append(url)
+            if url.endswith(square.WELL_KNOWN):
+                return 200, {}, b"sig sq:m 0x" + b"0" * 130
+            raise OSError("down")
+        get = square._memo(fetch)
+        for _ in range(5):
+            self.assertEqual(get("https://h.example" + square.WELL_KNOWN)[0], 200)
+            with self.assertRaises(OSError):
+                get("https://h.example/x")
+        self.assertEqual(len(calls), 2)
+        import threading
+        import time
+        slow_calls = []
+
+        def slow(url):
+            slow_calls.append(url)
+            time.sleep(0.2)
+            return 200, {}, b""
+        g = square._memo(slow)
+        ts = [threading.Thread(target=lambda: g("https://one.example/x")) for _ in range(8)]
+        for t in ts:
+            t.start()
+        for t in ts:
+            t.join()
+        self.assertEqual(len(slow_calls), 1)                              # eight claims in flight at once: one request
+
+    def test_overlay_and_enclosing_marks_are_dropped_everywhere(self):
+        self.assertEqual(square.clean("V\u0336ilija", 40), "Vilija")                # strike-through
+        self.assertEqual(square.clean("a\u20dd", 40), "a")                           # enclosing circle
+        self.assertEqual(square.clean("e\u0301", 40), "\u00e9")                     # an accent stays
+        self.assertEqual(square.clean("e\u0301\u0302\u0303\u0304", 40), "\u00e9\u0302")   # at most two marks a letter
+
+    def test_api_members_about_to_lapse_are_named(self):
+        j = c("1", "sq:quiet", "square: join\nsells: x", at="2026-09-01T00:00:00")
+        j["active_at"] = "2026-09-20T00:00:00"
+        k = c("2", "sq:busy", "square: join\nsells: y", at="2026-09-01T00:00:00")
+        k["active_at"] = "2026-09-01T00:00:00"
+        s = square.compute([j, k, c("3", "sq:busy", "square: post\ntext: hi", at="2026-10-13T00:00:00"),
+                            c("4", "mb:m", "square: join\nsells: z", at="2026-01-01T00:00:00")],
+                           now=datetime.datetime(2026, 10, 14, 12, 0))
+        self.assertEqual(s["now"]["lapsing"]["members"], [{"member": "sq:quiet", "days_left": 6}])
+
+    def test_a_server_dripping_headers_is_cut_at_the_deadline(self):
+        import shutil as sh
+        import ssl
+        import subprocess
+        import threading
+        import time
+        if not sh.which("openssl"):
+            self.skipTest("no openssl")
+        d = tempfile.mkdtemp()
+        try:
+            crt, key = os.path.join(d, "c.pem"), os.path.join(d, "k.pem")
+            subprocess.run(["openssl", "req", "-x509", "-newkey", "rsa:2048", "-nodes", "-keyout", key, "-out", crt,
+                            "-days", "1", "-subj", "/CN=localhost", "-addext", "subjectAltName=DNS:localhost"],
+                           check=True, capture_output=True)
+            srv = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+            srv.load_cert_chain(crt, key)
+            ls = socket.socket()
+            ls.bind(("127.0.0.1", 0))
+            ls.listen(1)
+            port = ls.getsockname()[1]
+            stop = threading.Event()
+
+            def serve():
+                try:
+                    conn, _ = ls.accept()
+                    with srv.wrap_socket(conn, server_side=True) as t:
+                        t.recv(4096)
+                        t.sendall(b"HTTP/1.1 200 OK\r\n")
+                        while not stop.is_set():                              # one header line every 0.3 s, forever
+                            t.sendall(b"X-Drip: a\r\n")
+                            time.sleep(0.3)
+                except OSError:
+                    pass
+            threading.Thread(target=serve, daemon=True).start()
+            cli = ssl.create_default_context(cafile=crt)
+            real = square.vetted_addresses
+            square.vetted_addresses = lambda host, resolve=None: ["127.0.0.1"]
+            t0 = time.monotonic()
+            try:
+                with self.assertRaises(Exception):
+                    square.pinned_get("https://localhost:%d/x" % port, timeout=1, context=cli)
+            finally:
+                square.vetted_addresses = real
+                stop.set()
+                ls.close()
+            self.assertLess(time.monotonic() - t0, 3)
+        finally:
+            shutil.rmtree(d)
 
 
 if __name__ == "__main__":

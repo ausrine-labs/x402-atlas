@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Copied from the Aušrinė lab (commit f00a5fb). Edit it there, not here.
+# Copied from the Aušrinė lab (commit cfef314). Edit it there, not here.
 """atlas_mcp_test.py — the Atlas MCP server, spoken to over real JSON-RPC on
 stdio as an agent client would, against a store we built and therefore know.
 No network: ATLAS_STORE points at the fixture, so the server never fetches. The
@@ -843,7 +843,7 @@ class FindSeller(unittest.TestCase):
         self.assertEqual(top["matched_by"], "words")
         self.assertEqual((top["customers"], top["returning"], top["top_payer_share_pct"]), (3, 2, 33.3))
         self.assertEqual(top["daily_usdc"], [3.0, 1.0, 1.0, 1.0, 0.0, 0.0, 0.0])
-        self.assertEqual(top["reason"], "2 returning customers of 3, no single payer over 40%")
+        self.assertEqual(top["reason"], "2 returning customers of 3, 0 also paid other sellers, no single payer over 40%")
         self.assertEqual(top["page"], "https://atlas.example/s/a.example/?via=mcp")
         self.assertEqual(d["board"], "https://atlas.example/board/?via=mcp")
         # c.example sells weather alerts too: a word matches, and it is lower on the Board

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Copied from the Aušrinė lab (commit f00a5fb). Edit it there, not here.
+# Copied from the Aušrinė lab (commit cfef314). Edit it there, not here.
 """board_test.py — The Board, on a week small enough to count by hand.
 
 Seven days, 2026-01-01 to 2026-01-07. Sellers (payTo wallets) and the hosts on them:
@@ -168,6 +168,35 @@ class Week(unittest.TestCase):
         flags = [r["one_payer_most"] for r in self.b["sellers"]]
         self.assertEqual(flags, sorted(flags))                           # every marked row after every unmarked one
 
+    def test_dust_is_no_customer_and_independent_payers_are_counted(self):
+        r = self.by["b.example"]
+        self.assertEqual(r["independent"], 1)                            # q paid 19 sellers; d, e, f, g paid s2 only
+        self.assertEqual(r["fake_cost_usd"], round(5 * 0.011, 2))        # 5 customers, none returning
+        self.assertEqual(self.by["a.example"]["fake_cost_usd"], round(2 * 2 * 0.011 + 1 * 0.011, 2))
+        self.assertEqual(self.by["filler01.example"]["customers"], 1)   # exactly $0.01 is a customer
+        d = tempfile.mkdtemp()
+        try:
+            with open(os.path.join(d, "flows-2026-01-01.json"), "w") as f:     # 50 wallets x $0.001 on two days:
+                json.dump({"date": "2026-01-01", "hours": 24, "sellers": HOSTS,
+                           "edges": [e("0xp%02d" % i, "0xs1", 0.001) for i in range(50)]}, f)
+            with open(os.path.join(d, "flows-2026-01-02.json"), "w") as f:
+                json.dump({"date": "2026-01-02", "hours": 24, "sellers": HOSTS,
+                           "edges": [e("0xp%02d" % i, "0xs1", 0.001) for i in range(50)]}, f)
+            b = board.compute(d, SNAPSHOT)
+            self.assertEqual(b["sellers_ranked"], 0)                     # no returning customers bought for 10 cents
+            with open(os.path.join(d, "flows-2026-01-02.json"), "w") as f:    # $0.009 + $0.001 over two days: a customer
+                json.dump({"date": "2026-01-02", "hours": 24, "sellers": HOSTS,                 # that never returned,
+                           "edges": [e("0xp00", "0xs1", 0.009), e("0xp00", "0xs2", 0.001)]}, f)   # dust elsewhere: not independent
+            r = board.compute(d, SNAPSHOT)["sellers"][0]
+            self.assertEqual((r["host"], r["customers"], r["returning"], r["independent"]), ("a.example", 1, 0, 0))
+            with open(os.path.join(d, "flows-2026-01-01.json"), "w") as f:    # $1 to s1 and dust to 25 others:
+                json.dump({"date": "2026-01-01", "hours": 24, "sellers": HOSTS,          # a customer, not a robot
+                           "edges": [e("0xp00", "0xs1", 1)] + [e("0xp00", "0xd%02d" % i, 0.001) for i in range(25)]}, f)
+            b = board.compute(d, SNAPSHOT)
+            self.assertEqual((b["robots"]["wallets"], b["sellers"][0]["customers"]), (0, 1))
+        finally:
+            shutil.rmtree(d)
+
     def test_a_seller_paid_only_by_robots_is_left_off(self):
         self.assertEqual(self.b["sellers_ranked"], 21)
         self.assertNotIn("filler19.example", self.by)
@@ -186,9 +215,9 @@ class Week(unittest.TestCase):
         self.assertEqual(self.by["b.example"]["price"], "$0.001–$0.005")
 
     def test_reason_line(self):
-        self.assertEqual(self.by["a.example"]["reason"], "2 returning customers of 3, no single payer over 40%")
-        self.assertEqual(self.by["c.example"]["reason"], "1 returning customer of 1; one payer sent 100% of its money")
-        self.assertEqual(self.by["b.example"]["reason"], "0 returning customers of 5; one payer sent 71.4% of its money")
+        self.assertEqual(self.by["a.example"]["reason"], "2 returning customers of 3, 0 also paid other sellers, no single payer over 40%")
+        self.assertEqual(self.by["c.example"]["reason"], "1 returning customer of 1, 0 also paid other sellers; one payer sent 100% of its money")
+        self.assertEqual(self.by["b.example"]["reason"], "0 returning customers of 5, 1 also paid other sellers; one payer sent 71.4% of its money")
         self.assertEqual(board.reason({"returning": 31, "customers": 40, "top_payer_share_pct": 17.3,
                                        "one_payer_most": False}),
                          "31 returning customers of 40, no single payer over 20%")
