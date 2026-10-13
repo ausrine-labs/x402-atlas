@@ -1,5 +1,5 @@
 """square_test.py — Infoharmoni Square, from hand-written comments. No network."""
-# Copied from the Aušrinė lab (commit 1da55d5). Edit it there, not here.
+# Copied from the Aušrinė lab (commit 2ec0460). Edit it there, not here.
 import json
 import os
 import shutil
@@ -146,6 +146,84 @@ class Fetch(unittest.TestCase):
         self.assertIn("more than 2 pages", problems[0])
 
 
+def issue(n, login, title, body, pr=False):
+    i = {"number": n, "user": {"login": login}, "title": title, "body": body, "created_at": "2026-10-13T17:00:00Z"}
+    if pr:
+        i["pull_request"] = {}
+    return i
+
+
+class GithubDoor(unittest.TestCase):
+    def test_issues_join_as_gh_members_and_prs_and_odd_ones_are_skipped(self):
+        pages = [[issue(1, "penny", "square: join", "sells: audits\npayto: %s" % W),
+                  issue(2, "someone", "a bug report", "the map is slow"),
+                  issue(3, "bot", "square: join", "sells: x", pr=True),
+                  {"number": 4, "user": None, "title": "square: join", "body": "sells: y"},
+                  issue(5, "asker", "need data", "square: ask\ntext: weather for 30 cities")]]
+        got = square.fetch_issues("o/r", lambda url: pages[0] if "page=1" in url else [])
+        self.assertEqual([g["id"] for g in got], ["gh-1", "gh-2", "gh-5"])
+        members, feed, _ = square.collect(got)
+        self.assertEqual(list(members), ["gh:penny"])
+        self.assertEqual(members["gh:penny"]["payto"], W)
+        self.assertEqual([(f["kind"], f["author"]) for f in feed], [("ask", "gh:asker")])
+
+    def test_the_title_marker_and_the_same_block_in_the_body_join(self):
+        got = square.fetch_issues("o/r", lambda url: [issue(1, "g", "square: join", "square: join\nsells: x\npayto: %s" % W)])
+        members, _, refused = square.collect(got)
+        self.assertEqual((list(members), refused), (["gh:g"], []))
+        self.assertEqual(members["gh:g"]["door"], "GitHub")
+        out = tempfile.mkdtemp()
+        try:
+            square.build(out, comments=got)
+            with open(os.path.join(out, "square", "gh-g", "index.html")) as f:
+                self.assertIn("Joined on GitHub", f.read())
+        finally:
+            shutil.rmtree(out)
+
+    def test_issue_order_is_by_creation_not_by_later_activity(self):
+        a = dict(issue(1, "g", "square: join", "sells: old"), created_at="2026-10-01T00:00:00Z", updated_at="2026-10-13T00:00:00Z")
+        b = dict(issue(2, "g", "square: join", "sells: new"), created_at="2026-10-05T00:00:00Z", updated_at="2026-10-05T00:00:00Z")
+        members, _, _ = square.collect(square.fetch_issues("o/r", lambda url: [a, b]))
+        self.assertEqual(members["gh:g"]["sells"], "new")
+
+    def test_a_github_name_never_takes_a_moltbook_members_place(self):
+        both = [c("1", "penny", "square: join\nsells: from moltbook"),
+                {"id": "gh-1", "author": {"name": "gh:penny"}, "content": "square: join\nsells: from github",
+                 "created_at": "2026-10-13T09:00:00"}]
+        members, _, _ = square.collect(both)
+        self.assertEqual(members["penny"]["sells"], "from moltbook")
+        self.assertEqual(members["gh:penny"]["sells"], "from github")
+
+    def test_both_doors_build_and_one_down_keeps_the_square(self):
+        out = tempfile.mkdtemp()
+        try:
+            mb = lambda url: {"comments": [c("1", "m", "square: join\nsells: x")]}
+            gh = lambda url: [issue(7, "g", "square: join", "sells: y")]
+            s = square.build(out, get=mb, get_issues=gh, threads=["t"])
+            self.assertEqual(sorted(m["author"] for m in s["members"]), ["gh:g", "m"])
+            self.assertTrue(os.path.exists(os.path.join(out, "square", "gh-g", "index.html")))
+
+            def down(url):
+                raise OSError("rate limited")
+            self.assertIsNone(square.build(out, get=mb, get_issues=down, threads=["t"]))
+            self.assertTrue(os.path.exists(os.path.join(out, "square", "gh-g", "index.html")))   # not wiped
+            with open(os.path.join(out, "square", "join.md")) as f:
+                self.assertIn("issues/new", f.read())
+        finally:
+            shutil.rmtree(out)
+
+    def test_the_page_cap_on_issues_is_named(self):
+        problems = []
+        real = square.MAX_PAGES
+        square.MAX_PAGES = 2
+        try:
+            got = square.fetch_issues("o/r", lambda url: [issue(i, "u%d" % i, "t", "b") for i in range(100)], problems)
+        finally:
+            square.MAX_PAGES = real
+        self.assertEqual(len(got), 200)
+        self.assertIn("past 2 pages", problems[0])
+
+
 class Pages(unittest.TestCase):
     def test_build_writes_the_square_escaped_with_safe_links(self):
         out = tempfile.mkdtemp()
@@ -222,7 +300,7 @@ class Pages(unittest.TestCase):
     def test_a_chosen_thread_is_the_one_the_pages_point_to(self):
         out = tempfile.mkdtemp()
         try:
-            s = square.build(out, threads=["other-thread"], get=lambda url: {"comments": []})
+            s = square.build(out, threads=["other-thread"], get=lambda url: {"comments": []}, issues=None)
             self.assertEqual(s["threads"], ["other-thread"])
             with open(os.path.join(out, "square", "join.md")) as f:
                 self.assertIn("/post/other-thread", f.read())
