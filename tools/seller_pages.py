@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Copied from the Aušrinė lab (commit ffc8f05). Edit it there, not here.
+# Copied from the Aušrinė lab (commit c10e48f). Edit it there, not here.
 """seller_pages.py — a public page for every seller in the agent economy.
 
 Roughly 2,000 teams sell to agents over x402. Each of them wants to know how
@@ -989,7 +989,7 @@ def build_square(out, flows_dir, A, as_of, foot=FOOT, n=None):
         return True
     print("square: a source could not be read; the last published Square is written again")
     try:                                               # the site is rebuilt from nothing each day, so "left as it
-        saved = square.published_square(SITE)           # was" means writing the last good Square again, not a placeholder
+        saved = square.published_square()               # was" means writing the last good Square again, not a placeholder
         if saved and square.restore(out, saved, SITE, as_of, foot=foot, n=n):
             print("square: restored as published %s" % str(saved.get("now", {}).get("as_of"))[:16])
             return True

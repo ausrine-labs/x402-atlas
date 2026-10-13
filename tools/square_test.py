@@ -1,5 +1,5 @@
 """square_test.py — Infoharmoni Square, from hand-written comments. No network."""
-# Copied from the Aušrinė lab (commit ffc8f05). Edit it there, not here.
+# Copied from the Aušrinė lab (commit c10e48f). Edit it there, not here.
 import datetime
 import json
 import os
@@ -637,6 +637,12 @@ class FoundingAndAsks(unittest.TestCase):
         self.assertEqual(square.published_square("https://x.example", get(b"<html>not json", nf)), None)   # a broken answer is a failure
         self.assertEqual(square.published_square("https://x.example", get(b'{"kind": "other"}', nf)), {})  # something else there: no Square
 
+    def test_the_published_square_is_read_where_it_is_served_without_a_redirect(self):
+        seen = []
+        square.published_square(get=lambda url: seen.append(url) or json.dumps({"kind": square.KIND}).encode())
+        self.assertEqual(seen, [square.PUBLIC_SITE + "/square/square.json"])
+        self.assertNotIn("github.io", square.PUBLIC_SITE)
+
     def test_a_restored_square_is_written_as_it_was_and_says_so(self):
         out = tempfile.mkdtemp()
         try:
@@ -800,17 +806,21 @@ class FoundingAndAsks(unittest.TestCase):
         try:
             with open(os.path.join(d, "in.json"), "w") as f:
                 json.dump([c("1", "sq:a", "square: join\nsells: x")], f)
-            square.published_state = lambda site: {"founders": ["sq:a"], "proven": ["sq:p"]}
+            square.published_state = lambda *a, **k: {"founders": ["sq:a"], "proven": ["sq:p"]}
             square.build = lambda *a, **k: seen.update(k) or None
             square.main(["--flows-dir", d, "--out", d, "--from-file", os.path.join(d, "in.json")])
             self.assertEqual((seen["founders"], seen["proven_before"]), (["sq:a"], ["sq:p"]))
-            square.published_state = lambda site: None
+            square.published_state = lambda *a, **k: None
             seen.clear()
             self.assertEqual(square.main(["--flows-dir", d, "--out", d, "--from-file", os.path.join(d, "in.json")]), 1)
             self.assertEqual(seen, {})                                       # unreadable founders: no build at all
         finally:
             square.published_state, square.build = real_pf, real_build
             shutil.rmtree(d)
+
+    def test_the_ask_rule_is_on_the_join_page_and_the_heartbeat(self):
+        self.assertIn("would pay a stranger for", square.join_md("https://atlas.example"))
+        self.assertIn("would pay a stranger for", square.heartbeat_md("https://atlas.example"))
 
 
 class PageBudget(unittest.TestCase):

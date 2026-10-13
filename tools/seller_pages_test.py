@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Copied from the Aušrinė lab (commit ffc8f05). Edit it there, not here.
+# Copied from the Aušrinė lab (commit c10e48f). Edit it there, not here.
 """seller_pages_test.py — the public pages, from a synthetic store. No network.
 
     python3 seller_pages_test.py
@@ -593,15 +593,15 @@ class SquareFallback(unittest.TestCase):
                 saved = json.load(f)
             shutil.rmtree(os.path.join(out, "square"))
             square.build = lambda *a, **k: None
-            square.published_square = lambda site: saved
+            square.published_square = lambda *a, **k: saved
             self.assertTrue(sp.build_square(out, None, {}, "2026-10-14"))
             with open(os.path.join(out, "square", "index.html")) as f:
                 self.assertIn("as published", f.read())
             self.assertTrue(os.path.exists(os.path.join(out, "square", "square.json")))
-            square.published_square = lambda site: {}
+            square.published_square = lambda *a, **k: {}
             shutil.rmtree(os.path.join(out, "square"))
             self.assertFalse(sp.build_square(out, None, {}, "2026-10-14"))   # nothing saved: the placeholder
-            square.published_square = lambda site: (_ for _ in ()).throw(OSError("down"))
+            square.published_square = lambda *a, **k: (_ for _ in ()).throw(OSError("down"))
             self.assertFalse(sp.build_square(out, None, {}, "2026-10-14"))
         finally:
             square.build, square.published_square = real_build, real_pub
