@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Copied from the Aušrinė lab (commit f00a5fb). Edit it there, not here.
+# Copied from the Aušrinė lab (commit 1da55d5). Edit it there, not here.
 """seller_pages.py — a public page for every seller in the agent economy.
 
 Roughly 2,000 teams sell to agents over x402. Each of them wants to know how
@@ -47,6 +47,7 @@ import front_door  # noqa: E402
 import map_page  # noqa: E402
 import atlas_style  # noqa: E402
 import board  # noqa: E402
+import square  # noqa: E402
 import site_pages  # noqa: E402
 import solana_page  # noqa: E402
 import relationships  # noqa: E402
@@ -487,9 +488,11 @@ def endpoints_section(me):
     return "".join(p)
 
 
-def build(out, store=None, site=None, claims=None, whales=None, operators=None, flows=None, flows_dir=None, free=None):
+def build(out, store=None, site=None, claims=None, whales=None, operators=None, flows=None, flows_dir=None, free=None,
+          read_square=False):
     """Write the whole site. free: None for the switch (tiers.FREE_TIER_ONLY), True for the free
-    tier, False for the whole record public, as the site was built before 2026-10-05."""
+    tier, False for the whole record public, as the site was built before 2026-10-05. read_square:
+    read Infoharmoni Square's thread on Moltbook (the network); without it /square/ is a short page."""
     global SITE
     if site:
         SITE = site.rstrip("/")      # a local address, for looking at the pages before they are public
@@ -546,6 +549,9 @@ def build(out, store=None, site=None, claims=None, whales=None, operators=None, 
     drew_sol = build_solana(out, whales, flows, flows_dir, A, as_of, chain, foot)
     drew_map = build_map(out, whales, chain, flows, A, as_of, foot, other=drew_sol is not None)
     drew_board = build_board(out, flows_dir, A, as_of, foot, n, top=tiers.TOP if free else None)
+    drew_square = build_square(out, flows_dir, A, as_of, foot, n) if read_square else False
+    if not drew_square:
+        square.placeholder(out, SITE, as_of, foot=foot, n=n)
 
     for host, me in A.items():
         sl = slug(host)
@@ -801,12 +807,14 @@ location.href='https://buy.'+'polar.sh/'+a.dataset.checkout+'?reference_id='+enc
             f.write("<url><loc>%s/map/</loc><lastmod>%s</lastmod></url>\n" % (SITE, as_of))
         if drew_board:
             f.write("<url><loc>%s/board/</loc><lastmod>%s</lastmod></url>\n" % (SITE, as_of))
+        if drew_square:
+            f.write("<url><loc>%s/square/</loc><lastmod>%s</lastmod></url>\n" % (SITE, as_of))
         if drew_sol:
             f.write("<url><loc>%s/map/solana/</loc><lastmod>%s</lastmod></url>\n" % (SITE, as_of))
             f.write("<url><loc>%s/solana/</loc><lastmod>%s</lastmod></url>\n" % (SITE, as_of))
         f.write("</urlset>\n")
     return {"as_of": as_of, "sellers": n, "groups": len(groups_listing), "door": door, "out": out, "map": drew_map,
-            "board": drew_board, "solana": drew_sol, "free": free, "groups_built": len(group_slugs)}
+            "board": drew_board, "square": drew_square, "solana": drew_sol, "free": free, "groups_built": len(group_slugs)}
 
 
 def sellers_sample(rel, A, as_of):
@@ -921,6 +929,21 @@ def build_solana(out, whales, flows, flows_dir, A, as_of, chain, foot=FOOT):
     return {"day": page["day"], "path": path, "page": page, "map": drawn}
 
 
+def build_square(out, flows_dir, A, as_of, foot=FOOT, n=None):
+    """/square/ from Infoharmoni Square's Moltbook thread (square.py), members' numbers from the
+    Board's window. A thread that cannot be read costs the Square, not the Atlas. True when written."""
+    try:
+        s = square.build(out, flows_dir, A, SITE, as_of, foot=foot, n=n)
+    except Exception as e:  # noqa: BLE001 - remote, untrusted input: the Square may fail, the Atlas may not
+        print("square: not rebuilt (%s: %s)" % (type(e).__name__, e))
+        return False
+    if s is None:
+        print("square: the Moltbook thread could not be read; /square/ not rebuilt")
+        return False
+    print("square: %d members, %d posts" % (len(s["members"]), len(s["feed"])))
+    return True
+
+
 def build_board(out, flows_dir, A, as_of, foot=FOOT, n=None, top=None):
     """/board/ and /board/board.json from the newest 7 days in the --flows-dir window: sellers ranked
     by real customers (board.py). With no window or no flows file in it, no Board and nothing else
@@ -971,6 +994,7 @@ def build_map(out, whales, chain, flows, A, as_of, foot=FOOT, other=False):
 def main():
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[1])
     ap.add_argument("--out", required=True)
+    ap.add_argument("--square", action="store_true", help="read Infoharmoni Square's thread on Moltbook for /square/")
     ap.add_argument("--store", default=None)
     ap.add_argument("--site", default=None, help="base address the pages will be served from")
     ap.add_argument("--claims", default=None, help="claims.json (default: beside this file, if it exists)")
@@ -981,7 +1005,8 @@ def main():
                     "(flows_handoff.py fetch keeps one), for each seller's Relationships")
     tiers.add_flags(ap)
     a = ap.parse_args()
-    r = build(a.out, a.store, a.site, a.claims, a.whales, a.operators, a.flows, a.flows_dir, free=tiers.from_args(a))
+    r = build(a.out, a.store, a.site, a.claims, a.whales, a.operators, a.flows, a.flows_dir, free=tiers.from_args(a),
+              read_square=a.square)
     print("wrote %d seller pages and %d operator pages (%d with a record on them), as of %s, into %s%s"
           % (r["sellers"], r["groups"], r["groups_built"], r["as_of"], r["out"], ": the free tier" if r["free"] else ": the whole record"))
 
