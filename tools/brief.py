@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Copied from the Aušrinė lab (commit f00a5fb). Edit it there, not here.
+# Copied from the Aušrinė lab (commit 237121e). Edit it there, not here.
 """brief.py — the weekly x402 Market Brief, written from the data: one command, one page
 for people and one JSON file for agents, every number computed and dated.
 
@@ -17,7 +17,8 @@ and the Atlas publishes. It writes
 Five parts:
 
     1 where the money went   x402 USDC and payments; the top three sellers' share; for each
-                             top seller, the share of its USDC from its largest payer
+                             top seller, the share of its USDC from its largest payer; and the
+                             money day by day, all sellers and the top ten, each with a shape word
     2 concentration          sellers with exactly one paying wallet; the median payers a seller
     3 growth                 sellers whose paying wallets grew from the window's first half to
                              its second, from many wallets or from one
@@ -67,6 +68,9 @@ LEAD = 3          # "the top three sellers"
 HOSTS = 12        # hosts named for a wallet in brief.json; hosts_total says how many there are
 MAX_DAYS = 31     # a brief covers a week; a month at most
 MICRO = 1000000   # USDC has six decimals: sums are kept in whole millionths
+SHAPES = ("flat", "spike", "gone quiet", "ramping", "uneven")   # tried in this order; the first that fits
+SCHEDULE_PCT = 1  # a flat seller whose days all sit within this many percent of its median is on a schedule
+SCHEDULE_DAYS = 3  # and only over at least this many days in a row: one day repeats nothing
 BUCKETS = ((1, 1, "1"), (2, 4, "2 to 4"), (5, 19, "5 to 19"), (20, None, "20 or more"))
 
 # The one word the Atlas never says, spelled apart so this file never says it either. A few
@@ -287,6 +291,8 @@ def build(folder, start, end, site=SITE):
                            payer_wallets=len(sellers_of)),
              "lead": lead, "top_sellers": top,
              "top_sellers_over_half_one_payer": sum(1 for x in top if x["largest_payer"]["over_half"])}
+    money["daily"] = daily(dates, rows, [dict(who(s), rank=i) for i, s in enumerate(ranked[:TOP], 1)], by_seller,
+                           span(start, end))
 
     # 2 concentration, over the window and on its last day
     def spread(rs_by_seller):
@@ -334,6 +340,88 @@ def build(folder, start, end, site=SITE):
     b["caveats"] = caveats(b)
     b["problems"] = problems
     return b
+
+
+# ── money day by day ─────────────────────────────────────────────────────
+
+def six(micro):
+    """Millionths of a USDC as an exact string with six decimals: 287123456 -> '287.123456'."""
+    return "%s%d.%06d" % ("-" if micro < 0 else "", *divmod(abs(micro), MICRO))
+
+
+def shape(micros):
+    """One plain word for a row of daily money, oldest day first, by fixed rules tried in order:
+
+    flat        every day within 10% of the median, and the median above $1
+    spike       one day more than half of the window's total
+    gone quiet  the last two days each under 5% of the busiest day, and an earlier day $20 or more
+    ramping     each of the last 3 days higher than the day before it (4 days or more)
+    uneven      none of these"""
+    xs = list(micros)
+    total = sum(xs)
+    if not xs or not total:
+        return "uneven"
+    med = statistics.median(xs)
+    if med > MICRO and all(10 * abs(x - med) <= med for x in xs):
+        return "flat"
+    if 2 * max(xs) > total:
+        return "spike"
+    top = max(xs)
+    if len(xs) >= 3 and all(20 * x < top for x in xs[-2:]) and max(xs[:-2]) >= 20 * MICRO:
+        return "gone quiet"
+    if len(xs) >= 4 and all(xs[i] > xs[i - 1] for i in range(len(xs) - 3, len(xs))):
+        return "ramping"
+    return "uneven"
+
+
+def spread_pct(micros):
+    """The farthest any day sits from the median, in percent of the median; None when the median is nothing."""
+    xs = list(micros)
+    med = statistics.median(xs) if xs else 0
+    if not med:
+        return None
+    return round(100.0 * max(abs(x - med) for x in xs) / med, 2)
+
+
+def schedule_ok(micros):
+    """Every day within SCHEDULE_PCT of the median, read on the exact numbers, never a rounded one."""
+    xs = list(micros)
+    med = statistics.median(xs) if xs else 0
+    return len(xs) >= SCHEDULE_DAYS and bool(med) and all(100 * abs(x - med) <= SCHEDULE_PCT * med for x in xs)
+
+
+def daily(dates, rows, top, by_seller, asked=None):
+    """money.daily: one row for all sellers, then one for each top seller, each with its money
+    and its paying wallets on every day of the window, a shape word, and the days on which one
+    edge was more than half of that day's money."""
+    whole = bool(dates) and list(dates) == list(asked or span(dates[0], dates[-1]))   # every requested day is here
+
+    def row(rs):
+        per = {d: [] for d in dates}
+        for e in rs:
+            per[e.date].append(e)
+        micros = [sum(e.micro for e in per[d]) for d in dates]
+        total = sum(micros)
+        one_edge = []
+        for d, m in zip(dates, micros):
+            le = largest(per[d], m)
+            if le and le["over_half"]:
+                one_edge.append(le)
+        return {"usdc": usd(total), "usdc_by_day": {d: six(m) for d, m in zip(dates, micros)},
+                "payers_by_day": {d: len({e.payer for e in per[d]}) for d in dates},
+                "shape": shape(micros) if whole else None, "spread_pct": spread_pct(micros),
+                "within_schedule": whole and schedule_ok(micros),
+                "days_paid": sum(1 for m in micros if m), "largest_edge": largest(rs, total), "one_edge_days": one_edge}
+    out = [dict({"row": "all", "label": "All sellers"}, **row(rows))]
+    for x in top:
+        out.append(dict(x, row="seller", label=seller_words(x), **row(by_seller[x["wallet"]])))
+    return {"dates": dated(dates), "days": list(dates), "rows": out,
+            "shapes": {"flat": "every day within 10% of the median, and the median above $1",
+                       "spike": "one day more than half of the window's total",
+                       "gone quiet": "the last two days each under 5% of the busiest day, while an earlier day was $20 or more",
+                       "ramping": "each of the last 3 days higher than the day before it",
+                       "uneven": "none of the above",
+                       "order": "tried in this order; the first that fits names the row"}}
 
 
 def grow(dates, rows, robots, who, tot):
@@ -542,6 +630,14 @@ def meanings(b):
                 % (seller_words(t), pct_words(lp["share_pct"]), money(t["usdc"])))
     say("top_seller_payer", text + " %d of the top %d sellers took more than half their money from one wallet." % (k, n),
         usdc=t["usdc"], largest_payer_share_pct=lp["share_pct"], top_sellers_over_half_one_payer=k, top_sellers=n)
+    dl = m.get("daily") or {}
+    for x in dl.get("rows", []):
+        dd = dl.get("dates") or {}
+        if x["row"] == "seller" and x["shape"] == "flat" and x.get("within_schedule"):   # shape is None when a day is missing
+            say("schedule", "%s took within %d%% of the same amount every day for %d days (%s): a schedule, not a crowd."
+                % (x["label"], SCHEDULE_PCT, dd["days"], short_range(dd["from"], dd["to"])),
+                wallet=x["wallet"], days=dd["days"], date_from=dd["from"], date_to=dd["to"], spread_pct=x["spread_pct"],
+                usdc_by_day=x["usdc_by_day"])
     ld = c["last_day"]
     if ld["sellers_paid"]:
         lead_in = "Most sellers have one paying wallet: on" if 2 * ld["one_payer"] > ld["sellers_paid"] else "On"
@@ -615,6 +711,10 @@ def method(files, off_map, bad):
         "largest_edge": "an edge is one wallet paying one wallet on one day, one row of a daily file. Every total "
                         "carries its largest edge; over_half marks one that is more than half of the total",
         "money": "USDC summed in millionths, so totals are exact; a share short of the whole never reads as 100%",
+        "daily": "money.daily: each day's x402 USDC to all sellers and to each top seller, exact to the millionth, and "
+                 "its distinct paying wallets that day. The shape word comes from fixed rules over those numbers "
+                 "(money.daily.shapes). A day on which one edge was more than half of the day's money is listed in "
+                 "one_edge_days and marked on the page beside the row",
         "ties": "rows with equal money are ordered by wallet, so the same files give the same brief",
         "model_calls": 0,
     }
@@ -673,6 +773,53 @@ def table(head, rows, ncols_num=(), narrow=False):
 
 def note_row(note, cols):
     return '<tr><td colspan="%d" class="muted">%s</td></tr>' % (cols, note) if note else ""
+
+
+def whole(micro_text):
+    """A day's money in whole dollars for the daily table: "$0" for a day with no payment, and
+    "under $1" for a day with some that rounds to nothing."""
+    x = float(micro_text)
+    if not x:
+        return "$0"
+    if x < 1:
+        return "under $1"
+    return "${:,}".format(int(x + 0.5))      # half up: $0.50 to $1 never prints as a bare "$0" or "$1" tie
+
+
+def day_head(d):
+    """'2026-10-04' -> '4 Oct'; the year is in the dateline above the table."""
+    return "%d %s" % (int(d[8:]), atlas_style.MONTHS[int(d[5:7]) - 1][:3])
+
+
+def daily_html(dl):
+    """The "Daily money" table: all sellers, then the top ten, one column per day."""
+    if not dl or not dl["days"]:
+        return ""
+    days = dl["days"]
+    rng = range_words(days[0], days[-1])
+    p = ['<h3 style="margin-top:28px">Daily money</h3>',
+         '<p class="dateline">%s · Base · x402 only</p>' % esc(rng)]
+    rows = []
+    for x in dl["rows"]:
+        name = "<b>All sellers</b>" if x["row"] == "all" else seller_html(x)
+        rows.append('<tr><td class="h">%s <span class="tag">%s</span></td>%s</tr>'
+                    % (name, esc(x["shape"] or "—"), "".join('<td class="n">%s</td>' % whole(x["usdc_by_day"][d]) for d in days)))
+        notes = [edge_note(x, "its total across these days")] if x["row"] == "seller" else []
+        if x["one_edge_days"]:
+            notes.append('<span class="edge">One edge was more than half of the day\'s money on %s.</span>'
+                         % esc(", ".join("%s (%s, %s of %s)" % (atlas_style.short_date(le["date"]), money(le["usdc"]),
+                                                                pct_words(le["share_pct"]),
+                                                                money(float(x["usdc_by_day"][le["date"]])))
+                                         for le in x["one_edge_days"])))
+        rows.append(note_row(" ".join(n for n in notes if n), len(days) + 1))
+    p.append(table(["Seller"] + [day_head(d) for d in days], rows, tuple(range(1, len(days) + 1))))
+    p.append('<p class="muted">Each cell is that day\'s x402 USDC to the seller\'s wallet on Base, in whole dollars; '
+             '"$0" is a day with no payment. The word beside each name is its shape over %s, by fixed rules: flat, every day '
+             'within 10%% of the median and the median above $1; spike, one day more than half of the total; gone quiet, the '
+             'last two days each under 5%% of the busiest while an earlier day was $20 or more; ramping, each of the last 3 '
+             'days higher than the day before; uneven, none of these. brief.json holds each day to the millionth and the '
+             'paying wallets each day.</p>' % esc(rng))
+    return "\n".join(p)
 
 
 def page(b, site=SITE):
@@ -735,6 +882,7 @@ def page(b, site=SITE):
     p.append(table(["#", "Seller", "USDC", "Share", "Payments", "Payers", "Largest payer's share"], rows, (0, 2, 3, 4, 5)))
     p.append('<p class="muted">Share: of all x402 money on Base, %s. Largest payer: the one wallet that sent the seller the most '
              'in the window, and its share of the seller\'s money.</p>' % esc(rng))
+    p.append(daily_html(m.get("daily")))
 
     # 2
     p.append("<h2>2. Concentration</h2>")
