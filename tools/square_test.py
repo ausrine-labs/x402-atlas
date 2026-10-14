@@ -1,5 +1,5 @@
 """square_test.py — Infoharmoni Square, from hand-written comments. No network."""
-# Copied from the Aušrinė lab (commit 622b9a3). Edit it there, not here.
+# Copied from the Aušrinė lab (commit b29c187). Edit it there, not here.
 import datetime
 import json
 import os
@@ -421,6 +421,75 @@ class WalletProof(unittest.TestCase):
             raise OSError("no")
         self.assertFalse(square.wallet_proven("sq:m", "https://r.example/x", self.A, down))
 
+    def test_a_saved_signature_proves_without_a_published_line(self):
+        asked = []
+        body = json.dumps({"x402Version": 2, "accepts": [{"payTo": self.A, "amount": "1000"}]}).encode()
+
+        def get(url):
+            asked.append(url)
+            if url.endswith(square.WELL_KNOWN):
+                return 404, {}, b""
+            return 402, {}, body
+        self.assertTrue(square.wallet_proven("sq:m", "https://r.example/x", self.A, get, sigs={"sq:m": [self.SIG]}))
+        self.assertFalse(any(u.endswith(square.WELL_KNOWN) for u in asked))      # no file was needed
+        self.assertFalse(square.wallet_proven("sq:m", "https://r.example/x", self.A, get, sigs={"sq:m": [self.OTHER]}))
+        self.assertFalse(square.wallet_proven("sq:copycat", "https://r.example/x", self.A, get, sigs={"sq:copycat": [self.SIG]}))
+        self.assertFalse(square.wallet_proven("sq:m", "https://r.example/x", self.A, self.site("0x" + "2" * 40),
+                                              sigs={"sq:m": [self.SIG]}))         # the route must still pay into it
+        junk = ["0x" + "1" * 130] * (2 * square.MAX_SAVED_SIGS + 1)
+        self.assertFalse(square.wallet_proven("sq:m", "https://r.example/x", self.A, get, sigs={"sq:m": junk + [self.SIG]}))   # the check is bounded
+
+    def test_junk_saved_later_cannot_unprove_a_card(self):
+        body = json.dumps({"x402Version": 2, "accepts": [{"payTo": self.A, "amount": "1000"}]}).encode()
+        real = square.pinned_get
+        square.pinned_get = lambda url, **k: (404, {}, b"") if url.endswith(square.WELL_KNOWN) else (402, {}, body)
+        try:
+            join = c("1", "sq:m", "square: join\nsells: x\nroute: https://r.example/x\npayto: %s" % self.A, at="2026-10-01T00:00:00")
+            good = {"id": "p0", "proof": {"member": "sq:m", "sig": self.SIG, "at": "2026-10-02T00:00:00"}}
+            junk = [{"id": "j%d" % i, "proof": {"member": "sq:m", "sig": "0x%0130x" % (i + 1), "at": "2026-10-03T00:%02d:00" % i}}
+                    for i in range(12)]
+            s = square.compute([join, good] + junk, prove=square.wallet_proven, proven_sigs={"sq:m": self.SIG})
+            card = s["members"][0]
+            self.assertTrue(card["wallet_proven"])                         # the remembered proof is checked first
+            self.assertEqual(card["proof_sig"], self.SIG)                   # and published for the next build
+            s = square.compute([join, good] + junk, prove=square.wallet_proven)
+            self.assertTrue(s["members"][0]["wallet_proven"])              # junk saved after a first proof cannot hide it
+            early = [{"id": "e%d" % i, "proof": {"member": "sq:m", "sig": "0x%0130x" % (100 + i), "at": "2026-10-01T00:%02d:00" % i}}
+                     for i in range(12)]
+            s = square.compute([join, good] + junk + early, prove=square.wallet_proven)
+            self.assertFalse(s["members"][0]["wallet_proven"])             # the known residual: junk on both sides of it
+            s = square.compute([join] + junk, prove=square.wallet_proven, proven_sigs={"sq:m": self.SIG})
+            self.assertFalse(s["members"][0]["wallet_proven"])             # a proof deleted from the store is not trusted
+            s = square.compute([join, good], prove=square.wallet_proven)
+            self.assertTrue(s["members"][0]["wallet_proven"])
+        finally:
+            square.pinned_get = real
+
+    def test_a_proof_read_past_the_cap_stops_the_read(self):
+        real = square.MAX_PAGES
+        square.MAX_PAGES = 1
+        try:
+            def get(url):
+                if "/square_agents" in url:
+                    return [{"name": "m", "sells": "x"}]
+                if "/square_proofs" in url:
+                    return [{"member": "sq:m", "sig": "0x" + "a" * 130}] * 1000
+                return []
+            with self.assertRaises(ValueError):
+                square.fetch_square(get, tick=lambda: None)
+        finally:
+            square.MAX_PAGES = real
+
+    def test_saved_proofs_are_read_with_the_square(self):
+        def get(url):
+            if "/square_agents" in url:
+                return [{"name": "m", "sells": "x"}]
+            if "/square_proofs" in url:
+                return [{"member": "sq:m", "sig": "0x" + "a" * 130, "at": "2026-10-14T03:00:00"}]
+            return []
+        got = square.fetch_square(get, tick=lambda: None)
+        self.assertEqual([g["proof"]["member"] for g in got if "proof" in g], ["sq:m"])
+
     def test_a_solana_wallet_is_never_proven_yet(self):
         self.assertFalse(square.wallet_proven("sq:m", "https://r.example/x", "9SVcuCZxaQLMiLBziPrrr6L3KRAxLhRis56Zq4ovcRVy",
                                               self.site("9SVcuCZxaQLMiLBziPrrr6L3KRAxLhRis56Zq4ovcRVy")))
@@ -550,6 +619,7 @@ class ProvePage(unittest.TestCase):
         self.assertIn("That is the wrong wallet", page)                        # and a different one is named plainly
         self.assertIn("accountsChanged", page)                                 # switching accounts is noticed
         self.assertIn("if(!loaded){say(", page)                                # no Sign before the card is checked
+        self.assertIn("/rpc/square_prove", page)                                # the signature is saved, not pasted
         self.assertEqual(page.count('<nav class="main"'), 1)
         self.assertNotIn('href="https://atlas.example/s/"', page.split("</nav>")[0])   # no site menu on this page
         self.assertIn("Back to the Square", page)

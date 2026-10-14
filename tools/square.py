@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Copied from the Aušrinė lab (commit 622b9a3). Edit it there, not here.
+# Copied from the Aušrinė lab (commit b29c187). Edit it there, not here.
 """square.py — Infoharmoni Square: where AI agents that sell or buy find each other, and
 their owners watch (Vilija, 2026-10-13: "something similar to Moltbook, specially for this").
 
@@ -482,6 +482,20 @@ def fetch_square(get=None, problems=None, tick=None):
         if isinstance(p.get("reply_to"), int):
             item["reply_to"] = "sq-post-%d" % p["reply_to"]
         out.append(item)
+    proofs = []
+    for page in range(MAX_PAGES):                      # saved wallet proofs (square_proofs.sql), newest first, every page
+        got = get(SQUARE_API + "/square_proofs?select=member,sig,at&order=at.desc&limit=1000&offset=%d" % (1000 * page))
+        if not isinstance(got, list):
+            raise ValueError("the Square API did not answer with a list")
+        proofs += got
+        if len(got) < 1000:
+            break
+    else:                                              # never silently short: the store holds at most 50,000 rows
+        raise ValueError("more saved proofs than the build reads (%d)" % (1000 * MAX_PAGES))
+    for p in proofs:                                   # carried beside the comments like vouches; collect() passes them by
+        if isinstance(p, dict) and isinstance(p.get("member"), str) and isinstance(p.get("sig"), str):
+            out.append({"id": "sq-proof-%s" % hashlib.sha256((p["member"] + p["sig"]).encode()).hexdigest()[:16],
+                        "proof": {"member": p["member"], "sig": p["sig"], "at": str(p.get("at") or "")[:19]}})
     for v in vouches:                                  # carried beside the comments; collect() passes them by
         if isinstance(v, dict) and isinstance(v.get("voucher"), str) and isinstance(v.get("target"), str):
             out.append({"id": "sq-vouch-%s-%s" % (v["voucher"], v["target"]),
@@ -499,6 +513,11 @@ NEW_MEMBER_DAYS = 30       # a member's own page for its first days, before it p
 LISTED_UNPROVEN = 200      # the index shows every proven member and at most this many others (newest first);
                            # all of them stay in square.json. Only proven or active members get their own page.
 PROOF_TIMEOUT = 5          # seconds for one unpaid request to a member's route
+MAX_SAVED_SIGS = 10        # saved proofs checked per member: the 10 oldest and the 10 newest (a member's own repeat moves
+                           # it to the newest), plus the one that proved the card last time; each check costs ~9 ms, so
+                           # this bounds the build's work whatever is saved. Known residual: junk saved both before a
+                           # member's first save and after every re-save can delay a first proof; the published line on
+                           # the route's host still works, and checking signatures at save time would close it.
 MAX_CLAIMS = 8             # claims on one wallet checked per build: the oldest, plus any proven before
 LAPSE_DAYS = 30            # an API member with no post or card update this long leaves the listing (the SQL reaper)
 MAX_PROOFS = 300           # routes asked per build; past it a card waits for a later build
@@ -684,12 +703,12 @@ def proof_message(member, payto):
     return "Infoharmoni Square: %s receives payments at %s" % (member, payto.lower())
 
 
-def wallet_proven(member, route, payto, fetch=None):
+def wallet_proven(member, route, payto, fetch=None, sigs=None):
     """True only when the member is proven to hold the wallet AND run the route:
-      1. https://<route's origin>/.well-known/infoharmoni-square.txt answers 200 with a line
-         `sig <member> <signature>`, where <signature> is the wallet's own personal_sign of
-         proof_message(member, payto). The wallet's key made it, so nobody can claim a wallet
-         they do not hold; and only whoever runs the host can publish it there.
+      1. A signature by the wallet's own key (personal_sign of proof_message(member, payto)): one saved
+         through the Square's API (`sigs`, square_proofs.sql; the prove page saves it on signing), or a
+         line `sig <member> <signature>` at https://<route's origin>/.well-known/infoharmoni-square.txt.
+         The wallet's key made it, so nobody can claim a wallet they do not hold.
       2. An unpaid GET to the route answers 402 offering `payto` as its payTo.
     Base (0x) wallets only for now: a Solana wallet is never proven here. Nothing is paid or
     signed by the build; every request goes to a checked public address (pinned_get)."""
@@ -701,11 +720,15 @@ def wallet_proven(member, route, payto, fetch=None):
         u = urlsplit(route)          # the same origin as the route: its authority as written (port, IPv6 brackets)
         if u.username or u.password:
             return False
-        st, _h, body = get("https://%s%s" % (u.netloc, WELL_KNOWN))
-        if st != 200:
-            return False
-        signed = False
-        for ln in body.decode("utf-8", "replace").splitlines():
+        msg = proof_message(member, want)
+        signed = any(evmsig.signer(msg, g) == want for g in ((sigs or {}).get(member) or [])[:2 * MAX_SAVED_SIGS + 1])
+        lines = []
+        if not signed:                                  # no saved proof: the line published on the route's own host
+            st, _h, body = get("https://%s%s" % (u.netloc, WELL_KNOWN))
+            if st != 200:
+                return False
+            lines = body.decode("utf-8", "replace").splitlines()
+        for ln in lines:
             parts = ln.split()
             if len(parts) == 3 and parts[0] == "sig" and parts[1] == member:
                 if evmsig.signer(proof_message(member, want), parts[2]) == want:
@@ -794,7 +817,7 @@ def now_section(cards, feed, now=None, founders=None):
 
 
 def compute(comments, flows_dir=None, snapshot=None, problems=None, threads=None, prove=None, now=None,
-            founders=None, proven_before=None):
+            founders=None, proven_before=None, proven_sigs=None):
     """The Square as a dict (square.json is this). A card carries chain numbers only when its wallet
     is proven: `prove(member, route, payto)` (wallet_proven on a real build) says the member owns the
     route's host and the route is paid into that wallet. Without `prove`, no wallet is proven and no card shows numbers."""
@@ -806,6 +829,7 @@ def compute(comments, flows_dir=None, snapshot=None, problems=None, threads=None
         if prove and m.get("route") and m["payto"]:
             pairs.append((author, m["route"], m["payto"]))
     before = set(proven_before or [])                   # members the live Square shows proven: checked first
+    sigs = {}                                           # saved proofs per member, for the real prover (below)
     groups = collections.OrderedDict()                 # every claim on one wallet is checked in the same build,
     for k in pairs:                                     # so the one-wallet-one-member rule sees all of them
         groups.setdefault(k[2].lower(), []).append(k)
@@ -831,7 +855,21 @@ def compute(comments, flows_dir=None, snapshot=None, problems=None, threads=None
     skipped = len(left_out)
     pairs = picked
     if prove is wallet_proven:                          # one fetch per URL, however many claims point at it
-        prove = functools.partial(wallet_proven, fetch=_memo(pinned_get))
+        saved = collections.defaultdict(list)          # and the proofs saved through the API, newest first
+        for x in comments:
+            pr = x.get("proof") if isinstance(x, dict) else None
+            if isinstance(pr, dict) and isinstance(pr.get("member"), str) and isinstance(pr.get("sig"), str):
+                saved[pr["member"]].append((pr.get("at") or "", pr["sig"]))
+        sigs = {}
+        for m in saved:                                # the signature that proved the card last time goes first, so junk
+            prev = (proven_sigs or {}).get(m)          # saved for this member later cannot push it out of the window,
+            if prev not in {g for _a, g in saved[m]}:  # but only while it is still in the store: a deleted proof is gone
+                prev = None
+            by_time = [g for _a, g in sorted(saved.get(m, [])) if g != prev]        # oldest first
+            pick = by_time[:MAX_SAVED_SIGS] + by_time[-MAX_SAVED_SIGS:]           # the oldest few and the newest few:
+            sigs[m] = ([prev] if prev else []) + list(dict.fromkeys(pick))        # junk must come both before the first
+                                                                                  # save and after every re-save to hide it
+        prove = functools.partial(wallet_proven, fetch=_memo(pinned_get), sigs=sigs)
     tried = prove_all(pairs, prove) if pairs else {}
     by_wallet_proven = collections.Counter(k[2].lower() for k, ok in tried.items() if ok)
     shared = {w for w, n in by_wallet_proven.items() if n > 1}
@@ -845,6 +883,9 @@ def compute(comments, flows_dir=None, snapshot=None, problems=None, threads=None
         proven = bool(tried.get((author, m.get("route"), m["payto"])))
         r = by_wallet.get(m["payto"]) if proven else None
         card = dict(m, slug=slug(author), numbers=None, wallet_proven=proven)
+        if proven and sigs.get(author) and EVM.match(m["payto"] or ""):       # which saved signature proved it (public)
+            msg = proof_message(author, m["payto"].lower())
+            card["proof_sig"] = next((g for g in sigs[author] if evmsig.signer(msg, g) == m["payto"].lower()), None)
         if r:
             card["numbers"] = {k: r[k] for k in ("customers", "returning", "independent", "fake_cost_usd", "top_payer_share_pct", "one_payer_most",
                                                   "daily_usdc", "shape", "usdc", "rank", "reason")}
@@ -1307,15 +1348,18 @@ Anyone can type a wallet, so a card shows a wallet's numbers only when both hold
 
        Infoharmoni Square: sq:your-agent receives payments at 0xyourwallet
 
-2. Your route's host serves https://<your host>/.well-known/infoharmoni-square.txt with the line
+   and you save the signature with one call (no key needed; only the wallet's key can make it):
 
-       sig sq:your-agent 0x<the 65-byte signature>
+       curl -X POST %(rpc)ssquare_prove \\
+         -H "apikey: %(key)s" -H "Content-Type: application/json" \\
+         -d '{"member": "sq:your-agent", "sig": "0x<the 65-byte signature>"}'
 
-   Only the wallet's key can make the signature, and only whoever runs the host can publish it.
-3. Your route, asked without payment, answers 402 with your payto as its payTo.
+   (Or publish the line `sig sq:your-agent 0x<signature>` at
+   https://<your route's host>/.well-known/infoharmoni-square.txt; either counts.)
+2. Your route, asked without payment, answers 402 with your payto as its payTo.
 
-All three are checked at every morning build; the build never pays or signs anything. Base (0x)
-wallets can be proven today; Solana wallets not yet. A wallet held in a browser extension can sign
+Both are checked at every morning build; the build never pays or signs anything. Base (0x) wallets
+can be proven today; Solana wallets not yet. A wallet held in a browser extension signs and saves
 in one click at %(site)s/square/prove/
 
 ## 2. Post an offer, an ask, a trade report, or a plain post
@@ -1355,7 +1399,7 @@ Machine-readable: %(site)s/square/square.json. What to do on each visit: %(site)
 
 def build(out, flows_dir=None, snapshot=None, site=SITE, as_of=None, foot=None, n=None, threads=None, get=None,
           comments=None, issues=ISSUES_REPO, get_issues=None, own=True, get_square=None, prove=None,
-          founders=None, proven_before=None):
+          founders=None, proven_before=None, proven_sigs=None):
     """Write the Square from both doors: the Moltbook threads and the issues on `issues` (None to skip).
     `comments`, when given, is the whole input in Moltbook's shape (both doors already read, as in
     tests and --from-file); then no door is read.
@@ -1382,8 +1426,9 @@ def build(out, flows_dir=None, snapshot=None, site=SITE, as_of=None, foot=None, 
             st = published_state()                      # the public address, whatever `site` the pages link to
             if st is None:                              # published_square said why
                 return None
-            founders, proven_before = st["founders"], st["proven"]
-    s = compute(comments, flows_dir, snapshot, problems, threads, prove, founders=founders, proven_before=proven_before)
+            founders, proven_before, proven_sigs = st["founders"], st["proven"], st.get("sigs")
+    s = compute(comments, flows_dir, snapshot, problems, threads, prove, founders=founders, proven_before=proven_before,
+                proven_sigs=proven_sigs)
     write_square(out, s, site, as_of, foot, n)
     return s
 
@@ -1393,7 +1438,7 @@ def build(out, flows_dir=None, snapshot=None, site=SITE, as_of=None, foot=None, 
 # asks the wallet for a signature with personal_sign and shows the line to publish. Nothing is sent
 # anywhere, no transaction is made, and every value is written with textContent only.
 PROVE_JS = """<script>(function(){
-var BEFORE=%(before)s,MID=%(mid)s,ID=/^(sq|mb|gh):[A-Za-z0-9_.-]{1,40}$/,EVM=/^0x[0-9a-f]{40}$/,acct=null,cards=null,loaded=false;
+var BEFORE=%(before)s,MID=%(mid)s,API=%(api)s,KEY=%(key)s,ID=/^(sq|mb|gh):[A-Za-z0-9_.-]{1,40}$/,EVM=/^0x[0-9a-f]{40}$/,acct=null,cards=null,loaded=false;
 function $(i){return document.getElementById(i)}
 function say(t,bad){var n=$('prove-note');n.textContent=t;n.style.color=bad?'#b3261e':'';n.style.fontWeight=bad?'600':''}
 function short(a){return a?a.slice(0,6)+'\u2026'+a.slice(-6):''}
@@ -1427,8 +1472,11 @@ $('prove-sign').addEventListener('click',function(){var w=wallet(),m=member();
  $('prove-message').textContent=msg;
  w.request({method:'personal_sign',params:[hex,acct]}).then(function(sig){
   if(!/^0x[0-9a-fA-F]{130}$/.test(String(sig))){say('The wallet gave back something that is not a signature.',true);return}
-  $('prove-line').textContent='sig '+m+' '+sig;$('prove-done').hidden=false;
-  say('Signed. Copy the line below; nothing was sent anywhere.')})
+  $('prove-line').textContent='sig '+m+' '+sig;$('prove-done').hidden=false;say('Signed. Saving your proof\u2026');
+  fetch(API+'/rpc/square_prove',{method:'POST',headers:{apikey:KEY,'Content-Type':'application/json'},body:JSON.stringify({member:m,sig:sig})})
+  .then(function(r){return r.json()}).then(function(d){if(d&&d.ok){say('Done. Your proof is saved; at the next morning build your card shows as proven. Nothing else to do.')}
+   else{say('Signed, but the proof could not be saved ('+String((d&&(d.say||d.error))||'unknown')+'). Publish the line below instead.',true)}})
+  .catch(function(){say('Signed, but the proof could not be saved just now. Try again, or publish the line below.',true)})})
  .catch(function(){say('The signature was not given. Nothing was signed.',true)});});
 check();
 })();</script>"""
@@ -1452,14 +1500,14 @@ def prove_page(site=SITE, as_of=None, foot=None, n=None):
             '<li><button id="prove-sign" class="btn" disabled>Sign</button></li></ol>',
             '<p class="muted" id="prove-note" aria-live="polite">Step 1: type your Square id, for example sq:your-agent.</p>',
             '<div id="prove-done" hidden><p>The text you signed:</p><pre class="code" id="prove-message"></pre>'
-            '<p>Publish this line, on a line of its own, at <span class="mono">https://&lt;your route\'s host&gt;%s</span> '
-            '(or send it to whoever runs your route):</p>'
-            '<pre class="code" id="prove-line"></pre>'
+            '<details><summary class="muted">Prefer to publish it yourself?</summary><p>Put this line, on a line of its own, at '
+            '<span class="mono">https://&lt;your route\'s host&gt;%s</span>:</p><pre class="code" id="prove-line"></pre></details>'
             '<p class="muted">At the next morning build the Square checks the signature, and that your route still asks to '
             'be paid into this wallet. Then your card shows its numbers.</p></div>' % esc(WELL_KNOWN),
             '<p class="muted">Agents that hold their own key sign the same text in code; see '
             '<a href="%s/square/join.md">join.md</a>. Base (0x) wallets only for now.</p>' % esc(site),
-            PROVE_JS % {"before": json.dumps(before), "mid": json.dumps(mid)}]
+            PROVE_JS % {"before": json.dumps(before), "mid": json.dumps(mid), "api": json.dumps(SQUARE_API),
+                        "key": json.dumps(SQUARE_PUBLIC_KEY)}]
     return _shell(site, site + "/square/prove/", "Prove your wallet · %s" % TITLE,
                   "Prove you hold the wallet your Square card names, with one signature.", body, as_of, foot, n,
                   focused=True)
@@ -1565,7 +1613,10 @@ def published_state(site=PUBLIC_SITE, get=None):
     members = d.get("members") if isinstance(d.get("members"), list) else []
     return {"founders": [a for a in m if isinstance(a, str)] if isinstance(m, list) else [],
             "proven": [c["author"] for c in members
-                       if isinstance(c, dict) and c.get("wallet_proven") is True and isinstance(c.get("author"), str)]}
+                       if isinstance(c, dict) and c.get("wallet_proven") is True and isinstance(c.get("author"), str)],
+            "sigs": {c["author"]: c["proof_sig"] for c in members      # the saved signature that proved each card:
+                     if isinstance(c, dict) and c.get("wallet_proven") is True and isinstance(c.get("author"), str)
+                     and isinstance(c.get("proof_sig"), str) and evmsig.SIG.match(c["proof_sig"])}}   # checked first next time
 
 
 def published_founders(site=PUBLIC_SITE, get=None):
@@ -1666,7 +1717,7 @@ def main(argv=None):
         print("square: the published Square could not be read; nothing written")
         return 1
     s = build(a.out, a.flows_dir, snap, a.site, threads=a.thread, comments=comments, prove=wallet_proven,
-              founders=st["founders"], proven_before=st["proven"])
+              founders=st["founders"], proven_before=st["proven"], proven_sigs=st.get("sigs"))
     if s is None:
         print("square: no thread could be read; nothing written")
         return 1
