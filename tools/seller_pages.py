@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Copied from the Aušrinė lab (commit 0992fd9). Edit it there, not here.
+# Copied from the Aušrinė lab (commit 0a2afde). Edit it there, not here.
 """seller_pages.py — a public page for every seller in the agent economy.
 
 Roughly 2,000 teams sell to agents over x402. Each of them wants to know how
@@ -990,8 +990,9 @@ def square_hosts(state):
             host, port = u.hostname, u.port
         except ValueError:                      # a malformed port: the claim names nobody
             continue
-        if host:                                # the registry keys a seller on a port other than 443 as host:port
-            out.setdefault(host.lower() + (":%d" % port if port not in (None, 443) else ""), m)
+        if host:                                # keyed as radar.condense keys a seller: www. dropped, a port
+            key = host.lower() + (":%d" % port if port not in (None, 443) else "")   # other than 443 kept
+            out.setdefault(key.replace("www.", ""), m)
     return out
 
 

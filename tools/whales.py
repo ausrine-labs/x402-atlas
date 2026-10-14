@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Copied from the Aušrinė lab (commit 0992fd9). Edit it there, not here.
+# Copied from the Aušrinė lab (commit 0a2afde). Edit it there, not here.
 """whales.py — the agent whales: which wallets pay a lot, for what, and which
 sellers are actually paid on-chain.
 

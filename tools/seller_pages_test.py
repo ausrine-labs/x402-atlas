@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Copied from the Aušrinė lab (commit 0992fd9). Edit it there, not here.
+# Copied from the Aušrinė lab (commit 0a2afde). Edit it there, not here.
 """seller_pages_test.py — the public pages, from a synthetic store. No network.
 
     python3 seller_pages_test.py
@@ -593,12 +593,14 @@ class SquareLine(unittest.TestCase):
          "has_page": False},
         {"route": "https://rival.example:8443/pay", "wallet_proven": True, "author": "sq:rival", "slug": "sq-rival"},
         {"route": "https://plain.example:443/", "wallet_proven": True, "author": "sq:plain", "slug": "sq-plain"},
-        {"route": "https://bad.example:99999/", "wallet_proven": True, "author": "sq:bad", "slug": "sq-bad"}]}
+        {"route": "https://bad.example:99999/", "wallet_proven": True, "author": "sq:bad", "slug": "sq-bad"},
+        {"route": "https://WWW.Shop.example/buy", "wallet_proven": True, "author": "sq:shop", "slug": "sq-shop"}]}
 
     def test_only_a_proven_member_is_named_on_its_seller_page(self):
         on = sp.square_hosts(self.STATE)
         # an unproven claim names nobody; a port other than 443 stays in the key, as the registry keeps it
-        self.assertEqual(set(on), {"api.alpha.test", "api.gamma.test", "rival.example:8443", "plain.example"})
+        self.assertEqual(set(on), {"api.alpha.test", "api.gamma.test", "rival.example:8443", "plain.example",
+                                   "shop.example"})                          # www. dropped, as the registry does
         named = sp.square_box(on.get("api.alpha.test"))
         self.assertIn("On the Square", named)
         self.assertIn('/square/mb-alpha/">alpha</a>', named)
