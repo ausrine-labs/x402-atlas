@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Copied from the Aušrinė lab (commit 0aebe92). Edit it there, not here.
+# Copied from the Aušrinė lab (commit d71eb7f). Edit it there, not here.
 """board_test.py — The Board, on a week small enough to count by hand.
 
 Seven days, 2026-01-01 to 2026-01-07. Sellers (payTo wallets) and the hosts on them:
@@ -244,7 +244,7 @@ class Pages(unittest.TestCase):
     def test_the_page_in_the_atlas_look(self):
         self.assertTrue(self.html.startswith("<!doctype html>"))
         self.assertIn('<link rel="stylesheet" href="https://atlas.example/atlas.css">', self.html)
-        self.assertIn('<a href="https://atlas.example/map/">Map</a><a href="https://atlas.example/board/">Board</a>', self.html)
+        self.assertIn('<a href="https://atlas.example/square/">Square</a><a href="https://atlas.example/board/">Board</a>', self.html)
         self.assertIn('<footer class="site">', self.html)
         self.assertNotIn("<style>", self.html)
         self.assertIn('<link rel="canonical" href="https://atlas.example/board/">', self.html)

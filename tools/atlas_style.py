@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Copied from the Aušrinė lab (commit e2f417e). Edit it there, not here.
+# Copied from the Aušrinė lab (commit d71eb7f). Edit it there, not here.
 """atlas_style.py — the one look of the Infoharmoni Atlas: stylesheet, header, footer.
 
 Every page the site build writes carries the same three things, written here once:
@@ -79,6 +79,11 @@ nav.main a{text-decoration:none;color:var(--ink);padding:4px 0;white-space:nowra
 nav.main a:hover{text-decoration:underline;text-decoration-color:var(--ink)}
 nav.main a.pro{padding:4px 12px;border-radius:8px;background:var(--ink);color:#fff}
 nav.main a.pro:hover{text-decoration:none;background:var(--seller-ink)}
+nav.main{align-items:center}details.navmore{position:relative}details.navmore summary{list-style:none;cursor:pointer;padding:4px 0;white-space:nowrap}
+details.navmore summary::-webkit-details-marker{display:none}details.navmore summary::after{content:" ▾";font-size:11px;color:var(--muted)}
+details.navmore[open] summary{text-decoration:underline}.navpanel{position:absolute;right:0;top:calc(100% + 6px);z-index:20;min-width:170px;
+background:var(--paper);border:1px solid var(--rule);border-radius:10px;box-shadow:0 10px 30px rgba(16,42,35,.10);padding:6px;display:grid}
+.navpanel a{padding:7px 10px!important;border-radius:6px}.navpanel a:hover{background:var(--panel);text-decoration:none!important}
 /* page frame */
 main{display:block;max-width:calc(var(--max) + 2*var(--gutter));margin:0 auto;padding:0 var(--gutter)}
 h1{font:600 clamp(32px,5.4vw,60px)/1.04 var(--sans);letter-spacing:-.035em;margin:40px 0 12px;overflow-wrap:anywhere;max-width:22ch;text-wrap:balance}
@@ -121,7 +126,31 @@ pre.code{font:13px/1.6 var(--mono);background:var(--panel);border:1px solid var(
 pre.code .k{color:var(--seller-ink);font-weight:600}pre.code .c{color:var(--muted)}pre.code .p{color:var(--buyer-ink);font-weight:600}
 ul.cav{color:var(--ink-2);font-size:15px;padding-left:20px;max-width:76ch}ul.cav li{margin-bottom:6px}
 /* Infoharmoni Square (square.py): member cards and the feed */
-.card{border:1px solid var(--rule);border-radius:var(--radius);background:var(--paper);padding:12px 16px;margin:12px 0}.card h3{margin:0 0 4px}.feed{padding-left:18px}.feed li{margin:10px 0}.feed .replies{margin:6px 0 0;padding-left:16px;border-left:2px solid var(--rule)}.vouch{font-size:14px}.now{background:var(--panel);border:1px solid var(--rule);border-radius:var(--radius);padding:10px 14px;font-size:14px}.pill.founding{background:#FFF4D6;border-color:#E0A93B}.pill.ask-wait{background:#FDECEA;border-color:#E39A8F}.demand{font-size:14px;color:var(--seller-ink,#0B7A55)}
+.card{border:1px solid var(--rule);border-radius:var(--radius);background:var(--paper);padding:12px 16px;margin:12px 0}.card h3{margin:0 0 4px}.feed{padding-left:18px}.feed li{margin:10px 0}.feed .replies{margin:6px 0 0;padding-left:16px;border-left:2px solid var(--rule)}.vouch{font-size:14px}.now{background:var(--panel);border:1px solid var(--rule);border-radius:var(--radius);padding:10px 14px;font-size:14px}.pill.founding{background:#FFF4D6;border-color:#E0A93B}.pill.proven{background:var(--seller-soft);border-color:var(--seller)}
+.sq-hero{padding:8px 0 4px;max-width:780px}.sq-hero h1{font-size:clamp(30px,4.6vw,46px);line-height:1.08;letter-spacing:-.02em;margin:6px 0 10px}
+.cta{display:flex;flex-wrap:wrap;gap:10px;margin:18px 0 8px}.cta .btn{display:inline-flex;margin:0;padding:0 20px;border-radius:999px;border:1px solid var(--ink);background:var(--paper);
+color:var(--ink);text-decoration:none;font-weight:600}.cta .btn:hover{background:var(--panel);color:var(--ink)}.cta .btn.primary{background:var(--ink);color:#fff}.cta .btn.primary:hover{background:var(--seller-ink)}
+.fine{font-size:13.5px}.small-h{font-size:14px;margin:6px 0}
+.sq-stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin:22px 0 6px}.sq-stats div{border:1px solid var(--rule);
+border-radius:14px;padding:14px 16px;background:var(--paper)}.sq-stats b{display:block;font-size:28px;letter-spacing:-.02em}
+.sq-stats span{color:var(--muted);font-size:13.5px}
+.sq-grid{display:grid;grid-template-columns:minmax(0,1.4fr) minmax(0,1fr);gap:28px;align-items:start}
+.acts{list-style:none;padding:0;margin:8px 0}.act{display:flex;gap:12px;padding:12px 0;border-bottom:1px solid var(--rule-soft)}
+.act-h{margin:0}.act-t{margin:3px 0 0;color:var(--ink)}.ago{color:var(--faint);font-size:13px;margin-left:4px}
+.av{flex:0 0 auto;display:inline-flex;align-items:center;justify-content:center;width:44px;height:44px;border-radius:50%;color:#fff;
+font-weight:700;font-size:15px;letter-spacing:.02em}.av.sm{width:34px;height:34px;font-size:12.5px}
+.src{display:inline-block;font-size:11.5px;padding:1px 7px;border-radius:999px;background:var(--panel);color:var(--muted);vertical-align:2px}
+.mtiles{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:14px;margin:10px 0}.mtile{display:flex;gap:14px;
+border:1px solid var(--rule);border-radius:14px;padding:16px;background:var(--paper)}.mtile h3{margin:0 0 4px;font-size:17px}
+.mtile p{margin:4px 0}.mtile-b{min-width:0}.mchips{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0 2px}.mchips span{background:var(--panel);
+border-radius:999px;padding:3px 10px;font-size:13px}.vouches{display:flex;align-items:center;gap:0;margin-top:8px;font-size:13px}
+.vouches .av{margin-right:-8px;border:2px solid #fff}.vouches span:last-child{margin-left:14px;color:var(--muted)}
+.sq-graph{width:100%;height:auto;border:1px solid var(--rule);border-radius:14px;background:var(--panel)}
+.sq-graph line.lv{stroke:var(--seller);stroke-width:2}.sq-graph line.lr{stroke:var(--faint);stroke-width:1.2;stroke-dasharray:4 4}
+.sq-graph circle.gp{fill:var(--seller)}.sq-graph circle.gu{fill:#fff;stroke:var(--faint);stroke-width:2}
+.sq-graph circle.gf{fill:none;stroke:var(--buyer);stroke-width:3}.sq-graph text{font-size:12px;fill:var(--ink);font-family:var(--sans)}
+details.howto{margin:26px 0;border-top:1px solid var(--rule);padding-top:12px}details.howto summary{cursor:pointer;font-weight:600}
+@media (max-width:760px){.sq-stats{grid-template-columns:1fr 1fr}.sq-grid{grid-template-columns:1fr}}.pill.ask-wait{background:#FDECEA;border-color:#E39A8F}.demand{font-size:14px;color:var(--seller-ink,#0B7A55)}
 /* the Board (board.py): the week's money per day, and what each seller sells */
 .board td.days{font:12.5px/1.45 var(--mono);white-space:nowrap;color:var(--ink-2)}.board td.sells{min-width:26ch;max-width:44ch;font-size:14px;color:var(--ink-2)}.board td.shape{white-space:nowrap}
 /* buttons, boxes, cards */
@@ -238,7 +267,7 @@ footer.site{margin-top:88px;border-top:1px solid var(--rule);background:var(--pa
 .small{max-width:calc(var(--max) + 2*var(--gutter));margin:0 auto;padding:14px var(--gutter) 40px;border-top:1px solid var(--rule-soft);color:var(--muted);font-size:13px}
 .small p{margin:4px 0;max-width:none}
 @media (max-width:600px){body{font-size:15.5px}.hbar{gap:10px 14px}.brand .bname,.brand .bprod{font-size:19px}form.hsearch{flex-basis:100%;max-width:none;order:3}
-nav.main{order:4;margin-left:0;gap:2px 16px;font-size:14.5px}h2{margin-top:44px}.tiles{grid-template-columns:1fr 1fr}.tile b{font-size:22px}
+nav.main{order:4;margin-left:0;gap:2px 16px;font-size:14.5px}.navpanel{position:static;box-shadow:none;margin-top:4px}h2{margin-top:44px}.tiles{grid-template-columns:1fr 1fr}.tile b{font-size:22px}
 table{font-size:14px}th,td{padding-right:10px}.avatar{width:44px;height:44px;margin-top:34px}}
 """
 
@@ -262,7 +291,7 @@ HEAD = """<!doctype html><html lang="en"><meta charset="utf-8">
 <span class="netchips" title="Covers x402 payments on Base"><span class="chip-sm">x402</span><span class="chip-sm">Base</span></span>
 <form class="hsearch" role="search" action="%(root)s/" method="get"><label class="vh" for="hq">Search the record</label>
 <input id="hq" name="q" type="search" placeholder="Search sellers, operators, wallets, or a job" autocomplete="off"></form>
-<nav class="main" aria-label="Main"><a href="%(root)s/s/">Sellers</a><a href="%(root)s/o/">Operators</a><a href="%(root)s/b/">Buyers</a><a href="%(root)s/map/">Map</a><a href="%(root)s/board/">Board</a><a href="%(root)s/square/">Square</a><a href="%(root)s/brief/">Brief</a><a href="%(root)s/leaders/">Leaders</a><a href="%(root)s/prices/">Prices</a><a href="%(root)s/where/">Where</a><a href="%(root)s/watch/">Watch</a><a href="%(root)s/pricing/">Pricing</a><a href="%(root)s/docs/">Docs</a><a href="%(root)s/about/">About</a><a href="%(root)s/contact/">Contact</a><a class="pro" href="%(root)s/pro.html">Pro</a></nav>
+<nav class="main" aria-label="Main"><a href="%(root)s/square/">Square</a><a href="%(root)s/board/">Board</a><a href="%(root)s/brief/">Brief</a><details class="navmore"><summary>Explore</summary><div class="navpanel"><a href="%(root)s/s/">Sellers</a><a href="%(root)s/o/">Operators</a><a href="%(root)s/b/">Buyers</a><a href="%(root)s/map/">Map</a><a href="%(root)s/leaders/">Leaders</a><a href="%(root)s/prices/">Prices</a><a href="%(root)s/where/">Where</a><a href="%(root)s/watch/">Watch</a></div></details><a href="%(root)s/pricing/">Pricing</a><a href="%(root)s/docs/">Docs</a><details class="navmore"><summary>Company</summary><div class="navpanel"><a href="%(root)s/about/">About</a><a href="%(root)s/contact/">Contact</a></div></details><a class="pro" href="%(root)s/pro.html">Pro</a></nav>
 </div></header>
 """
 
