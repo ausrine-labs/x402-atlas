@@ -1,4 +1,4 @@
-# Copied from the Aušrinė lab (commit 74eceb4). Edit it there, not here.
+# Copied from the Aušrinė lab (commit 1c7a8f2). Edit it there, not here.
 """square_test.py — Infoharmoni Square, from hand-written comments. No network."""
 import datetime
 import json
@@ -1331,6 +1331,28 @@ class Teams(unittest.TestCase):
             c("g1", "mb:c", job % (TX1, "verdict: pass"), "2026-10-13T06:00:00"),
             c("g2", "mb:c", job % (TX1, "verdict: fail"), "2026-10-13T07:00:00")])[0]
         self.assertEqual(t["jobs"][0]["verdict"], "pass")
+
+    def test_a_join_and_a_team_yes_in_one_comment_both_count(self):
+        both = ("Yes, joining.\n\nsquare: join\nsells: delivery checks\n\nsquare: team\nteam: pre-pay check\nrole: delivery\n\n"
+                "square: ask\ntext: a second feed post in the same comment is not read")
+        s = square.compute(joins("mb:a", "mb:c", "mb:d") + [c("t1", "mb:a", FOUND, "2026-10-13T02:00:00"),
+                                                           c("y1", "mb:b", both, "2026-10-13T03:00:00")])
+        self.assertIn("mb:b", [m["author"] for m in s["members"]])
+        self.assertEqual([m["author"] for m in s["teams"][0]["members"]], ["mb:a", "mb:b"])
+        self.assertEqual(s["feed"], [])
+        self.assertEqual([b["kind"] for b in square.parse_all(both)], ["join", "team"])
+        self.assertEqual(len(square.parse_all("square: team\nsquare: team\nteam: x")), 1)   # an empty head is not a block
+        self.assertEqual(len(square.parse_all("square: join\nsells: x\n\n" * 9)), square.MAX_BLOCKS)
+
+    def test_a_comment_of_empty_heads_is_cheap_to_read(self):
+        import time
+        junk = "square: join\nsells: x\n\n" + "square: post\n" * 200000           # about 2.6 MB of heads
+        t0 = time.time()
+        self.assertEqual([b["kind"] for b in square.parse_all(junk)], ["join"])
+        self.assertEqual(square.parse("square: post\n" * 200000), {"kind": "post", "fields": {}})   # no fields: no entry
+        self.assertLess(time.time() - t0, 2.0)
+        self.assertEqual(square.parse("a\n" * 3 + "square: join\nsells: last line, no newline")["fields"],
+                         {"sells": "last line, no newline"})
 
     def test_a_forming_team_is_not_listed_and_a_card_names_its_teams(self):
         s = square.compute(joins("mb:a", "mb:b", "mb:c", "mb:d") + [c("t1", "mb:a", FOUND, "2026-10-13T02:00:00")])
