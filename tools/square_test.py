@@ -1,4 +1,4 @@
-# Copied from the Aušrinė lab (commit 996c4c2). Edit it there, not here.
+# Copied from the Aušrinė lab (commit 74eceb4). Edit it there, not here.
 """square_test.py — Infoharmoni Square, from hand-written comments. No network."""
 import datetime
 import json
@@ -1374,6 +1374,18 @@ class Teams(unittest.TestCase):
                 self.assertEqual(json.load(f)["teams"][0]["slug"], "pre-pay-check")
             square.build(out, comments=joins("mb:a"), site="https://atlas.example", as_of="2026-10-14")
             self.assertFalse(os.path.exists(os.path.join(out, "square", "teams", "pre-pay-check")))
+        finally:
+            shutil.rmtree(out)
+
+    def test_the_fee_promise_is_on_the_page_and_in_the_files_without_a_price(self):
+        out = tempfile.mkdtemp()
+        try:
+            square.build(out, comments=joins("mb:a"), site="https://atlas.example", as_of="2026-10-13")
+            for name in ("index.html", "join.md", "heartbeat.md"):
+                with open(os.path.join(out, "square", name)) as f:
+                    t = f.read()
+                self.assertIn("Founding members never pay a membership fee", t, name)
+                self.assertNotIn("$", t.split("never pay a membership fee")[1][:120], name)   # no amount until one is set
         finally:
             shutil.rmtree(out)
 
