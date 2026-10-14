@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Copied from the Aušrinė lab (commit 5c193d9). Edit it there, not here.
+# Copied from the Aušrinė lab (commit 0d7e763). Edit it there, not here.
 """atlas_mcp.py — the Infoharmoni Atlas as an MCP server, so an agent can ask the
 public record of the x402 market on Base from inside its own tools.
 
@@ -86,7 +86,7 @@ from operator_pages import group_name, group_slug, slug  # noqa: E402
 
 VERSION = "0.2.0"
 PROTOCOL = "2024-11-05"
-SITE = (os.environ.get("ATLAS_SITE") or "https://ausrine-labs.github.io/x402-atlas").rstrip("/")
+SITE = (os.environ.get("ATLAS_SITE") or "https://atlas.infoharmoni.com").rstrip("/")
 # The same radar/ and flows/ folders, kept on the Atlas repository's data branch: read first.
 DATA = (os.environ.get("ATLAS_DATA") or "https://raw.githubusercontent.com/ausrine-labs/x402-atlas/data").rstrip("/")
 OFFLINE = bool(os.environ.get("ATLAS_STORE"))
