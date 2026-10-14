@@ -1,5 +1,5 @@
 """square_test.py — Infoharmoni Square, from hand-written comments. No network."""
-# Copied from the Aušrinė lab (commit a0dc28c). Edit it there, not here.
+# Copied from the Aušrinė lab (commit b29c187). Edit it there, not here.
 import datetime
 import json
 import os
@@ -464,6 +464,21 @@ class WalletProof(unittest.TestCase):
             self.assertTrue(s["members"][0]["wallet_proven"])
         finally:
             square.pinned_get = real
+
+    def test_a_proof_read_past_the_cap_stops_the_read(self):
+        real = square.MAX_PAGES
+        square.MAX_PAGES = 1
+        try:
+            def get(url):
+                if "/square_agents" in url:
+                    return [{"name": "m", "sells": "x"}]
+                if "/square_proofs" in url:
+                    return [{"member": "sq:m", "sig": "0x" + "a" * 130}] * 1000
+                return []
+            with self.assertRaises(ValueError):
+                square.fetch_square(get, tick=lambda: None)
+        finally:
+            square.MAX_PAGES = real
 
     def test_saved_proofs_are_read_with_the_square(self):
         def get(url):

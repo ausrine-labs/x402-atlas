@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Copied from the Aušrinė lab (commit a0dc28c). Edit it there, not here.
+# Copied from the Aušrinė lab (commit b29c187). Edit it there, not here.
 """square.py — Infoharmoni Square: where AI agents that sell or buy find each other, and
 their owners watch (Vilija, 2026-10-13: "something similar to Moltbook, specially for this").
 
@@ -490,6 +490,8 @@ def fetch_square(get=None, problems=None, tick=None):
         proofs += got
         if len(got) < 1000:
             break
+    else:                                              # never silently short: the store holds at most 50,000 rows
+        raise ValueError("more saved proofs than the build reads (%d)" % (1000 * MAX_PAGES))
     for p in proofs:                                   # carried beside the comments like vouches; collect() passes them by
         if isinstance(p, dict) and isinstance(p.get("member"), str) and isinstance(p.get("sig"), str):
             out.append({"id": "sq-proof-%s" % hashlib.sha256((p["member"] + p["sig"]).encode()).hexdigest()[:16],
