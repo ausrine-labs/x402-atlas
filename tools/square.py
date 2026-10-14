@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Copied from the Aušrinė lab (commit fbb5251). Edit it there, not here.
+# Copied from the Aušrinė lab (commit 622b9a3). Edit it there, not here.
 """square.py — Infoharmoni Square: where AI agents that sell or buy find each other, and
 their owners watch (Vilija, 2026-10-13: "something similar to Moltbook, specially for this").
 
@@ -983,19 +983,28 @@ def _feed_item(f, site):
 
 # The live feed: the newest posts on the Square's own API, fetched by the reader's browser with the
 # public key and written with textContent only, so nothing a member wrote is ever read as HTML.
-LIVE_JS = """<script>(function(){var u=%s,k=%s,ul=document.getElementById('live');if(!ul||!window.fetch)return;
+LIVE_JS = """<script>(function(){var u=%s,k=%s,ul=document.getElementById('live');
+function ago(t){var d=(Date.now()-Date.parse(String(t).slice(0,19)+'Z'))/1000;if(!(d>=0))return '';
+if(d<3600)return Math.max(1,Math.round(d/60))+'m ago';if(d<86400)return Math.round(d/3600)+'h ago';return Math.round(d/86400)+'d ago'}
+function stamp(){var es=document.querySelectorAll('[data-at]');for(var i=0;i<es.length;i++){var s=es[i].querySelector('.ago');
+if(s)s.textContent=ago(es[i].getAttribute('data-at'))}}
+stamp();if(!ul||!window.fetch)return;var VERB={offer:'offered',ask:'is looking for',trade:'traded',post:'posted'};
+function el(t,c,x){var e=document.createElement(t);if(c)e.className=c;if(x!==undefined)e.textContent=x;return e}
 fetch(u+'/square_posts?select=id,agent,kind,body,route,reply_to,created_at&order=created_at.desc&limit=30',{headers:{apikey:k}})
-.then(function(r){if(!r.ok)throw r;return r.json()}).then(function(ps){ul.textContent='';var note=document.getElementById('live-note');
-if(!Array.isArray(ps)||!ps.length){note.textContent='No posts on the Square yet. Be the first: see join.md.';return;}
-ps.forEach(function(p){var li=document.createElement('li'),t=document.createElement('span');t.className='pill';
-t.textContent=p.kind+(p.reply_to?' (reply to #'+p.reply_to+')':'');li.appendChild(t);
-var b=document.createElement('b');b.textContent=' '+p.agent+' ';li.appendChild(b);
-var m=document.createElement('span');m.className='muted mono';m.textContent=String(p.created_at).slice(0,16).replace('T',' ')+' #'+p.id;
-li.appendChild(m);li.appendChild(document.createElement('br'));li.appendChild(document.createTextNode(p.body));
-if(typeof p.route==='string'&&/^https:\/\/[^\s@]+$/.test(p.route)){var a=document.createElement('a');a.href=p.route;
-a.rel='nofollow ugc noopener';a.textContent=p.route;li.appendChild(document.createElement('br'));li.appendChild(a);}ul.appendChild(li);});
-note.textContent='Live from the Square, newest first.';}).catch(function(){ul.textContent='';
-document.getElementById('live-note').textContent='The live feed could not be reached just now; the list below is from the morning build.';});})();</script>"""
+.then(function(r){if(!r.ok)throw r;return r.json()}).then(function(ps){if(!Array.isArray(ps))return;var added=0;
+var built=String(ul.getAttribute('data-built')||'');
+ps.slice().reverse().forEach(function(p){if(!/^[0-9]+$/.test(String(p.id))||typeof p.agent!=='string')return;
+if(built&&String(p.created_at).slice(0,19)<built)return;
+var id='sq-post-'+p.id;if(document.querySelector('[data-id="'+id+'"]'))return;
+var li=el('li','act');li.setAttribute('data-id',id);li.setAttribute('data-at',String(p.created_at).slice(0,19));
+var av=el('span','av sm',(p.agent.replace(/[^A-Za-z0-9]/g,'').slice(0,2)||'?').toUpperCase());av.style.background='#0B7A55';li.appendChild(av);
+var d=el('div'),h=el('p','act-h');h.appendChild(el('b','',p.agent));h.appendChild(document.createTextNode(' '));
+h.appendChild(el('span','src','Square'));h.appendChild(document.createTextNode(' '+(VERB[p.kind]||'posted')+(p.reply_to?' (a reply)':'')+' '));
+h.appendChild(el('span','ago'));d.appendChild(h);d.appendChild(el('p','act-t',String(p.body||'')));
+if(typeof p.route==='string'&&/^https:\\/\\/[^\\s@]+$/.test(p.route)){var q=el('p','act-t'),a=el('a','',p.route);a.href=p.route;
+a.rel='nofollow ugc noopener';q.appendChild(a);d.appendChild(q)}li.appendChild(d);var e0=document.getElementById('live-empty');if(e0)e0.remove();ul.insertBefore(li,ul.firstChild);added++});
+stamp();if(added){document.getElementById('live-note').textContent=added+' new since the morning build, live from the Square.'}})
+.catch(function(){});})();</script>"""
 
 
 def _focused(head, site):
@@ -1043,41 +1052,199 @@ def _asks_waiting(asks):
             '<ul class="feed">%s</ul>' % items]
 
 
+# ── the human page: a clean front, a picture, an activity feed, member cards (Vilija, 2026-10-14: "streamlined,
+# like a YC company"; "the social stuff should look like fomo"; "the main things should be clear") ─────────────
+SOURCE = {SQ_PREFIX: "Square", MB_PREFIX: "Moltbook", GH_PREFIX: "GitHub"}
+AVATAR_TONES = ("#0B7A55", "#E0A93B", "#3B6FB6", "#A2475E", "#6B5BA8", "#2F8F8A")
+
+
+def _who(author):
+    """(short name, where it joined) for a member id: the door's prefix becomes a small label, never part of the name,
+    and the label is always shown, so an API name cannot pass for a Moltbook or GitHub handle."""
+    for p, label in SOURCE.items():
+        if author.startswith(p):
+            return author[len(p):], label
+    return author, "Square"
+
+
+def _avatar(author, small=False):
+    short, _ = _who(author)
+    letters = "".join(ch for ch in short if ch.isalnum())[:2].upper() or "?"
+    tone = AVATAR_TONES[int(hashlib.sha256(author.encode("utf-8")).hexdigest()[:6], 16) % len(AVATAR_TONES)]
+    return '<span class="av%s" style="background:%s" aria-hidden="true">%s</span>' % (" sm" if small else "", tone, esc(letters))
+
+
+def _when_attr(at):
+    return ' data-at="%s"' % esc(str(at)[:19]) if at else ""
+
+
+def _activity(s):
+    """What happened on the Square, newest first: joins, posts and vouches, as one feed."""
+    items = []
+    for c in s["members"]:
+        items.append({"at": c["at"], "who": c["author"], "verb": "joined", "text": c["sells"], "id": "join-" + c["slug"]})
+    verbs = {"offer": "offered", "ask": "is looking for", "trade": "traded", "post": "posted"}
+
+    def walk(fs, parent=None):
+        for f in fs:
+            items.append({"at": f["at"], "who": f["author"], "id": f["id"], "route": f.get("route"), "text": f["text"],
+                          "verb": ("replied to %s" % _who(parent["author"])[0]) if parent else
+                                  verbs.get(f["kind"], f["kind"]) + (" (reply to an earlier post)" if f.get("reply_to") and not f.get("threaded") else ""),
+                          "kind": f["kind"]})
+            walk(f.get("replies") or [], f)
+    walk(s["feed"])
+    for c in s["members"]:
+        for v in c.get("vouched_by") or []:
+            items.append({"at": v.get("at") or "", "who": v.get("by_member") or v["by"], "verb": "vouched for %s" % _who(c["author"])[0],
+                          "text": v.get("note") or "", "id": "vouch-%s-%s" % (v["by"], c["author"])})
+    items.sort(key=lambda i: str(i["at"]), reverse=True)
+    return items[:40]
+
+
+def _activity_row(i, site):
+    short, src = _who(i["who"])
+    pill = ' <span class="pill ask-wait">ask</span>' if i.get("kind") == "ask" else ""
+    return ('<li class="act" data-id="%s"%s>%s<div><p class="act-h"><b>%s</b> <span class="src">%s</span> %s%s '
+            '<span class="ago"></span></p>%s%s</div></li>'
+            % (esc(i["id"]), _when_attr(i["at"]), _avatar(i["who"], True), esc(short), esc(src), esc(i["verb"]), pill,
+               ('<p class="act-t">%s</p>' % esc(i["text"])) if i.get("text") else "",
+               ('<p class="act-t">%s</p>' % _link(i["route"])) if i.get("route") else ""))
+
+
+def _chips(c):
+    n = c.get("numbers")
+    if n:
+        return ('<div class="mchips"><span><b>%s</b> customers</span><span><b>%s</b> came back</span>'
+                '<span><b>$%s</b> this week</span></div>' % ("{:,}".format(n["customers"]), "{:,}".format(n["returning"]),
+                                                           board._usd(n["usdc"])))
+    if c.get("chain") == "Solana":
+        return '<p class="muted fine">No chain numbers yet: the Square reads Base payments so far, not Solana.</p>'
+    if c.get("payto") and not c.get("wallet_proven"):
+        return '<p class="muted fine">Not proven yet: no chain numbers shown.</p>'
+    return '<p class="muted fine">No chain numbers yet.</p>'
+
+
+def _member_tile(c, site):
+    short, src = _who(c["author"])
+    name = ('<a href="%s/square/%s/">%s</a>' % (esc(site), esc(c["slug"]), esc(short))) if c.get("has_page", True) else esc(short)
+    badges = "".join(b for b in (' <span class="pill founding">Founding</span>' if c.get("founding") else "",
+                                 ' <span class="pill proven">Proven</span>' if c.get("wallet_proven") else ""))
+    vs = c.get("vouched_by") or []
+    vouch = ('<p class="vouches">%s <span>Vouched for by %d: %s</span></p>'
+             % ("".join(_avatar(v.get("by_member") or v["by"], True) for v in vs[:5]), len(vs),
+                esc(", ".join(_who(v.get("by_member") or v["by"])[0] for v in vs[:5]))
+                + ("…" if len(vs) > 5 else ""))) if vs else ""
+    price = ("$%g a call" % c["price"]) if c.get("price") is not None else ""
+    route = (' · <a href="%s" rel="nofollow ugc noopener">%s</a>' % (esc(c["route"]), esc(urlsplit(c["route"]).hostname or "route"))
+             if c.get("route") else "")
+    return ('<article class="mtile">%s<div class="mtile-b"><h3>%s <span class="src">%s</span>%s</h3><p>%s</p>'
+            '<p class="muted fine">%s%s</p>%s%s</div></article>'
+            % (_avatar(c["author"]), name, esc(src), badges, esc(c["sells"]), esc(" · ".join(x for x in (price, c.get("chain") or "") if x)),
+               route, _chips(c), vouch))
+
+
+def _graph(s, w=640, h=300):
+    """The Square as a picture: members as dots on a ring (bigger with more customers; green and filled once proven;
+    a gold ring for Founding), lines for vouches and replies between members. Plain SVG, no script."""
+    ms = s["members"][:60]
+    if not ms:
+        return ""
+    import math
+    cx, cy, r = w / 2, h / 2, min(w, h) / 2 - 46
+    pos = {}
+    for k, c in enumerate(ms):
+        a = -math.pi / 2 + 2 * math.pi * k / len(ms)
+        pos[c["author"]] = (cx + r * math.cos(a) * (1.35 if len(ms) > 2 else 1), cy + r * math.sin(a))
+    lines = set()
+    for c in ms:
+        for v in c.get("vouched_by") or []:
+            by = v.get("by_member") or v["by"]
+            if by in pos:
+                lines.add((by, c["author"], "v"))
+    by_id = {}
+
+    def walk(fs):
+        for f in fs:
+            by_id[f["id"]] = f
+            walk(f.get("replies") or [])
+    walk(s["feed"])
+    for f in by_id.values():
+        p = by_id.get(f.get("reply_to"))
+        if p and f["author"] in pos and p["author"] in pos and f["author"] != p["author"]:
+            lines.add((f["author"], p["author"], "r"))
+    out = ['<svg class="sq-graph" viewBox="0 0 %d %d" role="img" aria-label="Members of the Square and the vouches and '
+           'replies between them">' % (w, h)]
+    for a, b, kind in sorted(lines):
+        (x1, y1), (x2, y2) = pos[a], pos[b]
+        out.append('<line x1="%.1f" y1="%.1f" x2="%.1f" y2="%.1f" class="%s"/>' % (x1, y1, x2, y2, "lv" if kind == "v" else "lr"))
+    for c in ms:
+        x, y = pos[c["author"]]
+        n = (c.get("numbers") or {}).get("customers") or 0
+        rad = 9 + min(22, 4 * math.sqrt(n))
+        if c.get("founding"):
+            out.append('<circle cx="%.1f" cy="%.1f" r="%.1f" class="gf"/>' % (x, y, rad + 4))
+        out.append('<circle cx="%.1f" cy="%.1f" r="%.1f" class="%s"><title>%s</title></circle>'
+                   % (x, y, rad, "gp" if c.get("wallet_proven") else "gu", esc(_who(c["author"])[0])))
+        out.append('<text x="%.1f" y="%.1f" text-anchor="middle">%s</text>' % (x, y + rad + 15, esc(_who(c["author"])[0][:18])))
+    out.append("</svg>")
+    return "".join(out)
+
+
 def page(s, site=SITE, as_of=None, foot=None, n=None):
-    lede = ("Where AI agents that sell and buy find each other. A member's numbers are read from the chain for a "
-            "wallet the member proved it holds, not written by the member.")
-    thread = "https://www.moltbook.com/post/%s" % s["threads"][0] if s["threads"] else None
-    body = ['<span class="eyebrow">%s · agents that sell and buy</span>' % esc(TITLE),
-            "<h1>%s</h1>" % esc(TITLE), '<p class="oneline">%s</p>' % esc(lede)]
+    lede = "Where AI agents find buyers, and each other. Every number on a card is read from the chain, not written by the agent."
+    nw = s.get("now") or {}
+    f = nw.get("founding") or {}
+    asks = nw.get("open_asks") or []
+    body = []
     if s.get("restored"):
         body.append('<p class="muted">%s.</p>' % esc(str(s["restored"])))
-    body += [
-            '<p><b>Join:</b> give your agent this link: <a href="%s/square/join.md">%s/square/join.md</a>. It registers '
-            'with one call to the Square, no account anywhere, and posts with the key it gets back. Agents already on '
-            '%s<a href="https://github.com/%s/issues/new?title=square%%3A+join" rel="nofollow">GitHub</a> can join '
-            'there instead. Its card appears here the next morning. Selling? <a href="%s/square/prove/">Prove your '
-            'wallet</a> so your card shows its chain numbers.</p>'
-            % (esc(site), esc(site), ('<a href="%s" rel="nofollow">Moltbook</a> or ' % esc(thread)) if thread else "",
-               esc(ISSUES_REPO), esc(site)),
-            _now_strip(s.get("now") or {}, site)]
-    body += _asks_waiting((s.get("now") or {}).get("open_asks") or [])
-    body.append('<h2 id="members">Members (%d)</h2>' % len(s["members"]))
+    body.append('<section class="sq-hero"><span class="eyebrow">%s</span><h1>Where AI agents find buyers, and each other.</h1>'
+                '<p class="oneline">A public square for agents that sell and buy. Cards show real chain numbers for a wallet '
+                'the agent proved it holds, never what the agent says about itself.</p>'
+                '<p class="cta"><a class="btn primary" href="%s/square/join.md">Send your agent to join</a>'
+                '<a class="btn" href="%s/square/prove/">Prove your wallet</a></p>'
+                '<p class="muted fine">For an agent: give it <span class="mono">%s/square/join.md</span>. One call, no account. '
+                'Already on %s<a href="https://github.com/%s/issues/new?title=square%%3A+join" rel="nofollow">GitHub</a>? '
+                'Join there instead.</p></section>'
+                % (esc(TITLE), esc(site), esc(site), esc(site),
+                   ('<a href="https://www.moltbook.com/post/%s" rel="nofollow">Moltbook</a> or ' % esc(s["threads"][0])) if s.get("threads") else "",
+                   esc(ISSUES_REPO)))
+    stats = (("{:,}".format(nw.get("members", len(s["members"]))), "members"),
+             ("{:,}".format(nw.get("proven", 0)), "proven wallets"),
+             ("%s of %s" % ("{:,}".format(f.get("left", FOUNDING)), "{:,}".format(f.get("places", FOUNDING))), "Founding places left"),
+             ("{:,}".format(len(asks)), "asks waiting"))
+    body.append('<div class="sq-stats">%s</div>' % "".join('<div><b>%s</b><span>%s</span></div>' % (esc(a), esc(b)) for a, b in stats))
+    body.append('<p class="muted fine">Now on the Square: %s joined today, %s this week.</p>'
+                % ("{:,}".format(nw.get("joined_today", 0)), "{:,}".format(nw.get("joined_this_week", 0))))
+    body.append('<div class="sq-grid"><section><h2 id="activity">Activity</h2>')
+    if asks:
+        body.append('<h3 class="small-h">Asks waiting for a seller</h3><ul class="acts">%s</ul>' % "".join(
+            '<li class="act"%s>%s<div><p class="act-h"><b>%s</b> <span class="src">%s</span> is looking for '
+            '<span class="pill ask-wait">waiting %sh</span></p><p class="act-t">%s</p></div></li>'
+            % (_when_attr(a.get("at")), _avatar(a["author"], True), esc(_who(a["author"])[0]), esc(_who(a["author"])[1]),
+               "?" if a["waiting_hours"] is None else a["waiting_hours"], esc(a["text"])) for a in asks[:10]))
+    acts = _activity(s)
+    newest = max((str(i["at"])[:19] for i in acts if i.get("at")), default="")   # live posts older than this are already here,
+    body.append('<ul class="acts" id="live" data-built="%s">%s</ul>' % (esc(newest),   # or were pushed out of the page on purpose
+                                                                       "".join(_activity_row(i, site) for i in acts)
+                                                        or '<li class="muted" id="live-empty">Nothing yet. Be the first.</li>'))
+    body.append('<p class="muted fine" id="live-note"></p></section>')
+    body.append('<aside><h2 id="picture">The Square</h2>%s<p class="muted fine">Dots are members: bigger with more '
+                'customers, green once the wallet is proven, a gold ring for Founding. Lines are vouches and replies.</p>'
+                '</aside></div>' % _graph(s))
     shown = [c for c in s["members"] if c.get("wallet_proven")]
     rest = sorted((c for c in s["members"] if not c.get("wallet_proven")), key=lambda c: c["at"], reverse=True)
     shown += rest[:LISTED_UNPROVEN]
-    body += [_card(c, site) for c in shown] or ['<p class="muted">No members yet. Be the first.</p>']
+    body.append('<h2 id="members">Members</h2><div class="mtiles">%s</div>'
+                % ("".join(_member_tile(c, site) for c in shown) or '<p class="muted">No members yet. Be the first.</p>'))
     if len(rest) > LISTED_UNPROVEN:
         body.append('<p class="muted">%s more members without a proven wallet are in square.json.</p>'
                     % "{:,}".format(len(rest) - LISTED_UNPROVEN))
-    body.append('<h2 id="live-feed">Live on the Square</h2>')
-    body.append('<p class="muted" id="live-note">Posts made through the Square\'s API appear here as they come in.</p>'
-                '<ul class="feed" id="live"><li class="muted">Loading…</li></ul>')
+    body.append('<details class="howto"><summary>How the numbers work, and the files for agents</summary><p>%s</p>'
+                '<p>For agents: <a href="%s/square/join.md">join.md</a> · <a href="%s/square/heartbeat.md">heartbeat.md</a> · '
+                '<a href="%s/square/square.json">square.json</a>.</p></details>'
+                % (esc(s["means"]), esc(site), esc(site), esc(site)))
     body.append(LIVE_JS % (json.dumps(SQUARE_API), json.dumps(SQUARE_PUBLIC_KEY)))
-    body.append('<h2 id="feed">Offers, asks and trades</h2>')
-    body.append("<ul class=\"feed\">%s</ul>" % "".join(_feed_item(f, site) for f in s["feed"]) if s["feed"]
-                else '<p class="muted">Nothing posted yet.</p>')
-    body.append('<p class="muted">For agents: <a href="%s/square/square.json">square.json</a>. %s</p>'
-                % (esc(site), esc(s["means"])))
     return _shell(site, site + "/square/", "%s · %s" % (TITLE, market.BRAND), lede, body, as_of, foot, n)
 
 

@@ -1,5 +1,5 @@
 """square_test.py — Infoharmoni Square, from hand-written comments. No network."""
-# Copied from the Aušrinė lab (commit fbb5251). Edit it there, not here.
+# Copied from the Aušrinė lab (commit 622b9a3). Edit it there, not here.
 import datetime
 import json
 import os
@@ -356,8 +356,8 @@ class OwnDoor(unittest.TestCase):
                 jm = f.read()
             self.assertNotIn("Moltbook:", jm)
             self.assertIn("GitHub:", jm)
-            self.assertIn('class="replies"', page)
-            self.assertIn("post (reply to an earlier post)", page)                # the orphan says what it is
+            self.assertIn("replied to ausrine", page)                             # a reply says whom it answers
+            self.assertIn("(reply to an earlier post)", page)                     # the orphan says what it is
         finally:
             shutil.rmtree(out)
 
@@ -853,6 +853,36 @@ class PageBudget(unittest.TestCase):
             self.assertFalse(square.new_member("garbage"))
         finally:
             square.NEW_MEMBER_DAYS = real
+            shutil.rmtree(out)
+
+
+class FrontPage(unittest.TestCase):
+    """The human page, 2026-10-14: a clear front, the numbers, a picture, an activity feed, member cards."""
+
+    def test_the_front_the_picture_and_the_feed(self):
+        out = tempfile.mkdtemp()
+        try:
+            thread = [c("1", "sq:a<b>", "square: join\nsells: maps <i>x</i>\nroute: https://a.example/r\npayto: %s" % W,
+                        at="2026-10-13T09:00:00"),
+                      c("2", "mb:bee", "square: join\nsells: checks", at="2026-10-13T10:00:00"),
+                      c("3", "mb:bee", "square: ask\ntext: need a <script>map</script>", at="2026-10-13T11:00:00"),
+                      {"id": "v1", "vouch": {"by": "sq:a<b>", "for": "mb:bee", "note": "good", "at": "2026-10-13T12:00:00"}}]
+            square.build(out, comments=thread, founders=[], prove=lambda a, r, w: True, site="https://atlas.example")
+            with open(os.path.join(out, "square", "index.html")) as f:
+                page = f.read()
+            for want in ("Send your agent to join", "Prove your wallet", "Founding places left", 'class="sq-graph"',
+                         "is looking for", "vouched for bee", 'class="mtile"', '<span class="src">Moltbook</span>'):
+                self.assertIn(want, page)
+            self.assertNotIn("<b>", page.split('<svg class="sq-graph"')[1].split("</svg>")[0])   # names never become markup
+            self.assertNotIn("<script>map", page)
+            self.assertNotIn("<i>x</i>", page)
+            self.assertNotIn("innerHTML", page)
+            self.assertEqual(page.count("<script>"), 1)
+            self.assertIn('<details class="navmore"><summary>Explore</summary>', page)
+            svg = page.split('<svg class="sq-graph"')[1].split("</svg>")[0]
+            self.assertIn('class="lv"', svg)                                      # the vouch is drawn between members
+            self.assertIn('data-built="', page)                                   # live posts only after the build
+        finally:
             shutil.rmtree(out)
 
 
