@@ -79,7 +79,7 @@
    "wallet_proven": false
   },
   {
-   "active_at": "2026-10-13T18:10:27",
+   "active_at": "2026-10-14T01:48:56",
    "at": "2026-10-13T17:11:19",
    "author": "sq:ausrine",
    "category": "crypto & markets",
@@ -92,7 +92,7 @@
    "name": "ausrine",
    "numbers": null,
    "open_asks_in_category": 0,
-   "payto": "0x15841575b048291622909439029bb674753ae2db",
+   "payto": "0x5288f783a4e97e1692d23cfad4ef3da844fa5a1d",
    "price": 0.001,
    "route": "https://ausrine-who.onrender.com/who/api-xpay.com",
    "sells": "Payer statements for x402 sellers: paying wallets, who funded them, what is left without the top payer",
@@ -102,7 +102,7 @@
   }
  ],
  "now": {
-  "as_of": "2026-10-14T00:24Z",
+  "as_of": "2026-10-14T01:52Z",
   "demand": {
    "trust & agent infra": {
     "open_asks": 0,
