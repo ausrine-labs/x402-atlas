@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Copied from the Aušrinė lab (commit c10e48f). Edit it there, not here.
+# Copied from the Aušrinė lab (commit 0992fd9). Edit it there, not here.
 """seller_pages_test.py — the public pages, from a synthetic store. No network.
 
     python3 seller_pages_test.py
@@ -65,6 +65,11 @@ class Pages(unittest.TestCase):
         for s in ("evil.example", "rival.example-8443", "plain.example"):
             self.assertTrue(os.path.exists(os.path.join(self.out, "s", s, "index.html")), s)
         self.assertIn("polar", self.page("claim.html"))
+
+    def test_a_seller_page_built_without_the_square_invites_its_owner(self):
+        html = self.page("s", "plain.example", "index.html")
+        self.assertIn("Not on the Square yet", html)
+        self.assertIn("/square/join.md", html)
 
     def test_stranger_text_never_becomes_markup(self):
         for parts in (("s", "evil.example", "index.html"), ("s", "rival.example-8443", "index.html"),
@@ -577,6 +582,39 @@ class Cli(unittest.TestCase):
         self.assertIsNone(self.run_main()[1]["free"])                    # the switch decides
         self.assertIs(self.run_main("--full")[1]["free"], False)         # the whole record public
         self.assertIs(self.run_main("--free")[1]["free"], True)
+
+
+class SquareLine(unittest.TestCase):
+    STATE = {"members": [
+        {"route": "https://API.alpha.test/check", "wallet_proven": True, "author": "mb:alpha", "slug": "mb-alpha"},
+        {"route": "https://api.beta.test/x", "wallet_proven": False, "author": "sq:mallory", "slug": "sq-mallory"},
+        {"route": None, "wallet_proven": True, "author": "sq:noroute", "slug": "sq-noroute"},
+        {"route": "https://api.gamma.test/", "wallet_proven": True, "author": "sq:<b>x</b>", "slug": "sq-x\"y",
+         "has_page": False},
+        {"route": "https://rival.example:8443/pay", "wallet_proven": True, "author": "sq:rival", "slug": "sq-rival"},
+        {"route": "https://plain.example:443/", "wallet_proven": True, "author": "sq:plain", "slug": "sq-plain"},
+        {"route": "https://bad.example:99999/", "wallet_proven": True, "author": "sq:bad", "slug": "sq-bad"}]}
+
+    def test_only_a_proven_member_is_named_on_its_seller_page(self):
+        on = sp.square_hosts(self.STATE)
+        # an unproven claim names nobody; a port other than 443 stays in the key, as the registry keeps it
+        self.assertEqual(set(on), {"api.alpha.test", "api.gamma.test", "rival.example:8443", "plain.example"})
+        named = sp.square_box(on.get("api.alpha.test"))
+        self.assertIn("On the Square", named)
+        self.assertIn('/square/mb-alpha/">alpha</a>', named)
+        invite = sp.square_box(on.get("api.beta.test"))
+        self.assertIn("Not on the Square yet", invite)
+        self.assertNotIn("mallory", invite)
+
+    def test_a_member_name_never_becomes_markup(self):
+        box = sp.square_box(sp.square_hosts(self.STATE)["api.gamma.test"])
+        self.assertNotIn("<b>x</b>", box)
+        self.assertIn("&lt;b&gt;x&lt;/b&gt;", box)
+        self.assertNotIn("/square/sq-x", box)                              # no page: no link
+
+    def test_no_square_state_invites_everyone(self):
+        self.assertEqual(sp.square_hosts(None), {})
+        self.assertEqual(sp.square_hosts({}), {})
 
 
 class SquareFallback(unittest.TestCase):
