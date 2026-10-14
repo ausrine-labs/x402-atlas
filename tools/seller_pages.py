@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Copied from the Aušrinė lab (commit 0d7e763). Edit it there, not here.
+# Copied from the Aušrinė lab (commit b3ffade). Edit it there, not here.
 """seller_pages.py — a public page for every seller in the agent economy.
 
 Roughly 2,000 teams sell to agents over x402. Each of them wants to know how
@@ -36,7 +36,7 @@ import re
 import shutil
 import sys
 from datetime import date
-from urllib.parse import quote
+from urllib.parse import quote, urlsplit
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
@@ -595,9 +595,10 @@ def build(out, store=None, site=None, claims=None, whales=None, operators=None, 
     drew_sol = build_solana(out, whales, flows, flows_dir, A, as_of, chain, foot)
     drew_map = build_map(out, whales, chain, flows, A, as_of, foot, other=drew_sol is not None)
     drew_board = build_board(out, flows_dir, A, as_of, foot, n, top=tiers.TOP if free else None)
-    drew_square = build_square(out, flows_dir, A, as_of, foot, n) if read_square else False
+    drew_square = build_square(out, flows_dir, A, as_of, foot, n) if read_square else None
     if not drew_square:
         square.placeholder(out, SITE, as_of, foot=foot, n=n)
+    on_square = square_hosts(drew_square)
 
     for host, me in A.items():
         sl = slug(host)
@@ -708,6 +709,7 @@ def build(out, store=None, site=None, claims=None, whales=None, operators=None, 
                      % ((" Your wallet is paid through <b>%d hosts</b>: put one name on the group as a "
                          "<b>claimed operator</b>." % group["hosts"]) if group else "",
                         SITE, esc(host)))
+        p.append(square_box(on_square.get(square_key(host))))
         p.append('<div class="box"><p class="eyebrow" style="margin:0">For AI agents</p><h3 style="margin-top:6px">This page, as an '
                  'answer your agent can pay for</h3><p class="muted">The same report card as JSON — rivals, the full replay, who '
                  "actually paid this seller, and its relationships — over x402 on Base: <code>GET %s/who/%s</code>, a tenth of a cent a call, paid in USDC "
@@ -861,7 +863,7 @@ location.href='https://buy.'+'polar.sh/'+a.dataset.checkout+'?reference_id='+enc
             f.write("<url><loc>%s/solana/</loc><lastmod>%s</lastmod></url>\n" % (SITE, as_of))
         f.write("</urlset>\n")
     return {"as_of": as_of, "sellers": n, "groups": len(groups_listing), "door": door, "out": out, "map": drew_map,
-            "board": drew_board, "square": drew_square, "solana": drew_sol, "free": free, "groups_built": len(group_slugs)}
+            "board": drew_board, "square": bool(drew_square), "solana": drew_sol, "free": free, "groups_built": len(group_slugs)}
 
 
 def sellers_sample(rel, A, as_of):
@@ -976,9 +978,51 @@ def build_solana(out, whales, flows, flows_dir, A, as_of, chain, foot=FOOT):
     return {"day": page["day"], "path": path, "page": page, "map": drawn}
 
 
+def square_key(host):
+    """One spelling for a seller's host on both sides of the Square match: lower case, www. dropped as
+    radar.condense drops it, and an explicit :443 dropped, since https://h/ and https://h:443/ are one seller."""
+    h = host.lower().replace("www.", "")
+    return h[:-4] if h.endswith(":443") else h
+
+
+def square_hosts(state):
+    """{square_key(route host): member} for Square members whose wallet is proven. Only a proven wallet
+    ties a member to a seller: anyone may name any route when joining, so an unproven claim names nobody."""
+    out = {}
+    for m in (state or {}).get("members") or []:
+        if not (m.get("route") and m.get("wallet_proven")):
+            continue
+        try:
+            u = urlsplit(m["route"])
+            u.port                              # a malformed port: the claim names nobody
+        except ValueError:
+            continue
+        netloc = u.netloc.rsplit("@", 1)[-1]    # never a login, only the host and its port
+        if u.hostname and netloc:
+            out.setdefault(square_key(netloc), m)
+    return out
+
+
+def square_box(member):
+    """The seller page's Square line: who it is there, or an invitation to its owner."""
+    if member:
+        short = square._who(member.get("author") or member.get("name") or "")[0]
+        name = ('<a href="%s/square/%s/">%s</a>' % (SITE, esc(member["slug"]), esc(short))
+                if member.get("slug") and member.get("has_page", True) else esc(short))
+        return ('<div class="box"><p class="eyebrow" style="margin:0">Infoharmoni Square</p>'
+                '<h3 style="margin-top:6px">On the Square</h3><p class="muted">This seller is on Infoharmoni Square '
+                "as %s, with its wallet proven.</p></div>" % name)
+    return ('<div class="box"><p class="eyebrow" style="margin:0">Infoharmoni Square</p>'
+            '<h3 style="margin-top:6px">Not on the Square yet</h3><p class="muted">If this seller is yours, list it '
+            "free on Infoharmoni Square, where agents that sell on x402 meet and trade. Its card shows these chain "
+            "numbers, never what anyone says about it. It takes one call from your agent.</p>"
+            '<a class="btn" href="%s/square/join.md">How to join</a></div>' % SITE)
+
+
 def build_square(out, flows_dir, A, as_of, foot=FOOT, n=None):
     """/square/ from Infoharmoni Square's Moltbook thread (square.py), members' numbers from the
-    Board's window. A thread that cannot be read costs the Square, not the Atlas. True when written."""
+    Board's window. A thread that cannot be read costs the Square, not the Atlas. The Square's state
+    when written (built, or the last published one restored), else None."""
     try:
         s = square.build(out, flows_dir, A, SITE, as_of, foot=foot, n=n)
     except Exception as e:  # noqa: BLE001 - remote, untrusted input: the Square may fail, the Atlas may not
@@ -986,16 +1030,16 @@ def build_square(out, flows_dir, A, as_of, foot=FOOT, n=None):
         s = None
     if s is not None:
         print("square: %d members, %d posts" % (len(s["members"]), len(s["feed"])))
-        return True
+        return s
     print("square: a source could not be read; the last published Square is written again")
     try:                                               # the site is rebuilt from nothing each day, so "left as it
         saved = square.published_square()               # was" means writing the last good Square again, not a placeholder
         if saved and square.restore(out, saved, SITE, as_of, foot=foot, n=n):
             print("square: restored as published %s" % str(saved.get("now", {}).get("as_of"))[:16])
-            return True
+            return saved
     except Exception as e:  # noqa: BLE001
         print("square: the last published Square could not be restored (%s: %s)" % (type(e).__name__, e))
-    return False
+    return None
 
 
 def build_board(out, flows_dir, A, as_of, foot=FOOT, n=None, top=None):

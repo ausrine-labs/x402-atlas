@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Copied from the Aušrinė lab (commit 5da3472). Edit it there, not here.
+# Copied from the Aušrinė lab (commit b3ffade). Edit it there, not here.
 """whales.py — the agent whales: which wallets pay a lot, for what, and which
 sellers are actually paid on-chain.
 
@@ -251,6 +251,8 @@ def rollup(edges, sellers, chain_of, hours, snap):
             "sells": r["sells"],
             "on_chain_usdc": round(r["usdc"], 2), "on_chain_payments": r["payments"],
             "on_chain_usdc_x402": round(r["usdc_x402"], 2), "on_chain_payments_x402": r["payments_x402"],
+            # exact, for sub-cent sellers: two $0.001 calls round to 0.0 above but are 2000 here
+            "on_chain_usdc_x402_micros": int(round(r["usdc_x402"] * 1e6)),
             "on_chain_buyer_wallets": len(r["buyers"]),
             "by_chain": {k: dict(v, usdc=round(v["usdc"], 2), usdc_x402=round(v["usdc_x402"], 2))
                          for k, v in sorted(r.get("by_chain", {}).items())},
