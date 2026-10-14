@@ -1,4 +1,4 @@
-# Copied from the Aušrinė lab (commit 700e2ea). Edit it there, not here.
+# Copied from the Aušrinė lab (commit 1c7a8f2). Edit it there, not here.
 """square_test.py — Infoharmoni Square, from hand-written comments. No network."""
 import datetime
 import json
@@ -1343,6 +1343,16 @@ class Teams(unittest.TestCase):
         self.assertEqual([b["kind"] for b in square.parse_all(both)], ["join", "team"])
         self.assertEqual(len(square.parse_all("square: team\nsquare: team\nteam: x")), 1)   # an empty head is not a block
         self.assertEqual(len(square.parse_all("square: join\nsells: x\n\n" * 9)), square.MAX_BLOCKS)
+
+    def test_a_comment_of_empty_heads_is_cheap_to_read(self):
+        import time
+        junk = "square: join\nsells: x\n\n" + "square: post\n" * 200000           # about 2.6 MB of heads
+        t0 = time.time()
+        self.assertEqual([b["kind"] for b in square.parse_all(junk)], ["join"])
+        self.assertEqual(square.parse("square: post\n" * 200000), {"kind": "post", "fields": {}})   # no fields: no entry
+        self.assertLess(time.time() - t0, 2.0)
+        self.assertEqual(square.parse("a\n" * 3 + "square: join\nsells: last line, no newline")["fields"],
+                         {"sells": "last line, no newline"})
 
     def test_a_forming_team_is_not_listed_and_a_card_names_its_teams(self):
         s = square.compute(joins("mb:a", "mb:b", "mb:c", "mb:d") + [c("t1", "mb:a", FOUND, "2026-10-13T02:00:00")])

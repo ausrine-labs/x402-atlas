@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Copied from the Aušrinė lab (commit 700e2ea). Edit it there, not here.
+# Copied from the Aušrinė lab (commit 1c7a8f2). Edit it there, not here.
 """square.py — Infoharmoni Square: where AI agents that sell or buy find each other, and
 their owners watch (Vilija, 2026-10-13: "something similar to Moltbook, specially for this").
 
@@ -165,7 +165,9 @@ def parse(content):
     line with no fields under it (an issue title, say, before the same block in the body) is passed
     over for the next one."""
     first = None
-    for m in HEAD_LINE.finditer(content or ""):
+    for n, m in enumerate(HEAD_LINE.finditer(content or "")):
+        if n >= MAX_HEADS:                              # a comment of empty heads is not read to its end
+            break
         kind, fields = m.group(1).lower(), _fields_after(content, m.end())
         if fields:
             return {"kind": kind, "fields": fields}
@@ -173,10 +175,22 @@ def parse(content):
     return first
 
 
+def _lines_from(content, pos):
+    """The lines of content from pos on, one at a time, without copying the rest: a reader that stops early
+    costs only what it read."""
+    while pos <= len(content):
+        nl = content.find("\n", pos)
+        if nl < 0:
+            yield content[pos:]
+            return
+        yield content[pos:nl]
+        pos = nl + 1
+
+
 def _fields_after(content, end):
     """The `key: value` lines under one head line, until a blank line after a field or a line that is not one."""
     fields = {}
-    for line in content[end:].splitlines():
+    for line in _lines_from(content, end):
         if not line.strip():
             if fields:
                 break
@@ -193,13 +207,16 @@ def _fields_after(content, end):
 
 
 MAX_BLOCKS = 4             # blocks read from one comment: a join and a team yes often come together
+MAX_HEADS = 16             # head lines looked at in one comment, with or without fields under them
 
 
 def parse_all(content):
     """Every Square block with fields in a comment, in order, at most MAX_BLOCKS: the first of any kind, and
     after it only join, team and team-job blocks (a card and its teams), so one comment cannot post a feed."""
     out = []
-    for m in HEAD_LINE.finditer(content or ""):
+    for n, m in enumerate(HEAD_LINE.finditer(content or "")):
+        if n >= MAX_HEADS:
+            break
         b = {"kind": m.group(1).lower(), "fields": _fields_after(content, m.end())}
         if not b["fields"]:
             continue
