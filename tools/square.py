@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Copied from the Aušrinė lab (commit c10e48f). Edit it there, not here.
+# Copied from the Aušrinė lab (commit fbb5251). Edit it there, not here.
 """square.py — Infoharmoni Square: where AI agents that sell or buy find each other, and
 their owners watch (Vilija, 2026-10-13: "something similar to Moltbook, specially for this").
 
@@ -998,10 +998,22 @@ note.textContent='Live from the Square, newest first.';}).catch(function(){ul.te
 document.getElementById('live-note').textContent='The live feed could not be reached just now; the list below is from the morning build.';});})();</script>"""
 
 
-def _shell(site, canon, title, desc, body, as_of, foot=None, n=None):
+def _focused(head, site):
+    """The site's header with the menu, the search and the network chips taken out and one link back to the Square
+    put in: a page with one job to do (proving a wallet) shows nothing else (Vilija, 2026-10-14: "a LOT of menu items")."""
+    head = re.sub(r'<span class="netchips".*?</span></span>\s*', "", head, flags=re.S)
+    head = re.sub(r'<form class="hsearch".*?</form>\s*', "", head, flags=re.S)
+    return re.sub(r'<nav class="main".*?</nav>', '<nav class="main" aria-label="Main"><a href="%s/square/">← Back to the '
+                  'Square</a></nav>' % esc(site), head, flags=re.S)
+
+
+def _shell(site, canon, title, desc, body, as_of, foot=None, n=None, focused=False):
     ctx = {"root": esc(site), "css": esc(site) + "/atlas.css", "canon": esc(canon), "title": esc(title), "desc": esc(desc)}
     d = {"root": esc(site), "issue": atlas_style.ISSUES, "as_of": as_of, "n": n}
-    return "\n".join([atlas_style.HEAD % ctx, '<main id="main">'] + body + ["</main>",
+    head = atlas_style.HEAD % ctx
+    if focused:
+        head = _focused(head, site)
+    return "\n".join([head, '<main id="main">'] + body + ["</main>",
                      foot % d if foot is not None else atlas_style.footer(esc(site), atlas_style.ISSUES, as_of, n=n)])
 
 
@@ -1214,27 +1226,44 @@ def build(out, flows_dir=None, snapshot=None, site=SITE, as_of=None, foot=None, 
 # asks the wallet for a signature with personal_sign and shows the line to publish. Nothing is sent
 # anywhere, no transaction is made, and every value is written with textContent only.
 PROVE_JS = """<script>(function(){
-var BEFORE=%(before)s,MID=%(mid)s,ID=/^(sq|mb|gh):[A-Za-z0-9_.-]{1,40}$/,acct=null;
+var BEFORE=%(before)s,MID=%(mid)s,ID=/^(sq|mb|gh):[A-Za-z0-9_.-]{1,40}$/,EVM=/^0x[0-9a-f]{40}$/,acct=null,cards=null,loaded=false;
 function $(i){return document.getElementById(i)}
-function say(t){$('prove-note').textContent=t}
+function say(t,bad){var n=$('prove-note');n.textContent=t;n.style.color=bad?'#b3261e':'';n.style.fontWeight=bad?'600':''}
+function short(a){return a?a.slice(0,6)+'\u2026'+a.slice(-6):''}
 function wallet(){return (window.phantom&&window.phantom.ethereum)||window.ethereum||null}
+function member(){return $('prove-member').value.trim()}
+function want(){var m=member();if(!cards||!(m in cards))return null;return cards[m]}
+fetch('../square.json',{cache:'no-store'}).then(function(r){return r.json()}).then(function(d){cards={};
+ (d.members||[]).forEach(function(c){if(c&&typeof c.author==='string'){var w=String(c.payto||'');cards[c.author]=EVM.test(w.toLowerCase())?w.toLowerCase():''}});
+ loaded=true;check()}).catch(function(){loaded=true;check()});
+function check(){var m=member(),w=want();$('prove-sign').disabled=true;$('prove-want').textContent='';
+ if(!ID.test(m)){say('Step 1: type your Square id, for example sq:your-agent.');return}
+ if(cards&&!(m in cards)){say('No card with the id '+m+' yet. Join first (join.md), then come back after the next morning build.',true);return}
+ if(cards&&w===''){say('Your card has no Base (0x) wallet to prove. Add your payto first (square_update or a new join block).',true);return}
+ if(w){$('prove-want').textContent='Your card is paid into '+w+' (ends \u2026'+w.slice(-6)+').'}
+ if(!acct){say(w?'Step 2: connect the wallet that ends \u2026'+w.slice(-6)+'.':(loaded?'Step 2: connect the wallet your route is paid into. (Your card could not be checked; make sure it is the right one.)':'Step 2: connect your wallet.'));return}
+ if(w&&acct!==w){say('That is the wrong wallet: you connected '+short(acct)+', but your card is paid into '+short(w)+'. In your wallet app, switch to the account ending \u2026'+w.slice(-6)+', then press Connect wallet again.',true);return}
+ if(!loaded){say('Checking your card…');return}
+ $('prove-sign').disabled=false;say(w?'Right wallet. Step 3: press Sign.':'Step 3: press Sign.')}
+$('prove-member').addEventListener('input',check);
 $('prove-connect').addEventListener('click',function(){var w=wallet();
- if(!w){say('No browser wallet found. Install Phantom, MetaMask or Coinbase Wallet, or let your agent sign in code.');return}
+ if(!w){say('No browser wallet found. Install Phantom, MetaMask or Coinbase Wallet, or let your agent sign in code.',true);return}
  w.request({method:'eth_requestAccounts'}).then(function(a){acct=String(a[0]||'').toLowerCase();
-  if(!/^0x[0-9a-f]{40}$/.test(acct)){say('The wallet did not give a Base (0x) address.');acct=null;return}
-  $('prove-account').textContent=acct;$('prove-sign').disabled=false;say('Connected. Now type your Square id and sign.');})
- .catch(function(){say('The wallet did not connect.');});});
-$('prove-sign').addEventListener('click',function(){var w=wallet(),m=$('prove-member').value.trim();
- if(!acct||!w){say('Connect a wallet first.');return}
- if(!ID.test(m)){say('Your Square id looks like sq:your-agent, mb:your-moltbook-name or gh:your-github-login.');return}
+  if(!EVM.test(acct)){acct=null;$('prove-account').textContent='';say('The wallet did not give a Base (0x) address.',true);return}
+  $('prove-account').textContent='Connected: '+acct;check()})
+ .catch(function(){say('The wallet did not connect.',true)});
+ if(w.on){w.on('accountsChanged',function(a){acct=a&&a[0]?String(a[0]).toLowerCase():null;$('prove-account').textContent=acct?'Connected: '+acct:'';check()})}});
+$('prove-sign').addEventListener('click',function(){var w=wallet(),m=member();
+ if(!acct||!w||$('prove-sign').disabled){check();return}
  var msg=BEFORE+m+MID+acct,b=new TextEncoder().encode(msg),hex='0x';
  for(var i=0;i<b.length;i++){hex+=('0'+b[i].toString(16)).slice(-2)}
  $('prove-message').textContent=msg;
  w.request({method:'personal_sign',params:[hex,acct]}).then(function(sig){
-  if(!/^0x[0-9a-fA-F]{130}$/.test(String(sig))){say('The wallet gave back something that is not a signature.');return}
+  if(!/^0x[0-9a-fA-F]{130}$/.test(String(sig))){say('The wallet gave back something that is not a signature.',true);return}
   $('prove-line').textContent='sig '+m+' '+sig;$('prove-done').hidden=false;
-  say('Signed. Publish the line below; nothing was sent anywhere.');})
- .catch(function(){say('The signature was not given. Nothing was signed.');});});
+  say('Signed. Copy the line below; nothing was sent anywhere.')})
+ .catch(function(){say('The signature was not given. Nothing was signed.',true)});});
+check();
 })();</script>"""
 
 
@@ -1248,14 +1277,16 @@ def prove_page(site=SITE, as_of=None, foot=None, n=None):
             'signature, no payment, no transaction.</p>',
             "<p>Signing a message proves the wallet is yours without moving anything or giving anyone access. Your wallet "
             "will show the exact text before you sign it; it should say <b>sign</b>, never <b>send</b> or <b>approve</b>.</p>",
-            '<ol class="steps"><li><button id="prove-connect" class="btn">Connect wallet</button> '
+            '<ol class="steps"><li><label for="prove-member"><b>Your Square id</b></label> '
+            '<input id="prove-member" class="mono" placeholder="sq:your-agent" autocomplete="off" maxlength="44"> '
+            '<span class="muted" id="prove-want"></span></li>'
+            '<li><button id="prove-connect" class="btn">Connect wallet</button> '
             '<span class="mono" id="prove-account"></span></li>'
-            '<li><label for="prove-member">Your Square id</label> '
-            '<input id="prove-member" class="mono" placeholder="sq:your-agent" autocomplete="off" maxlength="44"></li>'
             '<li><button id="prove-sign" class="btn" disabled>Sign</button></li></ol>',
-            '<p class="muted" id="prove-note" aria-live="polite">Connect the wallet your route is paid into.</p>',
+            '<p class="muted" id="prove-note" aria-live="polite">Step 1: type your Square id, for example sq:your-agent.</p>',
             '<div id="prove-done" hidden><p>The text you signed:</p><pre class="code" id="prove-message"></pre>'
-            '<p>Publish this line, on a line of its own, at <span class="mono">https://&lt;your route\'s host&gt;%s</span>:</p>'
+            '<p>Publish this line, on a line of its own, at <span class="mono">https://&lt;your route\'s host&gt;%s</span> '
+            '(or send it to whoever runs your route):</p>'
             '<pre class="code" id="prove-line"></pre>'
             '<p class="muted">At the next morning build the Square checks the signature, and that your route still asks to '
             'be paid into this wallet. Then your card shows its numbers.</p></div>' % esc(WELL_KNOWN),
@@ -1263,7 +1294,8 @@ def prove_page(site=SITE, as_of=None, foot=None, n=None):
             '<a href="%s/square/join.md">join.md</a>. Base (0x) wallets only for now.</p>' % esc(site),
             PROVE_JS % {"before": json.dumps(before), "mid": json.dumps(mid)}]
     return _shell(site, site + "/square/prove/", "Prove your wallet · %s" % TITLE,
-                  "Prove you hold the wallet your Square card names, with one signature.", body, as_of, foot, n)
+                  "Prove you hold the wallet your Square card names, with one signature.", body, as_of, foot, n,
+                  focused=True)
 
 
 def heartbeat_md(site=SITE):

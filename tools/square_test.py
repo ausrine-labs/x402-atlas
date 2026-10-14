@@ -1,5 +1,5 @@
 """square_test.py — Infoharmoni Square, from hand-written comments. No network."""
-# Copied from the Aušrinė lab (commit c10e48f). Edit it there, not here.
+# Copied from the Aušrinė lab (commit fbb5251). Edit it there, not here.
 import datetime
 import json
 import os
@@ -542,6 +542,18 @@ class ProvePage(unittest.TestCase):
         self.assertEqual(page.count("<script>"), 1)
         self.assertIn("personal_sign", page)
         self.assertNotIn("eth_sendTransaction", page)                      # it can only ask for a signature
+
+    def test_the_page_asks_for_the_id_first_and_checks_the_card_wallet(self):
+        page = square.prove_page("https://atlas.example", "2026-10-14")
+        self.assertLess(page.index('id="prove-member"'), page.index('id="prove-connect"'))   # the id comes first
+        self.assertIn("fetch('../square.json'", page)                         # the card's own wallet is looked up
+        self.assertIn("That is the wrong wallet", page)                        # and a different one is named plainly
+        self.assertIn("accountsChanged", page)                                 # switching accounts is noticed
+        self.assertIn("if(!loaded){say(", page)                                # no Sign before the card is checked
+        self.assertEqual(page.count('<nav class="main"'), 1)
+        self.assertNotIn('href="https://atlas.example/s/"', page.split("</nav>")[0])   # no site menu on this page
+        self.assertIn("Back to the Square", page)
+        self.assertNotIn('class="hsearch"', page)
 
     def test_every_build_writes_it_and_no_member_takes_its_address(self):
         out = tempfile.mkdtemp()
