@@ -7,7 +7,7 @@
 # today, drops what is older than 8 days, rebuilds every seller page, and hands the
 # result to GitHub Pages.
 set -eu
-SITE=https://ausrine-labs.github.io/x402-atlas
+SITE=https://atlas.infoharmoni.com   # the github.io address answers 301, and the fetchers refuse redirects
 # The data branch first: raw.githubusercontent.com answers over https with no redirect,
 # whatever happens to the site's own address. The site is the second place to look.
 DATA=https://raw.githubusercontent.com/ausrine-labs/x402-atlas/data
@@ -113,10 +113,10 @@ du -sh _site | cut -f1
 #    no account). Best effort: a failure here never fails the build.
 python3 - <<'PY' || true
 import json, re, urllib.request
-site = "https://ausrine-labs.github.io/x402-atlas"
+site = "https://atlas.infoharmoni.com"
 key = open(next(f for f in __import__("os").listdir(".") if re.fullmatch(r"[0-9a-f]{32}\.txt", f))).read().strip()
 urls = re.findall(r"<loc>([^<]+)</loc>", open("_site/sitemap-sellers.xml").read())[:10000]
-body = json.dumps({"host": "ausrine-labs.github.io", "key": key, "keyLocation": site + "/" + key + ".txt", "urlList": urls}).encode()
+body = json.dumps({"host": "atlas.infoharmoni.com", "key": key, "keyLocation": site + "/" + key + ".txt", "urlList": urls}).encode()
 req = urllib.request.Request("https://api.indexnow.org/indexnow", data=body, headers={"Content-Type": "application/json; charset=utf-8"})
 try:
     with urllib.request.urlopen(req, timeout=30) as r:

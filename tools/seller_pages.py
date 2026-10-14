@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Copied from the Aušrinė lab (commit c10e48f). Edit it there, not here.
+# Copied from the Aušrinė lab (commit 0d7e763). Edit it there, not here.
 """seller_pages.py — a public page for every seller in the agent economy.
 
 Roughly 2,000 teams sell to agents over x402. Each of them wants to know how
@@ -55,7 +55,7 @@ import relationships  # noqa: E402
 import tiers  # noqa: E402
 import whales  # noqa: E402  (explorer: a wallet's public page on its own chain)
 
-SITE = "https://ausrine-labs.github.io/x402-atlas"
+SITE = "https://atlas.infoharmoni.com"   # its own address; the github.io one answers 301 (2026-10-14)
 API = "https://ausrine-who.onrender.com"
 ISSUES = atlas_style.ISSUES
 CORRECT = ISSUES + "?template=correct.yml"            # the form: page, what is wrong, what is right
