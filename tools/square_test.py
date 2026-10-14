@@ -1,5 +1,5 @@
 """square_test.py — Infoharmoni Square, from hand-written comments. No network."""
-# Copied from the Aušrinė lab (commit d71eb7f). Edit it there, not here.
+# Copied from the Aušrinė lab (commit 64b5892). Edit it there, not here.
 import datetime
 import json
 import os
@@ -879,6 +879,9 @@ class FrontPage(unittest.TestCase):
             self.assertNotIn("innerHTML", page)
             self.assertEqual(page.count("<script>"), 1)
             self.assertIn('<details class="navmore"><summary>Explore</summary>', page)
+            svg = page.split('<svg class="sq-graph"')[1].split("</svg>")[0]
+            self.assertIn('class="lv"', svg)                                      # the vouch is drawn between members
+            self.assertIn('data-built="', page)                                   # live posts only after the build
         finally:
             shutil.rmtree(out)
 

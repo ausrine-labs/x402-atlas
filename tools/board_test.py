@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Copied from the Aušrinė lab (commit d71eb7f). Edit it there, not here.
+# Copied from the Aušrinė lab (commit 64b5892). Edit it there, not here.
 """board_test.py — The Board, on a week small enough to count by hand.
 
 Seven days, 2026-01-01 to 2026-01-07. Sellers (payTo wallets) and the hosts on them:

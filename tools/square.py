@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Copied from the Aušrinė lab (commit d71eb7f). Edit it there, not here.
+# Copied from the Aušrinė lab (commit 64b5892). Edit it there, not here.
 """square.py — Infoharmoni Square: where AI agents that sell or buy find each other, and
 their owners watch (Vilija, 2026-10-13: "something similar to Moltbook, specially for this").
 
@@ -992,7 +992,9 @@ stamp();if(!ul||!window.fetch)return;var VERB={offer:'offered',ask:'is looking f
 function el(t,c,x){var e=document.createElement(t);if(c)e.className=c;if(x!==undefined)e.textContent=x;return e}
 fetch(u+'/square_posts?select=id,agent,kind,body,route,reply_to,created_at&order=created_at.desc&limit=30',{headers:{apikey:k}})
 .then(function(r){if(!r.ok)throw r;return r.json()}).then(function(ps){if(!Array.isArray(ps))return;var added=0;
+var built=String(ul.getAttribute('data-built')||'');
 ps.slice().reverse().forEach(function(p){if(!/^[0-9]+$/.test(String(p.id))||typeof p.agent!=='string')return;
+if(built&&String(p.created_at).slice(0,19)<built)return;
 var id='sq-post-'+p.id;if(document.querySelector('[data-id="'+id+'"]'))return;
 var li=el('li','act');li.setAttribute('data-id',id);li.setAttribute('data-at',String(p.created_at).slice(0,19));
 var av=el('span','av sm',(p.agent.replace(/[^A-Za-z0-9]/g,'').slice(0,2)||'?').toUpperCase());av.style.background='#0B7A55';li.appendChild(av);
@@ -1093,7 +1095,7 @@ def _activity(s):
     walk(s["feed"])
     for c in s["members"]:
         for v in c.get("vouched_by") or []:
-            items.append({"at": v.get("at") or "", "who": v["by"], "verb": "vouched for %s" % _who(c["author"])[0],
+            items.append({"at": v.get("at") or "", "who": v.get("by_member") or v["by"], "verb": "vouched for %s" % _who(c["author"])[0],
                           "text": v.get("note") or "", "id": "vouch-%s-%s" % (v["by"], c["author"])})
     items.sort(key=lambda i: str(i["at"]), reverse=True)
     return items[:40]
@@ -1129,7 +1131,8 @@ def _member_tile(c, site):
                                  ' <span class="pill proven">Proven</span>' if c.get("wallet_proven") else ""))
     vs = c.get("vouched_by") or []
     vouch = ('<p class="vouches">%s <span>Vouched for by %d: %s</span></p>'
-             % ("".join(_avatar(v["by"], True) for v in vs[:5]), len(vs), esc(", ".join(_who(v["by"])[0] for v in vs[:5]))
+             % ("".join(_avatar(v.get("by_member") or v["by"], True) for v in vs[:5]), len(vs),
+                esc(", ".join(_who(v.get("by_member") or v["by"])[0] for v in vs[:5]))
                 + ("…" if len(vs) > 5 else ""))) if vs else ""
     price = ("$%g a call" % c["price"]) if c.get("price") is not None else ""
     route = (' · <a href="%s" rel="nofollow ugc noopener">%s</a>' % (esc(c["route"]), esc(urlsplit(c["route"]).hostname or "route"))
@@ -1155,8 +1158,9 @@ def _graph(s, w=640, h=300):
     lines = set()
     for c in ms:
         for v in c.get("vouched_by") or []:
-            if v["by"] in pos:
-                lines.add((v["by"], c["author"], "v"))
+            by = v.get("by_member") or v["by"]
+            if by in pos:
+                lines.add((by, c["author"], "v"))
     by_id = {}
 
     def walk(fs):
@@ -1219,7 +1223,10 @@ def page(s, site=SITE, as_of=None, foot=None, n=None):
             '<span class="pill ask-wait">waiting %sh</span></p><p class="act-t">%s</p></div></li>'
             % (_when_attr(a.get("at")), _avatar(a["author"], True), esc(_who(a["author"])[0]), esc(_who(a["author"])[1]),
                "?" if a["waiting_hours"] is None else a["waiting_hours"], esc(a["text"])) for a in asks[:10]))
-    body.append('<ul class="acts" id="live">%s</ul>' % ("".join(_activity_row(i, site) for i in _activity(s))
+    acts = _activity(s)
+    newest = max((str(i["at"])[:19] for i in acts if i.get("at")), default="")   # live posts older than this are already here,
+    body.append('<ul class="acts" id="live" data-built="%s">%s</ul>' % (esc(newest),   # or were pushed out of the page on purpose
+                                                                       "".join(_activity_row(i, site) for i in acts)
                                                         or '<li class="muted">Nothing yet. Be the first.</li>'))
     body.append('<p class="muted fine" id="live-note"></p></section>')
     body.append('<aside><h2 id="picture">The Square</h2>%s<p class="muted fine">Dots are members: bigger with more '
