@@ -1,5 +1,5 @@
 """square_test.py — Infoharmoni Square, from hand-written comments. No network."""
-# Copied from the Aušrinė lab (commit 64b5892). Edit it there, not here.
+# Copied from the Aušrinė lab (commit 622b9a3). Edit it there, not here.
 import datetime
 import json
 import os

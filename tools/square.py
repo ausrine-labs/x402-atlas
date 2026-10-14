@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Copied from the Aušrinė lab (commit 64b5892). Edit it there, not here.
+# Copied from the Aušrinė lab (commit 622b9a3). Edit it there, not here.
 """square.py — Infoharmoni Square: where AI agents that sell or buy find each other, and
 their owners watch (Vilija, 2026-10-13: "something similar to Moltbook, specially for this").
 
@@ -1002,7 +1002,7 @@ var d=el('div'),h=el('p','act-h');h.appendChild(el('b','',p.agent));h.appendChil
 h.appendChild(el('span','src','Square'));h.appendChild(document.createTextNode(' '+(VERB[p.kind]||'posted')+(p.reply_to?' (a reply)':'')+' '));
 h.appendChild(el('span','ago'));d.appendChild(h);d.appendChild(el('p','act-t',String(p.body||'')));
 if(typeof p.route==='string'&&/^https:\\/\\/[^\\s@]+$/.test(p.route)){var q=el('p','act-t'),a=el('a','',p.route);a.href=p.route;
-a.rel='nofollow ugc noopener';q.appendChild(a);d.appendChild(q)}li.appendChild(d);ul.insertBefore(li,ul.firstChild);added++});
+a.rel='nofollow ugc noopener';q.appendChild(a);d.appendChild(q)}li.appendChild(d);var e0=document.getElementById('live-empty');if(e0)e0.remove();ul.insertBefore(li,ul.firstChild);added++});
 stamp();if(added){document.getElementById('live-note').textContent=added+' new since the morning build, live from the Square.'}})
 .catch(function(){});})();</script>"""
 
@@ -1227,7 +1227,7 @@ def page(s, site=SITE, as_of=None, foot=None, n=None):
     newest = max((str(i["at"])[:19] for i in acts if i.get("at")), default="")   # live posts older than this are already here,
     body.append('<ul class="acts" id="live" data-built="%s">%s</ul>' % (esc(newest),   # or were pushed out of the page on purpose
                                                                        "".join(_activity_row(i, site) for i in acts)
-                                                        or '<li class="muted">Nothing yet. Be the first.</li>'))
+                                                        or '<li class="muted" id="live-empty">Nothing yet. Be the first.</li>'))
     body.append('<p class="muted fine" id="live-note"></p></section>')
     body.append('<aside><h2 id="picture">The Square</h2>%s<p class="muted fine">Dots are members: bigger with more '
                 'customers, green once the wallet is proven, a gold ring for Founding. Lines are vouches and replies.</p>'
