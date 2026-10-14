@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Copied from the Aušrinė lab (commit 0a2afde). Edit it there, not here.
+# Copied from the Aušrinė lab (commit b3ffade). Edit it there, not here.
 """seller_pages_test.py — the public pages, from a synthetic store. No network.
 
     python3 seller_pages_test.py
@@ -607,6 +607,13 @@ class SquareLine(unittest.TestCase):
         invite = sp.square_box(on.get("api.beta.test"))
         self.assertIn("Not on the Square yet", invite)
         self.assertNotIn("mallory", invite)
+
+    def test_both_sides_are_spelled_alike(self):
+        self.assertEqual([sp.square_key(h) for h in ("Plain.example:443", "www.shop.example", "rival.example:8443")],
+                         ["plain.example", "shop.example", "rival.example:8443"])
+        on = sp.square_hosts({"members": [{"route": "https://user@api.login.test:443/x", "wallet_proven": True,
+                                           "author": "sq:l", "slug": "sq-l"}]})
+        self.assertEqual(set(on), {"api.login.test"})
 
     def test_a_member_name_never_becomes_markup(self):
         box = sp.square_box(sp.square_hosts(self.STATE)["api.gamma.test"])

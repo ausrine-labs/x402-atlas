@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Copied from the Aušrinė lab (commit 0a2afde). Edit it there, not here.
+# Copied from the Aušrinė lab (commit b3ffade). Edit it there, not here.
 """seller_pages.py — a public page for every seller in the agent economy.
 
 Roughly 2,000 teams sell to agents over x402. Each of them wants to know how
@@ -709,7 +709,7 @@ def build(out, store=None, site=None, claims=None, whales=None, operators=None, 
                      % ((" Your wallet is paid through <b>%d hosts</b>: put one name on the group as a "
                          "<b>claimed operator</b>." % group["hosts"]) if group else "",
                         SITE, esc(host)))
-        p.append(square_box(on_square.get(host.lower())))
+        p.append(square_box(on_square.get(square_key(host))))
         p.append('<div class="box"><p class="eyebrow" style="margin:0">For AI agents</p><h3 style="margin-top:6px">This page, as an '
                  'answer your agent can pay for</h3><p class="muted">The same report card as JSON — rivals, the full replay, who '
                  "actually paid this seller, and its relationships — over x402 on Base: <code>GET %s/who/%s</code>, a tenth of a cent a call, paid in USDC "
@@ -978,21 +978,28 @@ def build_solana(out, whales, flows, flows_dir, A, as_of, chain, foot=FOOT):
     return {"day": page["day"], "path": path, "page": page, "map": drawn}
 
 
+def square_key(host):
+    """One spelling for a seller's host on both sides of the Square match: lower case, www. dropped as
+    radar.condense drops it, and an explicit :443 dropped, since https://h/ and https://h:443/ are one seller."""
+    h = host.lower().replace("www.", "")
+    return h[:-4] if h.endswith(":443") else h
+
+
 def square_hosts(state):
-    """{route host: member} for Square members whose wallet is proven. Only a proven wallet ties a
-    member to a seller: anyone may name any route when joining, so an unproven claim names nobody."""
+    """{square_key(route host): member} for Square members whose wallet is proven. Only a proven wallet
+    ties a member to a seller: anyone may name any route when joining, so an unproven claim names nobody."""
     out = {}
     for m in (state or {}).get("members") or []:
         if not (m.get("route") and m.get("wallet_proven")):
             continue
         try:
             u = urlsplit(m["route"])
-            host, port = u.hostname, u.port
-        except ValueError:                      # a malformed port: the claim names nobody
+            u.port                              # a malformed port: the claim names nobody
+        except ValueError:
             continue
-        if host:                                # keyed as radar.condense keys a seller: www. dropped, a port
-            key = host.lower() + (":%d" % port if port not in (None, 443) else "")   # other than 443 kept
-            out.setdefault(key.replace("www.", ""), m)
+        netloc = u.netloc.rsplit("@", 1)[-1]    # never a login, only the host and its port
+        if u.hostname and netloc:
+            out.setdefault(square_key(netloc), m)
     return out
 
 
