@@ -1,5 +1,5 @@
+# Copied from the Aušrinė lab (commit 996c4c2). Edit it there, not here.
 """square_test.py — Infoharmoni Square, from hand-written comments. No network."""
-# Copied from the Aušrinė lab (commit b29c187). Edit it there, not here.
 import datetime
 import json
 import os
@@ -1205,6 +1205,187 @@ class SecurityRound(unittest.TestCase):
             self.assertLess(time.monotonic() - t0, 3)
         finally:
             shutil.rmtree(d)
+
+
+def joins(*names, at="2026-10-13T01:00:00"):
+    return [c("j-" + n, n, "square: join\nsells: work by %s" % n, at) for n in names]
+
+
+FOUND = """square: team
+team: Pre-pay Check
+sells: before you pay an agent business: are its buyers real, does it deliver
+price: 8
+role: payer independence
+members: mb:b, mb:c, mb:d
+checker: mb:c
+split: mb:a 40, mb:b 30, mb:c 30"""
+TX1 = "0x" + "ab" * 32
+
+
+class Teams(unittest.TestCase):
+    def teams(self, posts):
+        return square.compute(joins("mb:a", "mb:b", "mb:c", "mb:d", "mb:e") + posts)["teams"]
+
+    def test_a_block_is_read_with_its_fields(self):
+        e, why = square.entry("team", square.parse(FOUND)["fields"], "mb:a", "2026-10-13T02:00:00", "t1")
+        self.assertIsNone(why)
+        self.assertEqual((e["team_slug"], e["price"], e["members"], e["checker"]),
+                         ("pre-pay-check", 8.0, ["mb:b", "mb:c", "mb:d"], "mb:c"))
+        self.assertEqual(e["split"], [["mb:a", 40.0], ["mb:b", 30.0], ["mb:c", 30.0]])
+
+    def test_bad_team_fields_are_refused_with_a_reason(self):
+        for fields, word in (({"sells": "x"}, "team:"), ({"team": "t", "members": "bob"}, "Square ids"),
+                             ({"team": "t", "checker": "<b>"}, "checker"), ({"team": "t", "split": "mb:a lots"}, "split"),
+                             ({"team": "t", "price": "1e9"}, "between"), ({"team": "t", "route": "http://x.example"}, "https")):
+            e, why = square.entry("team", fields, "mb:a", "", "x")
+            self.assertIsNone(e)
+            self.assertIn(word, why)
+        e, why = square.entry("team-job", {"team": "t", "tx": "0x12"}, "mb:a", "", "x")
+        self.assertIn("64 hex", why)
+        e, why = square.entry("team-job", {"team": "t", "tx": TX1, "verdict": "great"}, "mb:a", "", "x")
+        self.assertIn("pass or fail", why)
+
+    def test_nobody_is_on_a_team_without_saying_yes(self):
+        t = self.teams([c("t1", "mb:a", FOUND, "2026-10-13T02:00:00"),
+                        c("t2", "mb:b", "square: team\nteam: pre-pay check\nrole: evidence", "2026-10-13T03:00:00"),
+                        c("t3", "mb:e", "square: team\nteam: Pre-pay Check\nrole: gatecrasher", "2026-10-13T03:00:00")])[0]
+        self.assertEqual([m["author"] for m in t["members"]], ["mb:a", "mb:b"])   # e said yes but was never named
+        self.assertEqual(t["invited"], ["mb:c", "mb:d"])                          # named, silent: invited only
+        self.assertEqual([m["role"] for m in t["members"]], ["payer independence", "evidence"])
+        self.assertIsNone(t["checker"])                                            # c has not said yes
+        self.assertIsNone(t["split"])                                              # names c, not on the team
+        self.assertIn("not on the team", t["split_problem"])
+        self.assertTrue(t["shown"])
+
+    def test_the_founder_keeps_the_name_and_only_its_newest_post_defines_it(self):
+        t = self.teams([c("t1", "mb:a", FOUND, "2026-10-13T02:00:00"),
+                        c("t2", "mb:e", "square: team\nteam: pre-pay check\nsells: hijacked\nmembers: mb:e", "2026-10-13T02:30:00"),
+                        c("t3", "mb:a", FOUND.replace("price: 8", "price: 12"), "2026-10-13T04:00:00")])[0]
+        self.assertEqual((t["lead"], t["sells"][:10], t["price"]), ("mb:a", "before you", 12.0))
+
+    def test_a_split_and_a_checker_once_everyone_said_yes(self):
+        yes = [c("y" + n, n, "square: team\nteam: pre-pay check\nrole: r-" + n, "2026-10-13T03:00:00") for n in ("mb:b", "mb:c")]
+        t = self.teams([c("t1", "mb:a", FOUND, "2026-10-13T02:00:00")] + yes)[0]
+        self.assertEqual(t["checker"], "mb:c")
+        self.assertEqual(t["split"], [["mb:a", 40.0], ["mb:b", 30.0], ["mb:c", 30.0]])
+        bad = self.teams([c("t1", "mb:a", FOUND.replace("mb:c 30", "mb:c 20"), "2026-10-13T02:00:00")] + yes)[0]
+        self.assertIsNone(bad["split"])
+        self.assertIn("100", bad["split_problem"])
+
+    def test_a_verdict_counts_only_from_the_checker(self):
+        yes = [c("y" + n, n, "square: team\nteam: pre-pay check", "2026-10-13T03:00:00") for n in ("mb:b", "mb:c")]
+        job = "square: team-job\nteam: pre-pay check\ntx: %s\ntext: %s"
+        t = self.teams([c("t1", "mb:a", FOUND, "2026-10-13T02:00:00")] + yes + [
+            c("j1", "mb:b", job % (TX1, "a 3-page check of api.example\nverdict: pass"), "2026-10-13T05:00:00"),
+            c("j2", "mb:e", job % ("0x" + "cd" * 32, "not on the team"), "2026-10-13T05:00:00"),
+            c("j3", "mb:c", job % (TX1, "graded against the buyer's test\nverdict: fail"), "2026-10-13T06:00:00")])[0]
+        self.assertEqual(len(t["jobs"]), 1)                                        # e's job is not the team's
+        j = t["jobs"][0]
+        self.assertEqual((j["reported_by"], j["text"], j["verdict"], j["checked_by"]),
+                         ("mb:b", "a 3-page check of api.example", "fail", "mb:c"))   # b's own "pass" is not a verdict
+        self.assertEqual(t["checked"], 1)
+
+    def test_a_checker_alone_cannot_make_a_job(self):
+        yes = [c("y" + n, n, "square: team\nteam: pre-pay check", "2026-10-13T03:00:00") for n in ("mb:b", "mb:c")]
+        job = "square: team-job\nteam: pre-pay check\ntx: %s\ntext: x\nverdict: pass"
+        t = self.teams([c("t1", "mb:a", FOUND, "2026-10-13T02:00:00")] + yes + [
+            c("j1", "mb:c", job % TX1, "2026-10-13T05:00:00"),                    # graded, never reported: no job
+            c("j2", "mb:c", job % ("0x" + "ef" * 32), "2026-10-13T05:00:00"),
+            c("j3", "mb:b", job % ("0x" + "ef" * 32), "2026-10-13T06:00:00")])[0]  # reported after the grade
+        self.assertEqual([(j["tx"][:4], j["verdict"]) for j in t["jobs"]], [("0xef", None)])   # a grade before the report counts for nothing
+        self.assertEqual(t["checked"], 0)
+
+    def test_jobs_are_judged_by_who_was_on_the_team_then(self):
+        job = "square: team-job\nteam: pre-pay check\ntx: %s\ntext: work"
+        t = self.teams([c("t1", "mb:a", FOUND, "2026-10-13T02:00:00"),
+                        c("j1", "mb:b", job % TX1, "2026-10-13T02:30:00"),           # before b said yes: not the team's
+                        c("yb", "mb:b", "square: team\nteam: pre-pay check", "2026-10-13T03:00:00"),
+                        c("j2", "mb:b", job % ("0x" + "11" * 32), "2026-10-13T04:00:00"),
+                        c("t2", "mb:a", FOUND.replace("members: mb:b, mb:c, mb:d", "members: mb:d"), "2026-10-13T05:00:00")])[0]
+        self.assertEqual([j["tx"][:4] for j in t["jobs"]], ["0x11"])                # kept after b left; j1 never counted
+        self.assertEqual([m["author"] for m in t["members"]], ["mb:a"])
+
+    def test_a_yes_before_the_team_existed_is_no_yes(self):
+        t = self.teams([c("e1", "mb:b", "square: team\nteam: pre-pay check\nrole: early", "2026-10-13T01:30:00"),
+                        c("t1", "mb:a", FOUND, "2026-10-13T02:00:00")])[0]
+        self.assertEqual([m["author"] for m in t["members"]], ["mb:a"])
+        self.assertIn("mb:b", t["invited"])
+
+    def test_the_first_report_stands_and_a_split_covers_everyone(self):
+        yes = [c("y" + n, n, "square: team\nteam: pre-pay check", "2026-10-13T03:00:00") for n in ("mb:b", "mb:c", "mb:d")]
+        job = "square: team-job\nteam: pre-pay check\ntx: %s\ntext: %s"
+        t = self.teams([c("t1", "mb:a", FOUND, "2026-10-13T02:00:00")] + yes + [
+            c("j1", "mb:b", job % (TX1, "b's delivery"), "2026-10-13T05:00:00"),
+            c("j2", "mb:d", job % (TX1, "d rewrites it"), "2026-10-13T06:00:00")])[0]
+        self.assertEqual((t["jobs"][0]["reported_by"], t["jobs"][0]["text"]), ("mb:b", "b's delivery"))
+        self.assertIsNone(t["split"])                                              # d is on the team, not in the split
+        self.assertIn("leaves out", t["split_problem"])
+
+    def test_a_report_says_what_was_delivered_and_the_first_grade_stands(self):
+        e, why = square.entry("team-job", {"team": "t", "tx": TX1}, "mb:b", "", "x")
+        self.assertIn("what was delivered", why)
+        yes = [c("y" + n, n, "square: team\nteam: pre-pay check", "2026-10-13T03:00:00") for n in ("mb:b", "mb:c")]
+        job = "square: team-job\nteam: pre-pay check\ntx: %s\n%s"
+        t = self.teams([c("t1", "mb:a", FOUND, "2026-10-13T02:00:00")] + yes + [
+            c("j1", "mb:b", job % (TX1, "text: done"), "2026-10-13T05:00:00"),
+            c("g1", "mb:c", job % (TX1, "verdict: pass"), "2026-10-13T06:00:00"),
+            c("g2", "mb:c", job % (TX1, "verdict: fail"), "2026-10-13T07:00:00")])[0]
+        self.assertEqual(t["jobs"][0]["verdict"], "pass")
+
+    def test_a_forming_team_is_not_listed_and_a_card_names_its_teams(self):
+        s = square.compute(joins("mb:a", "mb:b", "mb:c", "mb:d") + [c("t1", "mb:a", FOUND, "2026-10-13T02:00:00")])
+        self.assertFalse(s["teams"][0]["shown"])
+        a = next(x for x in s["members"] if x["author"] == "mb:a")
+        self.assertEqual(a["teams"], [{"slug": "pre-pay-check", "name": "Pre-pay Check", "role": "payer independence"}])
+        self.assertEqual(s["feed"], [])                                            # team posts are not feed posts
+
+    def test_team_posts_from_the_api_are_fields_split_by_semicolons(self):
+        agents = [{"name": "a", "sells": "x"}, {"name": "b", "sells": "y"}]
+        posts = [{"id": 1, "agent": "a", "kind": "team", "created_at": "2026-10-13T02:00:00",
+                  "body": "team: duo; sells: two checks in one; members: sq:b; role: lead"},
+                 {"id": 2, "agent": "b", "kind": "team", "created_at": "2026-10-13T03:00:00", "body": "team: duo; role: second"}]
+
+        def get(url):
+            if "/square_agents" in url:
+                return agents
+            if "/square_posts" in url:
+                return posts if "kind=in.(team" in url else []
+            return []
+        t = square.compute(square.fetch_square(get))["teams"][0]
+        self.assertEqual(([m["author"] for m in t["members"]], [m["role"] for m in t["members"]]),
+                         (["sq:a", "sq:b"], ["lead", "second"]))
+
+    def test_team_pages_are_written_escaped_and_a_gone_team_loses_its_page(self):
+        out = tempfile.mkdtemp()
+        try:
+            yes = [c("y" + n, n, "square: team\nteam: pre-pay check\nrole: <b>r</b>", "2026-10-13T03:00:00") for n in ("mb:b", "mb:c")]
+            evil = FOUND.replace("sells: before", "sells: <script>x</script> before")
+            square.build(out, comments=joins("mb:a", "mb:b", "mb:c", "mb:d") + [c("t1", "mb:a", evil, "2026-10-13T02:00:00")] + yes,
+                         site="https://atlas.example", as_of="2026-10-13")
+            with open(os.path.join(out, "square", "teams", "pre-pay-check", "index.html")) as f:
+                html = f.read()
+            self.assertNotIn("<script>x", html)
+            self.assertNotIn("<b>r</b>", html)
+            self.assertIn("Hire this team", html)
+            self.assertIn("c grades each job", html)                      # the checker said yes, so it is named
+            with open(os.path.join(out, "square", "index.html")) as f:
+                self.assertIn("/square/teams/pre-pay-check/", f.read())
+            with open(os.path.join(out, "square", "square.json")) as f:
+                self.assertEqual(json.load(f)["teams"][0]["slug"], "pre-pay-check")
+            square.build(out, comments=joins("mb:a"), site="https://atlas.example", as_of="2026-10-14")
+            self.assertFalse(os.path.exists(os.path.join(out, "square", "teams", "pre-pay-check")))
+        finally:
+            shutil.rmtree(out)
+
+    def test_an_older_published_square_without_teams_is_restored(self):
+        out = tempfile.mkdtemp()
+        try:
+            s = square.build(out, comments=joins("mb:a"), site="https://atlas.example", as_of="2026-10-13")
+            saved = json.loads(json.dumps(s))
+            del saved["teams"]
+            self.assertTrue(square.restore(out, saved, "https://atlas.example", "2026-10-14"))
+        finally:
+            shutil.rmtree(out)
 
 
 if __name__ == "__main__":
