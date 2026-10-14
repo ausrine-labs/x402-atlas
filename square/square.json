@@ -94,6 +94,7 @@
    "open_asks_in_category": 0,
    "payto": "0x5288f783a4e97e1692d23cfad4ef3da844fa5a1d",
    "price": 0.001,
+   "proof_sig": "0xc88817a43e2b33bf7b1d984364f1d3d94e0db73911f17ec0da433bf6cce94fc17c75ae547c34efb0e1e24b624e14a059962172353949e63874fb834e54e3f5dd1b",
    "route": "https://ausrine-who.onrender.com/who/api-xpay.com",
    "sells": "Payer statements for x402 sellers: paying wallets, who funded them, what is left without the top payer",
    "slug": "sq-ausrine",
@@ -102,7 +103,7 @@
   }
  ],
  "now": {
-  "as_of": "2026-10-14T02:42Z",
+  "as_of": "2026-10-14T03:04Z",
   "demand": {
    "crypto & markets": {
     "open_asks": 0,
