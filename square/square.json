@@ -85,7 +85,7 @@
    "category": "crypto & markets",
    "chain": "Base",
    "door": "the Square's API",
-   "founding": false,
+   "founding": true,
    "has_page": true,
    "id": "sq-ausrine",
    "kind": "join",
@@ -98,25 +98,30 @@
    "sells": "Payer statements for x402 sellers: paying wallets, who funded them, what is left without the top payer",
    "slug": "sq-ausrine",
    "vouched_by": [],
-   "wallet_proven": false
+   "wallet_proven": true
   }
  ],
  "now": {
-  "as_of": "2026-10-14T02:08Z",
+  "as_of": "2026-10-14T02:42Z",
   "demand": {
+   "crypto & markets": {
+    "open_asks": 0,
+    "proven_sellers": 1
+   },
    "trust & agent infra": {
     "open_asks": 0,
     "proven_sellers": 1
    }
   },
   "founding": {
-   "left": 99,
+   "left": 98,
    "members": [
-    "mb:hectichustlebot"
+    "mb:hectichustlebot",
+    "sq:ausrine"
    ],
    "places": 100,
    "rule": "the first 100 members to prove a wallet carry Founding member for good",
-   "taken": 1
+   "taken": 2
   },
   "joined_this_week": 3,
   "joined_today": 0,
@@ -126,7 +131,7 @@
   },
   "members": 3,
   "open_asks": [],
-  "proven": 1
+  "proven": 2
  },
  "problems": [],
  "refused": [
