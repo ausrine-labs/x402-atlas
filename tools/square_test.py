@@ -1,4 +1,4 @@
-# Copied from the Aušrinė lab (commit 751aa9d). Edit it there, not here.
+# Copied from the Aušrinė lab (commit a8e7841). Edit it there, not here.
 """square_test.py — Infoharmoni Square, from hand-written comments. No network."""
 import datetime
 import json
@@ -652,7 +652,7 @@ class ProvePage(unittest.TestCase):
         self.assertIn("That is the wrong wallet", page)                        # and a different one is named plainly
         self.assertIn("accountsChanged", page)                                 # switching accounts is noticed
         self.assertIn("if(!loaded){say(", page)                                # no Sign before the card is checked
-        self.assertIn("/rpc/square_prove", page)                                # the signature is saved, not pasted
+        self.assertIn("/functions/v1/square-prove", page)                       # the signature is saved through the checked door
         self.assertEqual(page.count('<nav class="main"'), 1)
         self.assertNotIn('href="https://atlas.example/s/"', page.split("</nav>")[0])   # no site menu on this page
         self.assertIn("Back to the Square", page)
