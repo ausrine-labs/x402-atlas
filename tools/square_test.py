@@ -1,4 +1,4 @@
-# Copied from the Aušrinė lab (commit cab8c82). Edit it there, not here.
+# Copied from the Aušrinė lab (commit 751aa9d). Edit it there, not here.
 """square_test.py — Infoharmoni Square, from hand-written comments. No network."""
 import datetime
 import json
@@ -1238,6 +1238,67 @@ class SecurityRound(unittest.TestCase):
             self.assertLess(time.monotonic() - t0, 3)
         finally:
             shutil.rmtree(d)
+
+
+class QuickBuild(unittest.TestCase):
+    """The quarter-hour build (Atlas square.yml): a wallet the live Square proved, with the same member, route
+    and wallet, is not asked again; anything new or changed is."""
+
+    def thread(self, payto_b=None):
+        other = "0x" + "3" * 40
+        return [c("1", "sq:a", "square: join\nsells: x\nroute: https://a.example/r\npayto: %s" % W),
+                c("2", "sq:b", "square: join\nsells: y\nroute: https://b.example/r\npayto: %s" % (payto_b or other))]
+
+    def test_an_unchanged_proven_wallet_is_not_asked_again(self):
+        asked = []
+        trusted = {"sq:a": ("https://a.example/r", W.lower())}
+        s = square.compute(self.thread(), prove=lambda a, r, w: asked.append(a) or True, trusted=trusted)
+        self.assertEqual(asked, ["sq:b"])                                       # only the one not proven before
+        self.assertEqual({m["author"]: m["wallet_proven"] for m in s["members"]}, {"sq:a": True, "sq:b": True})
+
+    def test_a_changed_route_or_wallet_is_asked_again(self):
+        asked = []
+        trusted = {"sq:a": ("https://a.example/old", W.lower()), "sq:b": ("https://b.example/r", "0x" + "4" * 40)}
+        s = square.compute(self.thread(), prove=lambda a, r, w: asked.append(a) or False, trusted=trusted)
+        self.assertEqual(sorted(asked), ["sq:a", "sq:b"])
+        self.assertFalse(any(m["wallet_proven"] for m in s["members"]))
+
+    def test_trust_does_not_get_around_one_wallet_one_member(self):
+        # sq:b now claims sq:a's wallet and proves it: the wallet backs neither, trusted or not
+        trusted = {"sq:a": ("https://a.example/r", W.lower())}
+        s = square.compute(self.thread(payto_b=W), prove=lambda a, r, w: True, trusted=trusted, problems=[])
+        self.assertFalse(any(m["wallet_proven"] for m in s["members"]))
+
+    def test_the_morning_build_trusts_nothing(self):
+        asked = []
+        square.compute(self.thread(), prove=lambda a, r, w: asked.append(a) or True)
+        self.assertEqual(sorted(asked), ["sq:a", "sq:b"])
+
+    def test_published_state_carries_what_each_proven_card_was_proven_with(self):
+        ok = lambda url: json.dumps({"kind": square.KIND, "now": {"founding": {"members": []}}, "members": [
+            {"author": "sq:p", "wallet_proven": True, "route": "https://p.example/r", "payto": "0xABC"},
+            {"author": "sq:q", "wallet_proven": False, "route": "https://q.example/r", "payto": "0xdef"},
+            {"author": "sq:r", "wallet_proven": True, "route": None, "payto": "0x1"}]}).encode()
+        self.assertEqual(square.published_state("https://x.example", ok)["trusted"], {"sq:p": ("https://p.example/r", "0xabc")})
+
+    def test_only_a_quick_build_reads_the_trust(self):
+        seen = {}
+
+        def fake_compute(*a, **k):
+            seen["trusted"] = k.get("trusted")
+            return {"members": [], "feed": []}
+        real_compute, real_write, real_state = square.compute, square.write_square, square.published_state
+        square.compute, square.write_square = fake_compute, lambda *a, **k: None
+        square.published_state = lambda *a, **k: {"founders": [], "proven": ["sq:p"], "sigs": {},
+                                                   "trusted": {"sq:p": ("https://p.example/r", "0xabc")}}
+        try:
+            with tempfile.TemporaryDirectory() as d:
+                square.build(d, threads=[], issues=None, own=False, prove=lambda a, r, w: True)
+                self.assertIsNone(seen["trusted"])
+                square.build(d, threads=[], issues=None, own=False, prove=lambda a, r, w: True, quick=True)
+                self.assertEqual(seen["trusted"], {"sq:p": ("https://p.example/r", "0xabc")})
+        finally:
+            square.compute, square.write_square, square.published_state = real_compute, real_write, real_state
 
 
 def joins(*names, at="2026-10-13T01:00:00"):

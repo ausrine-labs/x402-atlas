@@ -31,6 +31,7 @@ jobs:
       - uses: actions/upload-pages-artifact@56afc609e74202658d3ffba0e8f6dda462b719fa # v3
         with:
           path: _site
+          retention-days: 3      # square.yml starts from this site every quarter hour; a late morning build must not leave it none
   data:
     # The same window, one ordinary commit a day on the `data` branch, so the build and the
     # paid seller can read it from raw.githubusercontent.com: https, no redirect, no
