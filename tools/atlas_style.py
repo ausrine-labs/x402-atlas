@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Copied from the Aušrinė lab (commit b4ce17e). Edit it there, not here.
+# Copied from the Aušrinė lab (commit e5859bf). Edit it there, not here.
 """atlas_style.py — the one look of the Infoharmoni Atlas: stylesheet, header, footer.
 
 Every page the site build writes carries the same three things, written here once:
@@ -430,7 +430,7 @@ def chain_day(chain, as_of=""):
     return long_date(dates[0]) if len(dates) == 1 else "%s – %s" % (long_date(dates[0]), long_date(dates[-1]))
 
 
-UNSAID = re.compile(r"\S*" + "ver" + "if" + r"\S*", re.I)     # the whole stem: verify, verification, ...
+UNSAID = re.compile(r"\S*verified\S*", re.I)
 
 
 def unsay(text):
