@@ -1,4 +1,4 @@
-# Copied from the Aušrinė lab (commit 1c7a8f2). Edit it there, not here.
+# Copied from the Aušrinė lab (commit e0bb937). Edit it there, not here.
 """square_test.py — Infoharmoni Square, from hand-written comments. No network."""
 import datetime
 import json
@@ -420,6 +420,39 @@ class WalletProof(unittest.TestCase):
         def down(u):
             raise OSError("no")
         self.assertFalse(square.wallet_proven("sq:m", "https://r.example/x", self.A, down))
+
+    def test_a_quote_first_seller_declares_its_payto_on_its_own_host(self):
+        def quote_first(lines):
+            def get(url):
+                if url.endswith(square.WELL_KNOWN):
+                    return 200, {}, ("\n".join(lines) + "\n").encode()
+                return 405, {}, b"POST a quote first"           # no unpaid GET that answers 402
+            return get
+        sig, pay = "sig sq:m %s" % self.SIG, "payto sq:m %s" % self.A
+        self.assertTrue(square.wallet_proven("sq:m", "https://r.example/x", self.A, quote_first([sig, pay])))
+        self.assertTrue(square.wallet_proven("sq:m", "https://r.example/x", self.A, quote_first([pay]), sigs={"sq:m": [self.SIG]}))
+        self.assertFalse(square.wallet_proven("sq:m", "https://r.example/x", self.A, quote_first([sig])))   # no payto line
+        self.assertFalse(square.wallet_proven("sq:m", "https://r.example/x", self.A,
+                                              quote_first([sig, "payto sq:other %s" % self.A])))      # bound to the member
+        self.assertFalse(square.wallet_proven("sq:m", "https://r.example/x", self.A,
+                                              quote_first([sig, "payto sq:m 0x" + "2" * 40])))         # another wallet
+        self.assertFalse(square.wallet_proven("sq:m", "https://r.example/x", self.A, quote_first([pay])))   # still needs the signature
+        self.assertFalse(square.wallet_proven("sq:m", "https://r.example/x", self.A,
+                                              quote_first(["sig sq:m %s" % self.OTHER, pay])))         # signed by another key
+        conflict = self.site("0x" + "2" * 40, [sig, pay])      # the route's own 402 names another wallet
+        self.assertFalse(square.wallet_proven("sq:m", "https://r.example/x", self.A, conflict))
+
+        def empty_402(url):                                       # a 402 with no readable payTo still decides
+            if url.endswith(square.WELL_KNOWN):
+                return 200, {}, ("%s\n%s\n" % (sig, pay)).encode()
+            return 402, {}, b"{}"
+        self.assertFalse(square.wallet_proven("sq:m", "https://r.example/x", self.A, empty_402))
+        for broken in (404, 410, 500, 301):                       # a route that is not there proves nothing
+            def gone(url, code=broken):
+                if url.endswith(square.WELL_KNOWN):
+                    return 200, {}, ("%s\n%s\n" % (sig, pay)).encode()
+                return code, {}, b""
+            self.assertFalse(square.wallet_proven("sq:m", "https://r.example/x", self.A, gone), broken)
 
     def test_a_saved_signature_proves_without_a_published_line(self):
         asked = []
