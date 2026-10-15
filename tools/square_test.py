@@ -1,4 +1,4 @@
-# Copied from the Aušrinė lab (commit c1c175c). Edit it there, not here.
+# Copied from the Aušrinė lab (commit cab8c82). Edit it there, not here.
 """square_test.py — Infoharmoni Square, from hand-written comments. No network."""
 import datetime
 import json
@@ -1473,6 +1473,11 @@ class Teams(unittest.TestCase):
         t = square.compute(square.fetch_square(get))["teams"][0]
         self.assertEqual(([m["author"] for m in t["members"]], [m["role"] for m in t["members"]]),
                          (["sq:a", "sq:b"], ["lead", "second"]))
+        long_text = "x" * 480                                   # a full team definition past 500 characters still reads
+        posts[0]["body"] = ("team: duo; sells: two checks in one; members: sq:b; role: lead; split: sq:a 50, sq:b 50; "
+                            "text: " + long_text)
+        t = square.compute(square.fetch_square(get))["teams"][0]
+        self.assertEqual((t["split"], len(t["text"])), ([["sq:a", 50.0], ["sq:b", 50.0]], 480))
 
     def test_team_pages_are_written_escaped_and_a_gone_team_loses_its_page(self):
         out = tempfile.mkdtemp()
