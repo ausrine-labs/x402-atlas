@@ -13,7 +13,7 @@ permissions:
   pages: write
   id-token: write
 concurrency:
-  group: square                       # not daily.yml's "pages": a queued quarter-hour run must never cancel a queued morning build
+  group: square                       # the build is not in daily.yml's "pages" group; only the short deploy below is
   cancel-in-progress: false
 jobs:
   build:
@@ -55,6 +55,12 @@ jobs:
     needs: build
     if: needs.build.outputs.base != ''
     runs-on: ubuntu-latest
+    # daily.yml's own group: the check below and the deploy run while no morning build can, so a
+    # morning build that starts after the check waits for this deploy instead of racing it.
+    # This job holds the group for seconds, and the next one comes a quarter hour later.
+    concurrency:
+      group: pages
+      cancel-in-progress: false
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
