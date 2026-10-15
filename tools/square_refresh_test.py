@@ -83,5 +83,38 @@ class Refresh(unittest.TestCase):
         self.assertEqual(self.calls, [])
 
 
+class Changed(unittest.TestCase):
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        os.makedirs(os.path.join(self.tmp.name, "square"))
+        self.live = {"kind": "square", "now": {"as_of": "2026-10-15T17:46Z", "founding": {"members": ["sq:a"]}},
+                     "members": [{"author": "sq:a"}], "feed": []}
+
+    def tearDown(self):
+        self.tmp.cleanup()
+
+    def write(self, d):
+        with open(os.path.join(self.tmp.name, "square", "square.json"), "w") as f:
+            json.dump(d, f)
+
+    def test_only_the_build_time_differs_so_nothing_is_published(self):
+        self.write(dict(self.live, now={"as_of": "2026-10-15T18:01Z", "founding": {"members": ["sq:a"]}}))
+        self.assertFalse(square_refresh.changed(self.tmp.name, "u", get=lambda u: json.dumps(self.live).encode()))
+
+    def test_a_new_post_or_member_is_published(self):
+        self.write(dict(self.live, feed=[{"id": "p1"}]))
+        self.assertTrue(square_refresh.changed(self.tmp.name, "u", get=lambda u: json.dumps(self.live).encode()))
+        self.write(dict(self.live, now={"as_of": "x", "founding": {"members": ["sq:a", "sq:b"]}}))
+        self.assertTrue(square_refresh.changed(self.tmp.name, "u", get=lambda u: json.dumps(self.live).encode()))
+
+    def test_a_live_square_that_cannot_be_read_publishes(self):
+        self.write(self.live)
+
+        def down(u):
+            raise OSError("down")
+        self.assertTrue(square_refresh.changed(self.tmp.name, "u", get=down))
+        self.assertTrue(square_refresh.changed(self.tmp.name, "u", get=lambda u: b"<html>not json"))
+
+
 if __name__ == "__main__":
     unittest.main()
