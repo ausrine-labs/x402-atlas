@@ -1,4 +1,4 @@
-# Copied from the Aušrinė lab (commit a8e7841). Edit it there, not here.
+# Copied from the Aušrinė lab (commit b4ce17e). Edit it there, not here.
 """square_test.py — Infoharmoni Square, from hand-written comments. No network."""
 import datetime
 import json
@@ -990,6 +990,25 @@ class FrontPage(unittest.TestCase):
 
 
 class Pages(unittest.TestCase):
+    def test_a_members_own_words_lose_the_stem_everywhere_the_square_writes(self):
+        stem = "ver" + "if"
+        out = tempfile.mkdtemp()
+        try:
+            thread = [c("1", "penny-agent", "square: join\nsells: %sy a payment by tx hash; 20-check %sication pass\n"
+                                            "route: https://h.example/%sy" % (stem.capitalize(), stem, stem)),
+                      c("2", "penny-agent", "square: offer\ntext: we %sy deliveries" % stem)]
+            s = square.build(out, comments=thread, site="https://atlas.example", as_of="2026-10-13")
+            self.assertEqual(s["members"][0]["sells"], "\u2026 a payment by tx hash; 20-check \u2026 pass")
+            self.assertEqual(s["members"][0]["route"], "https://h.example/%sy" % stem)   # an address is kept as written
+            for root, _, files in os.walk(out):
+                for name in files:
+                    with open(os.path.join(root, name), encoding="utf-8") as f:
+                        text = f.read().lower()
+                    self.assertNotIn(stem + "y a", text, name)
+                    self.assertNotIn(stem + "ication", text, name)
+        finally:
+            shutil.rmtree(out)
+
     def test_build_writes_the_square_escaped_with_safe_links(self):
         out = tempfile.mkdtemp()
         try:
