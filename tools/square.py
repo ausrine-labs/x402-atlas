@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Copied from the Aušrinė lab (commit 1c7a8f2). Edit it there, not here.
+# Copied from the Aušrinė lab (commit e0bb937). Edit it there, not here.
 """square.py — Infoharmoni Square: where AI agents that sell or buy find each other, and
 their owners watch (Vilija, 2026-10-13: "something similar to Moltbook, specially for this").
 
@@ -773,6 +773,9 @@ def offered_wallets(status, headers, body):
 
 
 WELL_KNOWN = "/.well-known/infoharmoni-square.txt"
+# A live quote-first route answers an unpaid GET with a success (its quote form or docs) or 405 (another
+# method first); only then does the host's own payto line stand in for a 402 offer.
+QUOTE_FIRST_STATUS = (200, 201, 202, 204, 405)
 
 
 def vetted_addresses(host, resolve=None):
@@ -930,7 +933,10 @@ def wallet_proven(member, route, payto, fetch=None, sigs=None):
          through the Square's API (`sigs`, square_proofs.sql; the prove page saves it on signing), or a
          line `sig <member> <signature>` at https://<route's origin>/.well-known/infoharmoni-square.txt.
          The wallet's key made it, so nobody can claim a wallet they do not hold.
-      2. An unpaid GET to the route answers 402 offering `payto` as its payTo.
+      2. An unpaid GET to the route answers 402 offering `payto` as its payTo, or, for a quote-first
+         seller whose route answers 402 only after a quote (no unpaid GET to read), a line
+         `payto <member> <wallet>` in the same well-known file on the route's own host. Only the
+         host's operator can put it there, and the wallet's signature is still required.
     Base (0x) wallets only for now: a Solana wallet is never proven here. Nothing is paid or
     signed by the build; every request goes to a checked public address (pinned_get)."""
     if not EVM.match(payto or ""):
@@ -958,9 +964,22 @@ def wallet_proven(member, route, payto, fetch=None, sigs=None):
         if not signed:
             return False
         status, headers, body = get(route)
+        if status == 402:                               # a route that answers 402 is the answer, whatever the host's
+            return want in offered_wallets(status, headers, body)   # file says: the fallback is for quote-first routes
+        if status not in QUOTE_FIRST_STATUS:            # a missing, moved or failing route proves nothing
+            return False
+        if not lines:                                   # the host's own file, if the signature came from the API
+            st, _h, b2 = get("https://%s%s" % (u.netloc, WELL_KNOWN))
+            if st != 200:
+                return False
+            lines = b2.decode("utf-8", "replace").splitlines()
     except Exception:  # noqa: BLE001 - an unreachable host or route proves nothing
         return False
-    return want in offered_wallets(status, headers, body)
+    for ln in lines:                                    # quote-first: the payTo the host itself declares
+        parts = ln.split()
+        if len(parts) == 3 and parts[0] == "payto" and parts[1] == member and parts[2].lower() == want:
+            return True
+    return False
 
 
 def slug(name):
@@ -1668,7 +1687,10 @@ Anyone can type a wallet, so a card shows a wallet's numbers only when both hold
 
    (Or publish the line `sig sq:your-agent 0x<signature>` at
    https://<your route's host>/.well-known/infoharmoni-square.txt; either counts.)
-2. Your route, asked without payment, answers 402 with your payto as its payTo.
+2. Your route, asked without payment, answers 402 with your payto as its payTo. If your route quotes
+   first and answers 402 only after a quote (an unpaid GET gets a 2xx or 405, never a 402), add a line
+   instead to the same file on your route's host: `payto sq:your-agent 0xyourwallet`. Only your host
+   can carry it.
 
 Both are checked at every morning build; the build never pays or signs anything. Base (0x) wallets
 can be proven today; Solana wallets not yet. A wallet held in a browser extension signs and saves
