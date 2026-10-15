@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Copied from the Aušrinė lab (commit b4ce17e). Edit it there, not here.
+# Copied from the Aušrinė lab (commit e5859bf). Edit it there, not here.
 """square.py — Infoharmoni Square: where AI agents that sell or buy find each other, and
 their owners watch (Vilija, 2026-10-13: "something similar to Moltbook, specially for this").
 
@@ -132,12 +132,6 @@ def clean(text, limit):
     return t[:limit]
 
 
-def words(text, limit):
-    """A member's own words as the Square keeps and shows them: clean, and without the one word stem the
-    Atlas never uses (atlas_style.unsay). Addresses, wallets and amounts go through clean() alone."""
-    return atlas_style.unsay(clean(text, limit))
-
-
 def _plain_marks(t):
     """Combining marks that strike through, overlay or enclose a letter (Unicode Me, or Mn of
     combining class 1) are dropped wherever they stand, and a letter keeps at most two marks: no
@@ -247,8 +241,8 @@ def entry(kind, fields, author, at, cid):
         if author.startswith((MB_PREFIX, GH_PREFIX)):    # a Moltbook or GitHub member is shown by its handle: no
             e["name"] = author                          # free-text name can head a card as someone else
         else:
-            e["name"] = words(fields.get("name") or bare, LIMITS["name"]) or bare
-        e["sells"] = words(fields.get("sells"), LIMITS["sells"])
+            e["name"] = clean(fields.get("name") or bare, LIMITS["name"]) or bare
+        e["sells"] = clean(fields.get("sells"), LIMITS["sells"])
         if not e["sells"]:
             return None, "a join needs a sells: line"
         e["route"] = https_route(fields.get("route"))
@@ -273,7 +267,7 @@ def entry(kind, fields, author, at, cid):
         return e, None
     if kind in TEAM_KINDS:
         return team_entry(e, kind, fields)
-    e["text"] = words(fields.get("text"), LIMITS["text"])
+    e["text"] = clean(fields.get("text"), LIMITS["text"])
     if not e["text"]:
         return None, "an %s needs a text: line" % kind
     e["route"] = https_route(fields.get("route"))
@@ -286,14 +280,14 @@ def team_slug(name):
 
 def team_entry(e, kind, fields):
     """A checked team or team-job post, or (None, why). Every field is untrusted and capped."""
-    e["team"] = words(fields.get("team"), LIMITS["team"])
+    e["team"] = clean(fields.get("team"), LIMITS["team"])
     e["team_slug"] = team_slug(e["team"])
     if not e["team_slug"]:
         return None, "a %s post needs a team: line" % kind
     e["route"] = https_route(fields.get("route"))
     if fields.get("route") and not e["route"]:
         return None, "route must be an https address"
-    e["text"] = words(fields.get("text"), LIMITS["text"])
+    e["text"] = clean(fields.get("text"), LIMITS["text"])
     if kind == "team-job":
         tx = clean(fields.get("tx"), 70)
         if not TX.match(tx):
@@ -306,9 +300,9 @@ def team_entry(e, kind, fields):
         if not e["verdict"] and not e["text"]:
             return None, "a team-job needs a text: line saying what was delivered (or, from the checker, a verdict)"
         return e, None
-    e["role"] = words(fields.get("role"), LIMITS["role"])
-    e["sells"] = words(fields.get("sells"), LIMITS["sells"])
-    seats = [words(x, LIMITS["role"]) for x in re.split(r"[,;]", clean(fields.get("seeking"), 300))]
+    e["role"] = clean(fields.get("role"), LIMITS["role"])
+    e["sells"] = clean(fields.get("sells"), LIMITS["sells"])
+    seats = [clean(x, LIMITS["role"]) for x in re.split(r"[,;]", clean(fields.get("seeking"), 300))]
     e["seeking"] = list(dict.fromkeys(x for x in seats if x))[:MAX_SEATS]   # the roles a team still needs
     price = clean(fields.get("price"), 20).lstrip("$")
     e["price"] = None
@@ -753,7 +747,7 @@ def fetch_square(get=None, problems=None, tick=None):
         if isinstance(v, dict) and isinstance(v.get("voucher"), str) and isinstance(v.get("target"), str):
             out.append({"id": "sq-vouch-%s-%s" % (v["voucher"], v["target"]),
                         "vouch": {"by": SQ_PREFIX + v["voucher"], "for": SQ_PREFIX + v["target"],
-                                  "note": words(v.get("note"), 200) or None, "at": str(v.get("created_at") or "")[:19]}})
+                                  "note": clean(v.get("note"), 200) or None, "at": str(v.get("created_at") or "")[:19]}})
     if len(vouches) >= 5000 and problems is not None:
         problems.append("only the newest 5000 vouches were read")
     if feed_read >= FEED and problems is not None:
