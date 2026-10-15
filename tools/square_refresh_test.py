@@ -7,7 +7,7 @@ import tempfile
 import unittest
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-import seller_pages  # noqa: E402
+import square  # noqa: E402
 import square_refresh  # noqa: E402
 
 
@@ -30,18 +30,18 @@ class Refresh(unittest.TestCase):
         with open(os.path.join(self.out, "s/example.com/index.html"), "w") as f:
             f.write("the morning build's page")
         self.calls = []
-        self.real = seller_pages.build_square
+        self.real = square.build
 
-        def fake(out, flows_dir, A, as_of, foot, n):
+        def fake(out, flows_dir, A, site, as_of, foot=None, n=None, quick=False):
             self.calls.append({"flows": sorted(os.listdir(flows_dir)) if flows_dir else None, "A": sorted(A),
-                               "as_of": as_of, "n": n})
+                               "as_of": as_of, "n": n, "quick": quick})
             with open(os.path.join(out, "square", "index.html"), "w") as f:
                 f.write("new square")
             return {"members": [], "feed": []}
-        seller_pages.build_square = fake
+        square.build = fake
 
     def tearDown(self):
-        seller_pages.build_square = self.real
+        square.build = self.real
         self.tmp.cleanup()
 
     def run_refresh(self):
@@ -55,6 +55,7 @@ class Refresh(unittest.TestCase):
         self.assertEqual(c["A"], ["a.example", "b.example"])
         self.assertEqual(c["n"], 2)
         self.assertEqual(c["flows"], ["flows-2026-10-14.json"])      # the rollups are not the window
+        self.assertTrue(c["quick"])                                  # proven wallets are not asked every quarter hour
 
     def test_rewrites_only_the_square(self):
         self.run_refresh()

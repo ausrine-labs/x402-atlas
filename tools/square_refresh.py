@@ -5,10 +5,12 @@
 
 Run by .github/workflows/square.yml every quarter hour, so a post or a wallet proof shows within
 fifteen minutes instead of at the next morning's build. Everything outside /square/ is left exactly
-as the morning build wrote it. The Square is built the way the morning build builds it
-(seller_pages.build_square), from the same inputs: the newest snapshot and the on-chain window the
-morning build published in the site itself (radar/ and flows/), plus the Square's own sources. A
-source that cannot be read writes the last published Square again, as the morning build does.
+as the morning build wrote it. The Square is built from the same inputs as the morning build: the
+newest snapshot and the on-chain window that build published in the site itself (radar/ and
+flows/), plus the Square's own sources. It is a quick build (square.build quick=True): a wallet the
+live Square proved, with the same route, is not asked again, so a member's route is not called
+every quarter hour; the morning build checks every wallet again. A source that cannot be read
+writes the last published Square again, as the morning build does.
 """
 import argparse
 import glob
@@ -23,6 +25,7 @@ sys.path.insert(0, HERE)
 
 import radar  # noqa: E402
 import seller_pages  # noqa: E402
+import square  # noqa: E402
 
 
 def unpack(src, dst, prefix):
@@ -47,7 +50,20 @@ def refresh(out, work):
     new = radar.load_snapshot(radar.snapshots()[-1])
     A = new["sellers"]
     flows_dir = flows if unpack(os.path.join(out, "flows"), flows, "flows") else None
-    return seller_pages.build_square(out, flows_dir, A, new["date"], seller_pages.FOOT, len(A))
+    as_of, foot, n = new["date"], seller_pages.FOOT, len(A)
+    try:
+        s = square.build(out, flows_dir, A, seller_pages.SITE, as_of, foot=foot, n=n, quick=True)
+    except Exception as e:  # noqa: BLE001 - remote, untrusted input: as in seller_pages.build_square
+        print("square: not rebuilt (%s: %s)" % (type(e).__name__, e))
+        s = None
+    if s is not None:
+        print("square: %d members, %d posts" % (len(s["members"]), len(s["feed"])))
+        return s
+    print("square: a source could not be read; the last published Square is written again")
+    saved = square.published_square()
+    if saved and square.restore(out, saved, seller_pages.SITE, as_of, foot=foot, n=n):
+        return saved
+    return None
 
 
 def main():
