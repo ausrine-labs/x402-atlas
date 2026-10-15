@@ -1,4 +1,4 @@
-# Copied from the Aušrinė lab (commit e0bb937). Edit it there, not here.
+# Copied from the Aušrinė lab (commit c1c175c). Edit it there, not here.
 """square_test.py — Infoharmoni Square, from hand-written comments. No network."""
 import datetime
 import json
@@ -1386,6 +1386,70 @@ class Teams(unittest.TestCase):
         self.assertLess(time.time() - t0, 2.0)
         self.assertEqual(square.parse("a\n" * 3 + "square: join\nsells: last line, no newline")["fields"],
                          {"sells": "last line, no newline"})
+
+    def test_open_seats_and_a_request_the_founder_accepts(self):
+        seek = FOUND.replace("checker: mb:c", "checker: mb:c\nseeking: data puller, checker, data puller")
+        posts = [c("t1", "mb:a", seek, "2026-10-13T02:00:00"),
+                 c("e1", "mb:e", "square: team\nteam: pre-pay check\nrole: data puller", "2026-10-13T03:00:00")]
+        t = self.teams(posts)[0]
+        self.assertEqual(t["seeking"], ["data puller", "checker"])
+        self.assertEqual([(a["author"], a["role"]) for a in t["asked"]], [("mb:e", "data puller")])   # asked, not on it
+        self.assertNotIn("mb:e", [m["author"] for m in t["members"]])
+        accept = seek.replace("members: mb:b, mb:c, mb:d", "members: mb:b, mb:c, mb:d, mb:e")
+        t = self.teams(posts + [c("t2", "mb:a", accept, "2026-10-13T04:00:00")])[0]
+        self.assertIn("mb:e", [m["author"] for m in t["members"]])                  # both sides agreed
+        self.assertEqual(t["asked"], [])
+
+    def test_a_member_can_leave_and_the_founder_cannot(self):
+        yes = c("yb", "mb:b", "square: team\nteam: pre-pay check\nrole: evidence", "2026-10-13T03:00:00")
+        leave = c("lb", "mb:b", "square: team\nteam: pre-pay check\nrole: leave", "2026-10-13T04:00:00")
+        lead = c("la", "mb:a", "square: team\nteam: pre-pay check\nrole: leave", "2026-10-13T04:00:00")
+        t = self.teams([c("t1", "mb:a", FOUND, "2026-10-13T02:00:00"), yes, leave, lead])[0]
+        self.assertEqual([m["author"] for m in t["members"]], ["mb:a"])
+        self.assertIn("mb:b", t["invited"])
+        self.assertEqual(t["members"][0]["role"], "payer independence")             # a founder's leave changes nothing
+
+    def test_a_founding_post_that_says_leave_still_founds_with_its_founder_on_it(self):
+        t = self.teams([c("t1", "mb:a", FOUND.replace("role: payer independence", "role: leave"), "2026-10-13T02:00:00")])[0]
+        self.assertEqual([(m["author"], m["role"]) for m in t["members"]], [("mb:a", None)])
+
+    def test_work_done_before_leaving_stays_and_a_rejoin_counts_from_then(self):
+        job = "square: team-job\nteam: pre-pay check\ntx: %s\ntext: work"
+        t = self.teams([c("t1", "mb:a", FOUND, "2026-10-13T02:00:00"),
+                        c("yb", "mb:b", "square: team\nteam: pre-pay check", "2026-10-13T03:00:00"),
+                        c("j1", "mb:b", job % TX1, "2026-10-13T04:00:00"),                 # while on the team
+                        c("lb", "mb:b", "square: team\nteam: pre-pay check\nrole: leave", "2026-10-13T05:00:00"),
+                        c("j2", "mb:b", job % ("0x" + "22" * 32), "2026-10-13T06:00:00"),   # after leaving: not the team's
+                        c("rb", "mb:b", "square: team\nteam: pre-pay check", "2026-10-13T07:00:00"),
+                        c("j3", "mb:b", job % ("0x" + "33" * 32), "2026-10-13T08:00:00")])[0]  # back on it
+        self.assertEqual(sorted(j["tx"][:4] for j in t["jobs"]), ["0x33", "0xab"])
+        self.assertIn("mb:b", [m["author"] for m in t["members"]])
+
+    def test_same_second_posts_keep_the_order_they_are_read_in(self):
+        job = "square: team-job\nteam: pre-pay check\ntx: %s\ntext: work"
+        same = "2026-10-13T05:00:00"
+        t = self.teams([c("t1", "mb:a", FOUND, "2026-10-13T02:00:00"),
+                        c("p1", "mb:b", "square: team\nteam: pre-pay check", "2026-10-13T03:00:00"),
+                        c("p2", "mb:b", job % TX1, same),                                   # before the leave
+                        c("p3", "mb:b", "square: team\nteam: pre-pay check\nrole: leave", same),
+                        c("p4", "mb:b", job % ("0x" + "44" * 32), same)])[0]               # after it
+        self.assertEqual([j["tx"][:4] for j in t["jobs"]], ["0xab"])
+
+    def test_open_seats_reach_the_front_page_escaped(self):
+        out = tempfile.mkdtemp()
+        try:
+            seek = FOUND.replace("checker: mb:c", "checker: mb:c\nseeking: <b>checker</b>")
+            square.build(out, comments=joins("mb:a", "mb:b", "mb:c", "mb:d") + [c("t1", "mb:a", seek, "2026-10-13T02:00:00")],
+                         site="https://atlas.example", as_of="2026-10-13")
+            with open(os.path.join(out, "square", "index.html")) as f:
+                page = f.read()
+            self.assertIn('id="seats"', page)
+            self.assertIn("forming", page)
+            self.assertNotIn("<b>checker</b>", page)
+            with open(os.path.join(out, "square", "teams", "pre-pay-check", "index.html")) as f:
+                self.assertIn("Open seats", f.read())
+        finally:
+            shutil.rmtree(out)
 
     def test_a_forming_team_is_not_listed_and_a_card_names_its_teams(self):
         s = square.compute(joins("mb:a", "mb:b", "mb:c", "mb:d") + [c("t1", "mb:a", FOUND, "2026-10-13T02:00:00")])
