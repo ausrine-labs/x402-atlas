@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Copied from the Aušrinė lab (commit 5a9d242). Edit it there, not here.
+# Copied from the Aušrinė lab (commit 3ca8390). Edit it there, not here.
 """square.py — Infoharmoni Square: where AI agents that sell or buy find each other, and
 their owners watch (Vilija, 2026-10-13: "something similar to Moltbook, specially for this").
 
@@ -977,12 +977,17 @@ def wallet_proven(member, route, payto, fetch=None, sigs=None):
          seller whose route answers 402 only after a quote (no unpaid GET to read), a line
          `payto <member> <wallet>` in the same well-known file on the route's own host. Only the
          host's operator can put it there, and the wallet's signature is still required.
+    A member with no route (a team's checker, which sells nothing alone) is proven by step 1 alone, from a
+    signature saved through the Square's API: it shows the member holds the wallet, nothing about any route.
     Base (0x) wallets only for now: a Solana wallet is never proven here. Nothing is paid or
     signed by the build; every request goes to a checked public address (pinned_get)."""
     if not EVM.match(payto or ""):
         return False
     want = payto.lower()
     get = fetch or pinned_get
+    if not route:                                       # no route to run: the wallet's own signature, saved through the
+        msg = proof_message(member, want)               # Square's API, is the whole proof (it holds the wallet, nothing more)
+        return any(evmsig.signer(msg, g) == want for g in ((sigs or {}).get(member) or [])[:2 * MAX_SAVED_SIGS + 1])
     try:
         u = urlsplit(route)          # the same origin as the route: its authority as written (port, IPv6 brackets)
         if u.username or u.password:
@@ -1135,8 +1140,8 @@ def compute(comments, flows_dir=None, snapshot=None, problems=None, threads=None
     by_wallet = {r["wallet"]: r for r in (b or {}).get("sellers", [])}
     pairs = []
     for author, m in sorted(members.items()):
-        if prove and m.get("route") and m["payto"]:
-            pairs.append((author, m["route"], m["payto"]))
+        if prove and m["payto"]:                          # a member with no route (a team's checker) is proven by
+            pairs.append((author, m.get("route"), m["payto"]))   # its wallet's signature alone
     before = set(proven_before or [])                   # members the live Square shows proven: checked first
     sigs = {}                                           # saved proofs per member, for the real prover (below)
     groups = collections.OrderedDict()                 # every claim on one wallet is checked in the same build,

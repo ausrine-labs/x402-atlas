@@ -1,4 +1,4 @@
-# Copied from the Aušrinė lab (commit 5a9d242). Edit it there, not here.
+# Copied from the Aušrinė lab (commit 3ca8390). Edit it there, not here.
 """square_test.py — Infoharmoni Square, from hand-written comments. No network."""
 import datetime
 import json
@@ -465,6 +465,11 @@ class WalletProof(unittest.TestCase):
                 return 404, {}, b""
             return 402, {}, body
         self.assertTrue(square.wallet_proven("sq:m", "https://r.example/x", self.A, get, sigs={"sq:m": [self.SIG]}))
+        def nofetch(url):
+            raise AssertionError("a member with no route is never fetched")
+        self.assertTrue(square.wallet_proven("sq:m", None, self.A, nofetch, sigs={"sq:m": [self.SIG]}))   # a checker: signature alone
+        self.assertFalse(square.wallet_proven("sq:m", None, self.A, nofetch, sigs={"sq:m": [self.OTHER]}))
+        self.assertFalse(square.wallet_proven("sq:m", None, self.A, nofetch))                          # no saved proof, no proof
         self.assertFalse(any(u.endswith(square.WELL_KNOWN) for u in asked))      # no file was needed
         self.assertFalse(square.wallet_proven("sq:m", "https://r.example/x", self.A, get, sigs={"sq:m": [self.OTHER]}))
         self.assertFalse(square.wallet_proven("sq:copycat", "https://r.example/x", self.A, get, sigs={"sq:copycat": [self.SIG]}))
