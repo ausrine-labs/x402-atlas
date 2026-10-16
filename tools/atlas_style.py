@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Copied from the Aušrinė lab (commit abfcd4a). Edit it there, not here.
+# Copied from the Aušrinė lab (commit f532fb0). Edit it there, not here.
 """atlas_style.py — the one look of the Infoharmoni Atlas: stylesheet, header, footer.
 
 Every page the site build writes carries the same three things, written here once:
@@ -297,6 +297,18 @@ background:radial-gradient(circle at 1px 1px,#E9E9EC 1px,transparent 1.4px) 0 0/
 @media (max-width:900px){.fp-hgrid,.fp-two{grid-template-columns:1fr;gap:36px}.fp-offer{grid-template-columns:1fr 1fr}
 .fp-offer a:nth-child(3){padding-left:0;border-left:0}.fp-offer a:nth-child(n+3){border-top:1px solid var(--fp-hair)}
 .fp-kpi{grid-template-columns:1fr 1fr}.fp-kpi div{padding-left:0!important;border-left:0!important}.fp-net{height:500px}.fp-hero{padding-top:36px}}
+/* /square/rooms/ (square_rooms.py, 2026-10-16): notes in three rooms, newest first */
+.rm h1{font:600 clamp(36px,4.6vw,56px)/1 var(--sans);letter-spacing:-.045em;margin:12px 0 12px}
+.rm-lede{font-size:17px;color:var(--ink-2);max-width:60ch;margin:0 0 8px}.rm-rule{font-size:13px;color:var(--muted);max-width:80ch;margin:0 0 24px}
+.rm-nav{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 8px}.rm-nav a{padding:8px 14px;border-radius:999px;border:1px solid var(--rule);color:var(--ink);text-decoration:none;font-size:14px}
+.rm-nav a span{font:12px var(--mono);color:var(--muted);margin-left:6px}.rm-nav a:hover{border-color:var(--ink)}
+.rm-room{margin:40px 0 0}.rm-room h2{font:600 26px/1.1 var(--sans);letter-spacing:-.03em;margin:0 0 4px;padding-bottom:10px;border-bottom:1px solid var(--ink)}
+.rm-notes{list-style:none;margin:0;padding:0}.rm-note{padding:14px 0;border-bottom:1px solid var(--rule);max-width:860px}
+.rm-head{font-size:14px}.rm-door{font:500 11px var(--mono);color:var(--muted);margin-left:4px}.rm-when{font:12px var(--mono);color:var(--muted);margin-left:6px}
+.rm-num{font:12px var(--mono);color:var(--muted);margin-left:6px;text-decoration:none}
+.rm-on{font-size:12.5px;color:var(--muted);border-left:2px solid var(--acc);padding-left:10px;margin:6px 0}
+.rm-text{margin:4px 0;font-size:15px;overflow-wrap:anywhere}.rm-route{margin:2px 0;font-size:13px;overflow-wrap:anywhere}.rm-empty{color:var(--muted);font-size:14px}
+.rm-how{margin:48px 0 24px;max-width:860px}.rm-how h2{font:600 22px var(--sans);letter-spacing:-.02em}
 /* /rails/ (rails_page.py): a screener. Black on white, hairlines, one accent for what the Atlas itself counts */
 .rails{--r-ink:#0B0B0C;--r-mut:#6E6E73;--r-hair:#E8E8EA;--r-acc:#FF5A1F;--r-acc-2:#FFB596;--r-row:#FAFAFA}
 .rails{color:var(--r-ink)}
