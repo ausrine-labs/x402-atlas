@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Copied from the Aušrinė lab (commit b3ffade). Edit it there, not here.
+# Copied from the Aušrinė lab (commit abfcd4a). Edit it there, not here.
 """seller_pages.py — a public page for every seller in the agent economy.
 
 Roughly 2,000 teams sell to agents over x402. Each of them wants to know how
@@ -51,6 +51,7 @@ import board  # noqa: E402
 import square  # noqa: E402
 import site_pages  # noqa: E402
 import solana_page  # noqa: E402
+import rails_page  # noqa: E402
 import relationships  # noqa: E402
 import tiers  # noqa: E402
 import whales  # noqa: E402  (explorer: a wallet's public page on its own chain)
@@ -535,7 +536,7 @@ def endpoints_section(me):
 
 
 def build(out, store=None, site=None, claims=None, whales=None, operators=None, flows=None, flows_dir=None, free=None,
-          read_square=False):
+          read_square=False, icons=False):
     """Write the whole site. free: None for the switch (tiers.FREE_TIER_ONLY), True for the free
     tier, False for the whole record public, as the site was built before 2026-10-05. read_square:
     read Infoharmoni Square's thread on Moltbook (the network); without it /square/ is a short page."""
@@ -598,6 +599,7 @@ def build(out, store=None, site=None, claims=None, whales=None, operators=None, 
     drew_square = build_square(out, flows_dir, A, as_of, foot, n) if read_square else None
     if not drew_square:
         square.placeholder(out, SITE, as_of, foot=foot, n=n)
+    drew_rails = build_rails(out, flows_dir, free)
     on_square = square_hosts(drew_square)
 
     for host, me in A.items():
@@ -840,7 +842,8 @@ location.href='https://buy.'+'polar.sh/'+a.dataset.checkout+'?reference_id='+enc
                      sample=sellers_sample(rel, A, as_of), buy_sellers=BUY_SELLERS, free=free)
 
     door = front_door.build(out, chain, A, loaded, ctx, as_of, SITE, HEAD, foot, ISSUES, API, groups_listing,
-                            buyers=(chain or {}).get("buyer_pages"), map_=drew_map, free=free)
+                            buyers=(chain or {}).get("buyer_pages"), map_=drew_map, free=free,
+                            flows=day_flows(whales, chain, flows), flows_dir=flows_dir, square=drew_square, icons=icons)
 
     with open(os.path.join(out, "sitemap-sellers.xml"), "w") as f:
         f.write('<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n')
@@ -858,12 +861,14 @@ location.href='https://buy.'+'polar.sh/'+a.dataset.checkout+'?reference_id='+enc
             f.write("<url><loc>%s/board/</loc><lastmod>%s</lastmod></url>\n" % (SITE, as_of))
         if drew_square:
             f.write("<url><loc>%s/square/</loc><lastmod>%s</lastmod></url>\n" % (SITE, as_of))
+        if drew_rails:
+            f.write("<url><loc>%s/rails/</loc><lastmod>%s</lastmod></url>\n" % (SITE, as_of))
         if drew_sol:
             f.write("<url><loc>%s/map/solana/</loc><lastmod>%s</lastmod></url>\n" % (SITE, as_of))
             f.write("<url><loc>%s/solana/</loc><lastmod>%s</lastmod></url>\n" % (SITE, as_of))
         f.write("</urlset>\n")
     return {"as_of": as_of, "sellers": n, "groups": len(groups_listing), "door": door, "out": out, "map": drew_map,
-            "board": drew_board, "square": bool(drew_square), "solana": drew_sol, "free": free, "groups_built": len(group_slugs)}
+            "board": drew_board, "square": bool(drew_square), "rails": drew_rails, "solana": drew_sol, "free": free, "groups_built": len(group_slugs)}
 
 
 def sellers_sample(rel, A, as_of):
@@ -1042,6 +1047,21 @@ def build_square(out, flows_dir, A, as_of, foot=FOOT, n=None):
     return None
 
 
+def build_rails(out, flows_dir, free=None):
+    """/rails/: where AI agents pay (rails_page.py), from rails.json and the --flows-dir window. Every page
+    links /rails/, so when the flow files can't be counted the page is written without the Atlas's own
+    numbers; only a bad rails.json leaves it out. True when the page was written."""
+    for fd in ((flows_dir, None) if flows_dir else (None,)):
+        try:
+            r = rails_page.build(out, flows_dir=fd, site=SITE, free=free)
+        except Exception as e:  # noqa: BLE001 - a hand-kept file and the day's flow files: the page may fail, the Atlas may not
+            print("rails: not built%s (%s: %s)" % (" from the flow files" if fd else "", type(e).__name__, e))
+            continue
+        print("rails: %d rails, measured %s" % (r["rails"], "yes" if r["measured"] else "no"))
+        return True
+    return False
+
+
 def build_board(out, flows_dir, A, as_of, foot=FOOT, n=None, top=None):
     """/board/ and /board/board.json from the newest 7 days in the --flows-dir window: sellers ranked
     by returning payer wallets (board.py). With no window or no flows file in it, no Board and nothing else
@@ -1062,6 +1082,15 @@ def build_board(out, flows_dir, A, as_of, foot=FOOT, n=None, top=None):
         return False
     print("board: %d sellers ranked, %s to %s" % (b["sellers_ranked"], b["window"]["from"], b["window"]["to"]))
     return True
+
+
+def day_flows(whales, chain, flows):
+    """The flows file for the rollup's own day, as build_map finds it: --flows, else beside the rollup. None without one."""
+    if chain is None:
+        return None
+    day = ((chain.get("dates") or [""])[-1]) or chain.get("as_of")
+    path = flows or (map_page.flows_beside(whales, day) if whales else None)
+    return path if path and os.path.exists(path) else None
 
 
 def build_map(out, whales, chain, flows, A, as_of, foot=FOOT, other=False):
@@ -1101,10 +1130,11 @@ def main():
     ap.add_argument("--flows", default=None, help="the day's flows-<date>.json, for the map (default: beside the rollup)")
     ap.add_argument("--flows-dir", default=None, help="the on-chain window, a folder of flows-<date>.json "
                     "(flows_handoff.py fetch keeps one), for each seller's Relationships")
+    ap.add_argument("--icons", action="store_true", help="fetch the sellers' site icons for the home page into <out>/icons/")
     tiers.add_flags(ap)
     a = ap.parse_args()
     r = build(a.out, a.store, a.site, a.claims, a.whales, a.operators, a.flows, a.flows_dir, free=tiers.from_args(a),
-              read_square=a.square)
+              read_square=a.square, icons=a.icons)
     print("wrote %d seller pages and %d operator pages (%d with a record on them), as of %s, into %s%s"
           % (r["sellers"], r["groups"], r["groups_built"], r["as_of"], r["out"], ": the free tier" if r["free"] else ": the whole record"))
 

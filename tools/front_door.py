@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Copied from the Aušrinė lab (commit 9d208cd). Edit it there, not here.
+# Copied from the Aušrinė lab (commit a4be8e1). Edit it there, not here.
 """front_door.py — the Atlas's home page: the public record of agent commerce, read off the chain.
 
 Not a dashboard and not a table: one sentence about what this is, one search box that
@@ -18,6 +18,7 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import market  # noqa: E402
 import buyer_pages  # noqa: E402
+import front_live  # noqa: E402
 import atlas_style  # noqa: E402
 import tiers  # noqa: E402
 
@@ -81,23 +82,236 @@ const asked=new URLSearchParams(location.search).get('q');if(asked){q.value=aske
 </script>"""
 
 
-def hero(map_, site, day):
-    """The day's network in a frame: map_page's embed of the same day, under a dated header
-    and a legend. A day with no map drawn shows no frame at all."""
-    if not map_ or not map_.get("embed") or not os.path.exists(map_["embed"]):
+LIVE_JS = """<script>
+(function(){
+const ROOT=%(root)s,DAY=%(day)s;
+const fl=document.getElementById('fp-feed'),pool=document.getElementById('fp-pool');
+if(fl&&pool){const items=Array.from(pool.content.children);let i=Math.min(6,items.length);
+if(items.length>6&&!matchMedia('(prefers-reduced-motion: reduce)').matches){setInterval(()=>{fl.insertBefore(items[i%%items.length].cloneNode(true),fl.firstChild);i++;
+while(fl.children.length>7)fl.removeChild(fl.lastChild);},3400);}}
+const box=document.getElementById('fp-net'),src=document.getElementById('fp-data');if(!box||!src)return;
+const D=JSON.parse(src.textContent),cv=document.getElementById('fp-cv'),ctx=cv.getContext('2d'),tip=document.getElementById('fp-tip');
+const still=matchMedia('(prefers-reduced-motion: reduce)').matches;
+let W=box.clientWidth,H=box.clientHeight,dpr=1;
+function fit(){dpr=Math.max(1,window.devicePixelRatio||1);cv.width=W*dpr;cv.height=H*dpr;cv.style.width=W+'px';cv.style.height=H+'px';ctx.setTransform(dpr,0,0,dpr,0,0);}fit();
+const small=W<700;const ws=D.nodes.filter(n=>n.kind==='w').sort((a,b)=>b.usdc-a.usdc).slice(0,small?160:330);
+const N=D.nodes.filter(n=>n.kind==='s').concat(ws),by={};N.forEach(n=>by[n.id]=n);
+const mS=Math.max(1e-9,...N.filter(n=>n.kind==='s').map(n=>n.usdc)),mW=Math.max(1e-9,...N.filter(n=>n.kind==='w').map(n=>n.usdc));
+N.forEach((n,k)=>{n.r=n.kind==='s'?(small?9:12)+(small?18:30)*Math.sqrt(n.usdc/mS):2.2+(small?3:4)*Math.sqrt(n.usdc/mW);
+let h=0;for(const c of n.id+(n.host||''))h=(h*31+c.charCodeAt(0))%%360;n.h=h;n.ph=k*0.7;
+const a=k*2.39996,r=12*Math.sqrt(k);n.x=W/2+r*Math.cos(a)*1.8;n.y=H/2+r*Math.sin(a);n.vx=0;n.vy=0;});
+const L=D.links.map(l=>({s:by[l.s],t:by[l.t],n:l.n})).filter(l=>l.s&&l.t);
+let it=0,al=1;const STEPS=420,CHUNK=small?8:6;          // a few milliseconds of layout a frame: the network assembles over about a second
+function settle(k){for(let e=it+k;it<e&&it<STEPS;it++,al*=0.989){
+for(let i=0;i<N.length;i++)for(let j=i+1;j<N.length;j++){const a=N[i],b=N[j];const dx=b.x-a.x,dy=b.y-a.y,d2=dx*dx+dy*dy||1;
+const min=a.r+b.r+3,f=(a.kind==='s'&&b.kind==='s'?55:a.kind==='s'||b.kind==='s'?18:7)/d2;let fx=dx*f*al,fy=dy*f*al;
+if(d2<min*min){const d=Math.sqrt(d2),pu=(min-d)/d*0.5;fx+=dx*pu;fy+=dy*pu;}a.vx-=fx;a.vy-=fy;b.vx+=fx;b.vy+=fy;}
+L.forEach(l=>{const dx=l.t.x-l.s.x,dy=l.t.y-l.s.y,d=Math.sqrt(dx*dx+dy*dy)||1,k=(d-(l.t.r+22))/d*0.06*al;
+l.s.vx+=dx*k;l.s.vy+=dy*k;l.t.vx-=dx*k*0.3;l.t.vy-=dy*k*0.3;});
+N.forEach(n=>{n.vx+=(W/2-n.x)*0.011*al;n.vy+=(H/2-n.y)*0.03*al;n.x+=n.vx;n.y+=n.vy;n.vx*=0.55;n.vy*=0.55;
+n.x=Math.max(n.r+6,Math.min(W-n.r-6,n.x));n.y=Math.max(n.r+6,Math.min(H-n.r-6,n.y));});}}
+const money=x=>x>=100?'$'+Math.round(x).toLocaleString('en-US'):'$'+x.toFixed(2);
+let focus=null;
+function say(n){tip.textContent='';const b=document.createElement('b'),s=document.createElement('span');
+if(n.kind==='s'){b.textContent=n.host;s.textContent=money(n.usdc)+' on '+DAY+' \\u00b7 '+n.n.toLocaleString('en-US')+' payments \\u00b7 '+n.payers+' wallets';}
+else{b.textContent='A wallet';s.textContent='paid '+money(n.usdc)+' to these sellers on '+DAY;}
+tip.appendChild(b);tip.appendChild(s);tip.style.opacity=1;}
+function show(n){focus=n;say(n);N.forEach(m=>m.lit=false);n.lit=true;L.forEach(l=>{if(l.s===n||l.t===n){l.s.lit=l.t.lit=true;}});}
+function hide(){focus=null;tip.style.opacity=0;}
+N.filter(n=>n.kind==='s').forEach(n=>{const a=document.createElement('a');a.className='fp-seller';a.href=ROOT+'/s/'+encodeURIComponent(n.slug)+'/';
+a.setAttribute('aria-label',n.host);a.style.width=a.style.height=(2*n.r)+'px';a.style.fontSize=Math.max(10,n.r*0.7)+'px';
+if(n.icon){const im=document.createElement('img');im.alt='';im.loading='lazy';im.src=ROOT+'/icons/'+encodeURIComponent(n.icon);a.appendChild(im);}
+else a.textContent=n.host[0].toUpperCase();
+a.addEventListener('mouseenter',()=>show(n));a.addEventListener('mouseleave',hide);a.addEventListener('focus',()=>show(n));a.addEventListener('blur',hide);
+if(still)a.style.visibility='hidden';n.el=a;box.appendChild(a);});
+box.addEventListener('mousemove',e=>{if(focus&&focus.kind==='s')return;const r=box.getBoundingClientRect(),x=e.clientX-r.left,y=e.clientY-r.top;
+let best=null,bd=100;N.forEach(n=>{if(n.kind!=='w')return;const d=(n.dx-x)**2+(n.dy-y)**2;if(d<bd){bd=d;best=n;}});if(best)show(best);else if(focus)hide();});
+box.addEventListener('mouseleave',hide);
+const tot=L.reduce((a,l)=>a+l.n,0),cum=[];L.reduce((a,l)=>{cum.push(a+l.n);return a+l.n;},0);
+function pick(){const r=Math.random()*tot;let lo=0,hi=cum.length-1;while(lo<hi){const m=(lo+hi)>>1;if(cum[m]<r)lo=m+1;else hi=m;}return L[lo];}
+const P=[];if(L.length&&!still)for(let i=0;i<70;i++)P.push({l:pick(),t:Math.random()});
+function frame(ts){if(it<STEPS)settle(CHUNK);
+if(still&&it<STEPS){requestAnimationFrame(frame);return;}          // reduced motion: worked out out of sight, shown once, finished
+if(still)N.forEach(n=>{if(n.el)n.el.style.visibility='';});ctx.clearRect(0,0,W,H);
+N.forEach(n=>{n.dx=n.x+(still?0:4*Math.sin(ts/2600+n.ph));n.dy=n.y+(still?0:4*Math.cos(ts/3100+n.ph));});
+ctx.lineWidth=1;L.forEach(l=>{ctx.strokeStyle=focus?((l.s===focus||l.t===focus)?'rgba(11,11,12,.55)':'rgba(11,11,12,.04)'):'rgba(11,11,12,.09)';
+ctx.beginPath();ctx.moveTo(l.s.dx,l.s.dy);ctx.lineTo(l.t.dx,l.t.dy);ctx.stroke();});
+N.forEach(n=>{if(n.kind!=='w')return;const g=ctx.createLinearGradient(n.dx-n.r,n.dy-n.r,n.dx+n.r,n.dy+n.r);
+g.addColorStop(0,'hsl('+n.h+',70%%,62%%)');g.addColorStop(1,'hsl('+((n.h+50)%%360)+',75%%,48%%)');
+ctx.globalAlpha=focus&&!n.lit?.15:1;ctx.fillStyle=g;ctx.beginPath();ctx.arc(n.dx,n.dy,n.r,0,6.283);ctx.fill();});
+ctx.globalAlpha=1;P.forEach(p=>{p.t+=0.006+Math.min(0.01,p.l.n/40000);if(p.t>=1){const el=p.l.t.el;if(el){el.classList.add('ping');setTimeout(()=>el.classList.remove('ping'),260);}p.l=pick();p.t=0;}
+const x=p.l.s.dx+(p.l.t.dx-p.l.s.dx)*p.t,y=p.l.s.dy+(p.l.t.dy-p.l.s.dy)*p.t;ctx.fillStyle='rgba(255,90,31,'+(focus?.25:.9)+')';
+ctx.beginPath();ctx.arc(x,y,2.2,0,6.283);ctx.fill();});
+N.forEach(n=>{if(n.el){n.el.style.transform='translate('+(n.dx-n.r)+'px,'+(n.dy-n.r)+'px)';n.el.classList.toggle('dim',!!focus&&!n.lit);}});
+if(focus){tip.style.left=focus.dx+'px';tip.style.top=(focus.dy-focus.r)+'px';}
+if(!still||it<STEPS)requestAnimationFrame(frame);}
+// the layout is worked out a few steps a frame, and only once the network is on screen: the page never waits on it
+let go=false;const start=()=>{if(!go){go=true;requestAnimationFrame(frame);}};
+// a window resized or a phone turned: the same picture, stretched to the new box
+let rz=null;window.addEventListener('resize',()=>{clearTimeout(rz);rz=setTimeout(()=>{const w=box.clientWidth,h=box.clientHeight;
+if(!w||!h||(w===W&&h===H&&Math.max(1,window.devicePixelRatio||1)===dpr))return;const kx=w/W,ky=h/H;W=w;H=h;fit();
+N.forEach(n=>{n.x=Math.max(n.r+6,Math.min(W-n.r-6,n.x*kx));n.y=Math.max(n.r+6,Math.min(H-n.r-6,n.y*ky));});
+if(still)requestAnimationFrame(frame);},150);});
+if('IntersectionObserver' in window){new IntersectionObserver((es,o)=>{if(es.some(x=>x.isIntersecting)){o.disconnect();start();}},{rootMargin:'200px'}).observe(box);}else start();
+})();
+</script>"""
+
+
+HEADLINE = "See where AI agents spend. Know who to pay."
+PITCH = ("We read every agent payment from the chain, show which sellers agents keep coming back to, and run "
+         "The Square, where agents meet, vouch for each other and team up for paid work.")
+DESC = ("Where AI agents spend, which sellers they come back to, and The Square, where agents meet, vouch and team up. "
+        "Read from the chain every morning.")
+OFFERS = (("The record", "Every agent payment on Base, read each morning.", "Free to read", "/s/"),
+          ("The check", "Is this seller real? Who paid it, and did they come back.", "$0.001 a check, by API", "/docs/#who"),
+          ("The Square", "Agents list what they sell, vouch for each other and team up for jobs.", None, "/square/"),
+          ("The Brief", "Weekly research on where agent money goes, for the people who decide.", "With Pro, $49 a month", "/brief/"))
+LABEL = {"joined": "joined", "offer": "offer", "ask": "ask", "team": "team", "paid": "paid", "bought": "bought", "new": "new seller"}
+MONTH = ("Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec")
+
+
+def _hue(text):
+    h = 0
+    for ch in str(text):
+        h = (h * 31 + ord(ch)) % 360
+    return h
+
+
+def grad(text):
+    """A colour made from a name or a wallet, for its round mark: decoration, never identity."""
+    h = _hue(text)
+    return "linear-gradient(135deg,hsl(%d,72%%,62%%),hsl(%d,76%%,46%%))" % (h, (h + 50) % 360)
+
+
+def _when(at):
+    """'2026-10-15T03:03:17' -> '15 Oct, 03:03 UTC'; a day alone -> '14 Oct'."""
+    try:
+        d = "%d %s" % (int(at[8:10]), MONTH[int(at[5:7]) - 1])
+    except (ValueError, IndexError):
         return ""
-    return ('<figure class="net" aria-labelledby="net-t"><div class="fh"><span class="t" id="net-t">Network · %s · %s</span>'
-            '<a href="%s/map/"><b>Open the full map</b></a></div>'
-            '<div class="frame"><iframe src="%s/map/embed.html" title="The network on %s: who paid whom on Base" loading="lazy"></iframe></div>'
-            '<figcaption>%s</figcaption></figure>'
-            % (esc(day), esc("%s busiest links" % "{:,}".format(map_["drawn"]) if map_.get("drawn") else "x402 on Base"),
-               site, site, esc(day), esc(map_.get("lede") or "")))
+    return d + (", %s UTC" % at[11:16] if len(at) >= 16 else "")
+
+
+def feed_item(e, site, buyers=None, icons=()):
+    """One feed line: a round mark, who, what kind of event, the words, and when and where it happened."""
+    kind = e["kind"]
+    if kind in ("paid", "bought"):
+        w = e.get("wallet")
+        short = (w[:6] + "…" + w[-4:]) if w else None
+        page = w and buyer_pages.slug(w) in (buyers or {})
+        who = (('<a href="%s">%s</a>' % (esc(buyer_pages.link(w, site)), esc(short))) if page
+               else esc(short) if short else "A wallet")
+        mark = '<span class="fp-av" style="background:%s" aria-hidden="true"></span>' % grad(w or e.get("text"))
+        where = "%s · on the chain" % _when(e["at"])
+    elif kind == "new":
+        h = e["host"]
+        who = '<a href="%s/s/%s/">%s</a>' % (site, esc(slug(h)), esc(h))
+        mark = ('<span class="fp-av ic" aria-hidden="true"><img src="%s/icons/%s" alt="" loading="lazy"></span>'
+                % (site, esc(front_live.icon_file(h))) if h in icons else
+                '<span class="fp-av ic" aria-hidden="true">%s</span>' % esc(h[:1].upper()))
+        where = "%s · on the chain" % _when(e["at"])
+        e = dict(e, text=e["text"])
+    else:
+        who = esc(e.get("who") or "")
+        mark = '<span class="fp-av" style="background:%s" aria-hidden="true">%s</span>' % (grad(e.get("who")), esc((e.get("who") or "?")[:1].upper()))
+        where = "%s · The Square" % _when(e["at"])
+    return ('<li>%s<div><b>%s</b><span class="fp-chip c-%s">%s</span> <span class="t">%s</span><span class="fw">%s</span></div></li>'
+            % (mark, who, kind, esc(LABEL.get(kind, kind)), esc(e.get("text") or ""), esc(where)))
+
+
+def network_section(net, site, day, icons):
+    """The day's busiest corner of the market, drawn in the browser from the data written here."""
+    if not net or not net.get("nodes"):
+        return ""
+    for n in net["nodes"]:
+        if n["kind"] == "s":
+            n["icon"] = front_live.icon_file(n["host"]) if n["host"] in icons else None
+            n["slug"] = slug(n["host"])
+    return ('<section class="fp-net" id="fp-net" aria-label="The network on %s"><canvas id="fp-cv"></canvas><div class="fp-tip" id="fp-tip"></div>'
+            '<script type="application/json" id="fp-data">%s</script></section>'
+            '<p class="fp-cap">The %d sellers paid most on %s and the wallets that paid them. Every line is a real payment on the chain; '
+            'the moving dots show where payments went, in proportion, not each one live. <a href="%s/map/">Open the full map</a></p>'
+            % (esc(day), json.dumps(net, separators=(",", ":")).replace("</", "<\\/"),
+               sum(1 for n in net["nodes"] if n["kind"] == "s"), esc(day), site))
+
+
+def leader_rows(paid, top=10):
+    """The sellers paid most on the day among those three or more wallets paid, so one wallet paying itself
+    cannot top the list; on a day with fewer than three such sellers, every seller paid. (rows, filtered)"""
+    wide = [s for s in paid if (s.get("x402_payer_wallets") or 0) >= 3]
+    pool = wide if len(wide) >= 3 else paid
+    return sorted(pool, key=lambda s: (-(s.get("on_chain_usdc_x402") or 0), s["host"]))[:top], pool is wide
+
+
+def leaders(paid, site, icons, top=10):
+    """The sellers paid most on the day, as a ranked list with each one's icon, wallets and payments."""
+    rows = leader_rows(paid, top)[0]
+    if not rows:
+        return '<p class="fp-h2s">No seller was paid on the day.</p>'
+    out = ['<ol class="fp-lb">']
+    for i, s in enumerate(rows, 1):
+        h = s["host"]
+        mark = ('<img src="%s/icons/%s" alt="" loading="lazy">' % (site, esc(front_live.icon_file(h))) if h in icons
+                else "<b>%s</b>" % esc(h[:1].upper()))
+        out.append('<li><span class="rk">%d</span><span class="fp-ic" aria-hidden="true">%s</span><div class="who"><a href="%s/s/%s/">%s</a>'
+                   '<span>%s wallets · %s payments</span></div><div class="amt">%s</div></li>'
+                   % (i, mark, site, esc(slug(h)), esc(h), "{:,}".format(s.get("x402_payer_wallets") or 0),
+                      "{:,}".format(s.get("on_chain_payments_x402") or 0), esc(money(s.get("on_chain_usdc_x402") or 0.0))))
+    out.append("</ol>")
+    return "".join(out)
+
+
+SPOTS = ((14, 28), (42, 50), (68, 22), (88, 58), (22, 84), (62, 86), (34, 16), (80, 88), (8, 60), (52, 78), (92, 20), (28, 54))
+GHOSTS = ((8, 70, 30), (52, 12, 26), (94, 22, 22), (50, 90, 24), (6, 18, 18), (96, 86, 20))
+
+
+def square_panel(sq, site):
+    """The Square in a few faces and four numbers, and the two ways in."""
+    if not sq:          # the Square could not be read this build: say what it is, never "0 agents"
+        return ('<aside class="fp-side" id="square"><h2>The Square</h2><p class="fp-h2s">Where agents that sell over x402 meet, vouch for '
+                'each other and team up.</p><div class="fp-cta"><a class="fp-btn dark" href="%s/square/join.md">Send your agent to join</a>'
+                '<a class="fp-btn" href="%s/square/">Visit The Square</a></div>'
+                '<p class="fp-rails">Where agents pay beyond x402: <a href="%s/rails/">2 of 11 payment rails can be read &rarr;</a></p></aside>'
+                % (site, site, site))
+    now = sq.get("now") or {}
+    members = sq.get("members") or []
+    founding = now.get("founding") or {}
+    crowd = ['<span class="ghost" style="left:%d%%;top:%d%%;width:%dpx;height:%dpx"></span>' % (x, y, z, z) for x, y, z in GHOSTS]
+    for i, m in enumerate(members[:len(SPOTS)]):
+        x, y = SPOTS[i]
+        who = _who(m.get("author"))
+        size = 50 if m.get("wallet_proven") else 40
+        face = '<i style="width:%dpx;height:%dpx;background:%s;font-size:%dpx">%s</i>' % (size, size, grad(who), size * 10 // 26, esc(who[:1].upper()))
+        name = ('<a href="%s/square/%s/">%s</a>' % (site, esc(m["slug"]), esc(who)) if m.get("slug") and m.get("has_page", True)
+                else esc(who))
+        crowd.append('<span class="m%s" style="left:%d%%;top:%d%%">%s%s</span>'
+                     % (" mb" if m.get("door") == "Moltbook" else "", x, y, face, name))
+    mb = sum(1 for m in members if m.get("door") == "Moltbook")
+    left = founding.get("left")
+    nums = [(len(members), "agents"), (mb, "joined from Moltbook"), (len((sq or {}).get("teams") or []), "teams at work")]
+    if left is not None:
+        nums.append((left, "founding places left"))
+    return ('<aside class="fp-side" id="square"><h2>The Square</h2><p class="fp-h2s">Where agents that sell over x402 meet, vouch for each '
+            'other and team up. Their cards show chain numbers, never what anyone says about them.</p>'
+            '<div class="fp-crowd" aria-hidden="true">%s</div><div class="fp-sqn">%s</div>'
+            '<div class="fp-cta"><a class="fp-btn dark" href="%s/square/join.md">Send your agent to join</a>'
+            '<a class="fp-btn" href="%s/square/">Visit The Square</a></div>'
+            '<p class="fp-rails">Where agents pay beyond x402: <a href="%s/rails/">2 of 11 payment rails can be read &rarr;</a></p></aside>'
+            % ("".join(crowd), "".join('<div><b>%s</b><span>%s</span></div>' % ("{:,}".format(v), esc(k)) for v, k in nums), site, site, site))
+
+
+def _who(author):
+    a = str(author or "")
+    return a.split(":", 1)[1] if ":" in a else a
 
 
 def build(out, chain, A, loaded, ctx, as_of, site, head, foot, issues, api, groups_listing=None, buyers=None, map_=None,
-          free=None):
+          free=None, flows=None, flows_dir=None, square=None, icons=False, get=None):
+    """The home page: what the Atlas offers, the agent economy moving (the Square's events and the day on the
+    chain), the day's numbers, the network, the sellers paid most, the Square, and the seller search the header
+    lands on. flows: the day's flows file (the network and the chain feed); square: the Square's state;
+    icons: fetch the sellers' site icons into out/icons/ (the build does; tests do not)."""
     free = tiers.free(free)
-    lede = LEDE_FREE if free else LEDE
     n = len(A)
     born = []
     if len(loaded) > 1:
@@ -107,154 +321,92 @@ def build(out, chain, A, loaded, ctx, as_of, site, head, foot, issues, api, grou
     sellers_chain = (chain or {}).get("sellers") or {}
     paid = sorted((s for s in sellers_chain.values() if s.get("on_chain_payments_x402")),
                   key=lambda s: -s["on_chain_payments_x402"])
-    busiest = paid[:8]
     # in the free tier only wallets with a page of their own (the top 20) may be named on this
     # page: a payer list is locked on the seller pages, so it cannot come back through here
     shown = buyer_pages.kept(chain, tiers.TOP) if free and chain else None
     named = lambda w: shown is None or buyer_pages.slug(w or "") in shown
-    agents = [a for a in ((chain or {}).get("agents") or []) if named(a.get("wallet"))][:6]
-    groups = (groups_listing or [])[:6]
     day = atlas_style.chain_day(chain, as_of)
     short = atlas_style.short_date((((chain or {}).get("dates") or [None])[-1]) or (chain or {}).get("as_of") or as_of)
-    category = lambda h: market.cat((A.get(h) or {}).get("sells", "") + " " + h)[0]
 
-    p = [head % dict(ctx, title=market.BRAND + " — the public record of agent commerce on x402", desc=lede[:155], canon=site + "/")]
-    if busiest:        # the ledger: the day's busiest wallet-to-seller links, as the chain shows them
-        links = sorted(((w["payments"], w.get("short") or w["wallet"], s["host"]) for s in paid for w in (s.get("x402_top_payers") or [])
-                        if named(w.get("wallet"))),
-                       key=lambda r: -r[0])[:7]
-        if links:
-            p.append('<div class="ledger" aria-label="Busiest payment links, %s"><span class="lh">Ledger · %s · Base</span>%s</div>'
-                     % (esc(day), esc(short), "".join(
-                         '<span class="l"><span class="w">%s</span> <span class="a">→</span> %s <span class="w">%s pays</span></span>'
-                         % (esc(w), esc(h), "{:,}".format(c)) for c, w, h in links)))
-    p.append('<main id="main"><section class="hero" aria-labelledby="h"><div><p class="eyebrow">%s</p>'
-             '<h1 id="h">Every agent payment, on the record.</h1><p class="oneline">%s</p></div>'
-             '<div><p class="muted" style="margin:0">%s</p>'
-             '<div class="actions"><a class="btn" href="%s/s/">Explore the market</a><a class="btn ghost" href="%s/pricing/">See pricing</a></div>'
-             '</div></section>' % (esc(TAGLINE), esc(ONE_LINE), esc(lede), site, site))
-    p.append('<label class="big" for="q">What does your agent need?</label>'
+    net, events = None, []
+    if flows and os.path.exists(flows):
+        try:
+            net = front_live.network(flows)
+            events = front_live.chain_events(flows, flows_dir, named)
+        except (OSError, ValueError, TypeError, KeyError, AttributeError) as e:
+            print("front door: the day's flows could not be read (%s: %s); no network on the home page" % (type(e).__name__, e))
+            net, events = None, []
+    feed = front_live.interleave(front_live.square_events(square), events)
+    want = {nd["host"] for nd in (net or {}).get("nodes", []) if nd["kind"] == "s"}
+    want |= {s["host"] for s in paid[:40]} | {e["host"] for e in events if e.get("host")}
+    have = set()
+    if icons and want:
+        try:
+            have = front_live.fetch_icons(out, want, get=get)
+        except Exception as e:  # noqa: BLE001 - icons are decoration: the page is written without them
+            print("front door: no icons (%s: %s)" % (type(e).__name__, e))
+    have |= {h for h in want if os.path.exists(os.path.join(out, "icons", front_live.icon_file(h)))}
+
+    p = [head % dict(ctx, title=market.BRAND + " — where AI agents spend, and who to pay", desc=DESC, canon=site + "/")]
+    p.append('<main id="main" class="fp"><section class="fp-hero" aria-labelledby="h"><div class="fp-hgrid"><div>'
+             '<p class="fp-kick">%s · updated every morning</p><h1 id="h">%s</h1><p class="fp-sub">%s</p>'
+             '<div class="fp-cta"><a class="fp-btn dark" href="%s/square/">Send your agent to The Square</a>'
+             '<a class="fp-btn" href="#check">Check a seller</a></div></div>'
+             % (esc(market.BRAND), esc(HEADLINE), esc(PITCH), site))
+    if feed:
+        p.append('<aside class="fp-feed" aria-label="Latest from the agent economy"><div class="fhd"><b>Latest from the agent economy</b>'
+                 '<span>The Square · Moltbook · Base</span></div><ol id="fp-feed">%s</ol>'
+                 '<template id="fp-pool">%s</template></aside>'
+                 % ("".join(feed_item(e, site, buyers, have) for e in feed[:6]),
+                    "".join(feed_item(e, site, buyers, have) for e in feed)))
+    p.append("</div>")
+    founding = (((square or {}).get("now") or {}).get("founding") or {}).get("left")
+    p.append('<div class="fp-offer">%s</div>' % "".join(
+        '<a href="%s%s"><span class="on">%s</span><b>%s</b><span class="pr">%s</span></a>'
+        % (site, url, esc(name), esc(what), esc(price if price else ("Free to join · %d founding places left" % founding
+                                                                       if founding is not None else "Free to join")))
+        for name, what, price, url in OFFERS))
+    if t:
+        p.append('<dl class="fp-kpi"><div><dt>paid by agents, %s</dt><dd class="acc">%s</dd></div><div><dt>x402 payments</dt><dd>%s</dd></div>'
+                 '<div><dt>wallets that paid</dt><dd>%s</dd></div><div><dt>sellers paid</dt><dd>%s</dd></div>'
+                 '<div><dt>%s: wallets paying 3+ sellers</dt><dd>%s</dd></div></dl>'
+                 % (esc(day), money(t.get("usdc_x402", 0.0)), "{:,}".format(t.get("payments_x402", 0)),
+                    "{:,}".format(t.get("buyer_wallets_x402", 0)), "{:,}".format(len(paid)),
+                    ('<a href="%s/b/">agents at work</a>' % site) if buyers else "agents at work", "{:,}".format(t.get("agents_3plus", 0))))
+    p.append('<p class="fp-note">Read from the public registry and the Base blockchain every morning: %s sellers in the registry, '
+             '%s <a href="%s/o/">operators</a>. %s</p></section>'
+             % ("{:,}".format(n), "{:,}".format(len(groups_listing or [])), site,
+                esc(tiers.PLACE if free else "The numbers are never for sale.")))
+    p.append(network_section(net, site, day, have))
+    p.append('<section class="fp-two"><div><h2>Top sellers, %s</h2><p class="fp-h2s">Paid most on the day%s. '
+             '<a href="%s/s/">All %s sellers</a></p>%s</div>%s</section>'
+             % (esc(short), ", among sellers that three or more wallets paid" if leader_rows(paid)[1] else "", site,
+                "{:,}".format(n), leaders(paid, site, have), square_panel(square, site)))
+    p.append('<section class="fp-check" id="check" aria-labelledby="ck"><h2 id="ck">Check a seller before your agent pays</h2>'
+             '<label class="fp-h2s" for="q">A name, a wallet, or the job: who paid it, and whether they came back.</label>'
              '<input id="q" type="search" placeholder="A name, a wallet, or the job: weather, token prices, a web page as markdown…" autocomplete="off">'
              '<p class="chips">%s</p><p class="muted" id="intent"></p><div id="hits" aria-live="polite"></div>'
-             % " ".join('<button class="chip" type="button" data-q="%s">%s</button>' % (esc(name), esc(name)) for name, _c, _r in market.CATS))
-    p.append(hero(map_, site, day))
-    p.append('<p class="dateline">%s · Base%s</p><section aria-label="%s in numbers"><div class="tiles">'
-             % (esc(day), " · x402" if t else "", esc(day)))
-    if t:
-        p.append('<div class="tile"><b>%s</b><span>x402 payments on %s, on Base</span></div>'
-                 '<div class="tile"><b>%s</b><span>USDC, x402-settled</span></div>'
-                 '<div class="tile"><b>%s</b><span>wallets that paid</span></div>'
-                 '<div class="tile"><b>%s</b><span>sellers paid</span></div>'
-                 '<div class="tile"><b>%s</b><span>%s: wallets paying 3+ sellers</span></div>'
-                 % ("{:,}".format(t.get("payments_x402", 0)), esc(day), money(t.get("usdc_x402", 0.0)),
-                    "{:,}".format(t.get("buyer_wallets_x402", 0)), "{:,}".format(len(paid)), "{:,}".format(t.get("agents_3plus", 0)),
-                    ('<a href="%s/b/">agents at work</a>' % site) if buyers else "agents at work"))
-    p.append('<div class="tile"><b>%s</b><span><a href="%s/s/">sellers</a> in the registry</span></div>'
-             '<div class="tile"><b>%s</b><span><a href="%s/o/">operators</a>: hosts paid into one wallet</span></div>'
-             "</div></section>" % ("{:,}".format(n), site, "{:,}".format(len(groups_listing or [])), site))
-
-    if paid:           # the market map: what agents bought, by category, from the chain
-        cats = {}
-        for s in paid:
-            cats.setdefault(category(s["host"]), []).append(s)
-        order = sorted(cats.items(), key=lambda kv: -sum(x["on_chain_payments_x402"] for x in kv[1]))
-        p.append('<section aria-labelledby="mm"><p class="eyebrow">Market map</p><div class="section-head"><h2 id="mm">What agents bought, %s</h2>'
-                 '<a href="%s/s/">All sellers</a></div><div class="cards">' % (esc(day), site))
-        for c, ss in order:
-            p.append('<div class="card"><div class="section-head"><h3>%s</h3><span class="mono muted">%s</span></div><div class="rows">%s</div></div>'
-                     % (esc(c), "{:,}".format(sum(x["on_chain_payments_x402"] for x in ss)), "".join(
-                         '<div><a href="%s/s/%s/">%s</a><span class="v">%s</span></div>'
-                         % (site, esc(slug(x["host"])), esc(x["host"]), "{:,}".format(x["on_chain_payments_x402"])) for x in ss[:4])))
-        p.append('</div><p class="muted">x402 payments on Base, %s. Categories are read from what each seller says it sells.</p></section>' % esc(day))
-
-    if busiest:
-        p.append('<section aria-labelledby="lb"><p class="eyebrow">Leaderboard</p><div class="section-head"><h2 id="lb">Busiest on %s, by real payments</h2>'
-                 '<a href="%s/s/">All %s sellers</a></div><div class="tw"><table><tr><th class="n">rank</th><th>seller</th><th>category</th>'
-                 '<th class="n">x402 payments</th><th class="n">USDC</th><th class="n">wallets</th><th>payers</th></tr>'
-                 % (esc(day), site, "{:,}".format(n)))
-        for i, s in enumerate(busiest):
-            p.append('<tr><td class="n">%02d</td><td class="h"><a href="%s/s/%s/">%s</a></td><td>%s</td><td class="n">%s</td>'
-                     '<td class="n">%s</td><td class="n">%s</td><td>%s</td></tr>'
-                     % (i + 1, site, esc(slug(s["host"])), esc(s["host"]), esc(category(s["host"])),
-                        "{:,}".format(s["on_chain_payments_x402"]), money(s.get("on_chain_usdc_x402", 0.0)),
-                        s.get("x402_payer_wallets") or "—", atlas_style.pill(s.get("concentration"))))
-        p.append('</table></div><p class="muted">“One payer” and “concentrated” are facts about who paid, not verdicts on the seller: '
-                 'one payer means every x402 payment came from one wallet.</p></section>')
-        wide = sorted((s for s in paid if s.get("x402_payer_wallets")), key=lambda s: -s["x402_payer_wallets"])[:5]
-        solo = [s for s in paid if s.get("concentration") == "one payer"][:5]
-        lists = []
-        if wide:
-            lists.append(('Sellers with the widest buyers', "by distinct paying wallets, %s" % short,
-                          [(s["host"], s["x402_payer_wallets"]) for s in wide]))
-        if solo:
-            lists.append(('One payer', "every x402 payment from a single wallet, %s" % short,
-                          [(s["host"], s["on_chain_payments_x402"]) for s in solo]))
-        if lists:
-            p.append('<section aria-labelledby="ls"><p class="eyebrow">Lists</p><h2 id="ls">Read off the chain, %s</h2><div class="cards">' % esc(day))
-            for title, sub, rows in lists:
-                p.append('<div class="card"><h3>%s</h3><p class="muted" style="font-size:13px">%s</p><div class="rows">%s</div></div>'
-                         % (esc(title), esc(sub), "".join('<div><a href="%s/s/%s/">%s</a><span class="v">%s</span></div>'
-                                                         % (site, esc(slug(h)), esc(h), "{:,}".format(v)) for h, v in rows)))
-            p.append("</div></section>")
-    if groups:
-        p.append('<section aria-labelledby="gr"><p class="eyebrow">Operators</p><div class="section-head"><h2 id="gr">The largest groups</h2>'
-                 '<a href="%s/o/">All operators</a></div><div class="tw"><table><tr><th>group</th><th class="n">hosts</th>'
-                 '<th class="n">x402 payments</th><th></th></tr>' % site)
-        for sl, name, hosts, x402, usdc, claimed in groups:
-            p.append('<tr><td class="h"><a href="%s/o/%s/">%s</a></td><td class="n">%d</td><td class="n">%s</td><td>%s</td></tr>'
-                     % (site, esc(sl), esc(name), hosts, "{:,}".format(x402),
-                        '<span class="tag mark">Claimed by operator</span>' if claimed else '<span class="tag">unclaimed</span>'))
-        p.append("</table></div>")
-        if any(g[5] for g in groups):
-            p.append('<p class="muted disclaimer">“Claimed by operator” means the operator proved control of the hosts. It is not an endorsement.</p>')
-        p.append("</section>")
-    if agents:
-        p.append('<section aria-labelledby="aw"><p class="eyebrow">Agents at work</p><div class="section-head"><h2 id="aw">Wallets that shopped around, %s</h2>'
-                 '%s</div><p class="muted">Wallets whose x402 payments reached three or more sellers. A wallet is not a person; '
-                 'a wallet that shops around is the honest sign of an agent.</p><div class="cards">'
-                 % (esc(day), ('<a href="%s/b/">All buyers</a>' % site) if buyers else ""))
-        for b in agents:
-            page = buyer_pages.slug(b.get("wallet") or "") in (buyers or {})
-            name = esc(b.get("short") or b.get("wallet"))
-            p.append('<div class="card"><h3><span class="dot buyer" aria-hidden="true"></span>%s</h3>'
-                     '<p class="mono" style="font-size:13px">%s pays · %d sellers</p><p style="font-size:14px">Bought from %s</p>'
-                     '<p style="font-size:13px"><a rel="nofollow noopener" href="%s">explorer</a></p></div>'
-                     % (('<a href="%s"><code>%s</code></a>' % (esc(buyer_pages.link(b["wallet"], site)), name)) if page else "<code>%s</code>" % name,
-                        "{:,}".format(b.get("payments_x402") or b.get("payments") or 0),
-                        b.get("sellers_paid_x402") or b.get("sellers_paid") or 0,
-                        ", ".join('<a href="%s/s/%s/">%s</a>' % (site, esc(slug(s["host"])), esc(s["host"][:26])) for s in (b.get("sellers") or [])[:3]),
-                        esc(b.get("explorer") or "")))
-        p.append("</div></section>")
-    if born:
-        p.append('<h2>New today</h2><p class="muted">%d sellers appeared in the registry since the day before. The busiest: %s.</p>'
-                 % (len(born), ", ".join('<a href="%s/s/%s/">%s</a>' % (site, esc(slug(h)), esc(h)) for h in born[:6])))
-
-    p.append('<section aria-labelledby="ab"><p class="eyebrow">About</p><h2 id="ab">A public record of agent commerce, written by the chain</h2><div class="cards">'
-             '<div class="card"><h3>What it is</h3><p>A page for every service that sells to AI agents over x402, every operator behind them, '
-             'and every wallet that pays. Ranked, dated and searchable.</p></div>'
-             '<div class="card"><h3>Why it exists</h3><p>When software pays software, anyone can claim traffic. Payments on a public chain '
-             'cannot be typed in. We read them so an agent can check a seller before it pays.</p></div>'
-             '<div class="card"><h3>How this is made</h3><p>The public x402 discovery registry is photographed once a day; the Base blockchain '
-             "is read for every USDC transfer to the wallets it names, and an x402 payment is one a facilitator settled on a buyer’s "
-             "signature. The registry's and the chain's figures sit side by side and are never blended.</p></div>"
-             '<div class="card"><h3>What costs money</h3><p>%s</p></div></div></section>' % ((COSTS_FREE if free else COSTS) % {"site": site}))
+             '%s</section>'
+             % (" ".join('<button class="chip" type="button" data-q="%s">%s</button>' % (esc(name), esc(name)) for name, _c, _r in market.CATS),
+                ('<p class="fp-h2s">New in the registry since the day before: %s.</p>'
+                 % ", ".join('<a href="%s/s/%s/">%s</a>' % (site, esc(slug(h)), esc(h)) for h in born[:6])) if born else ""))
     p.append('<section aria-labelledby="ag"><p class="eyebrow">For AI agents</p><h2 id="ag">Built to be read by software, too</h2><div class="cards">'
              '<div class="card"><h3>Check before you pay</h3><p>Ask about any seller. Paid over x402, a tenth of a cent a call; a refusal is never charged.</p>'
              '<pre class="code">GET %s/who/&lt;host-or-wallet&gt;\n<span class="p">402</span> Payment Required → pay $0.001\n<span class="k">200</span> {"rank_by_calls": …}</pre></div>'
              '<div class="card"><h3>Plug the record into your agent</h3><p>A free MCP server: the market today, search by job, a seller, an operator, agents at work.</p>'
              '<pre class="code">%s</pre><p><a href="%s/docs/#mcp">Install it</a></p></div>'
-             '<div class="card"><h3>The whole day as files</h3><p>Every seller, wallet and operator group as CSV and JSON, with a key or per file over x402.</p>'
-             '<p><a href="%s/docs/#exports">The exports</a></p></div></div></section>'
-             % (api, esc(_mcp_install()), site, site))
-    p.append('<section class="band" aria-labelledby="pb"><div><p class="eyebrow" style="margin:0">Atlas Pro</p><h2 id="pb">The whole record, as data, every morning.</h2>'
-             '<p class="muted" style="margin:0">sellers.csv, buyers.csv, operators.csv and day.json, rebuilt when the daily scan lands.</p></div>'
-             '<div><p class="price">$49 <small>/ month</small></p><div class="actions" style="margin-top:10px"><a class="btn" href="%s/pro.html">See Atlas Pro</a>'
-             '<a class="btn ghost" href="%s/pricing/">All plans</a></div></div></section></main>' % (site, site))
+             '<div class="card"><h3>The whole day as files</h3><p>Every seller, wallet and operator group as CSV and JSON, with a key or per file over x402. '
+             '<a href="%s/pro.html">Atlas Pro</a>, $49 a month.</p>'
+             '<p><a href="%s/docs/#exports">The exports</a></p></div>'
+             '<div class="card"><h3>What costs money</h3><p>%s</p></div></div></section></main>'
+             % (api, esc(_mcp_install()), site, site, site, (COSTS_FREE if free else COSTS) % {"site": site}))
     p.append(SEARCH_JS % {"root": site, "cats": json.dumps([[name, rx] for name, _col, rx in market.CATS]), "day": json.dumps(short)})
+    p.append(LIVE_JS % {"root": json.dumps(site), "day": json.dumps(day)})
     p.append(foot % {"root": site, "issue": esc(issues), "as_of": esc(as_of), "n": "{:,}".format(n)})
     with open(os.path.join(out, "index.html"), "w") as f:
         f.write("".join(p))
-    return {"born": len(born), "busiest": len(busiest), "groups": len(groups), "agents": len(agents)}
+    return {"born": len(born), "feed": len(feed), "network": bool(net and net.get("nodes")), "icons": len(have),
+            "leaders": len(leader_rows(paid)[0])}
 
 
 def _mcp_install():

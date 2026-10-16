@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Copied from the Aušrinė lab (commit e5859bf). Edit it there, not here.
+# Copied from the Aušrinė lab (commit abfcd4a). Edit it there, not here.
 """atlas_style.py — the one look of the Infoharmoni Atlas: stylesheet, header, footer.
 
 Every page the site build writes carries the same three things, written here once:
@@ -36,8 +36,8 @@ PALETTE = {
 LOGO = ('<svg class="logo" width="28" height="28" viewBox="0 0 28 28" aria-hidden="true" focusable="false">'
         '<circle cx="14" cy="14" r="12.5" fill="none" stroke="#102A23" stroke-width="1.5"/>'
         '<path d="M9 10L19 9M9 10L17 19M19 9L17 19" stroke="#102A23" stroke-width="1"/>'
-        '<circle cx="9" cy="10" r="2.6" fill="#0B7A55"/><circle cx="19" cy="9" r="2.2" fill="#E0A93B"/>'
-        '<circle cx="17" cy="19" r="2.6" fill="#0B7A55"/></svg>')
+        '<circle cx="9" cy="10" r="2.6" fill="#102A23"/><circle cx="19" cy="9" r="2.6" fill="#FF5A1F"/>'
+        '<circle cx="17" cy="19" r="2.6" fill="#102A23"/></svg>')
 # The company and its product side by side, the way Stripe | Radar reads: the company's wordmark,
 # a thin rule, the product's name. The hidden space keeps the name read aloud as two words.
 LOCKUP = ('<span class="bname">%s</span><span class="vh">&nbsp;</span><span class="bsep" aria-hidden="true"></span>'
@@ -46,13 +46,13 @@ FAVICON = ('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 28 28"><title>'
            '<rect width="28" height="28" rx="6" fill="#FFFFFF"/>'
            '<circle cx="14" cy="14" r="12" fill="none" stroke="#102A23" stroke-width="1.8"/>'
            '<path d="M9 10L19 9M9 10L17 19M19 9L17 19" stroke="#102A23" stroke-width="1.2"/>'
-           '<circle cx="9" cy="10" r="3" fill="#0B7A55"/><circle cx="19" cy="9" r="2.6" fill="#E0A93B"/>'
-           '<circle cx="17" cy="19" r="3" fill="#0B7A55"/></svg>\n')
+           '<circle cx="9" cy="10" r="3" fill="#102A23"/><circle cx="19" cy="9" r="3" fill="#FF5A1F"/>'
+           '<circle cx="17" cy="19" r="3" fill="#102A23"/></svg>\n')
 
 CSS = """:root{color-scheme:light;
 --paper:#FFFFFF;--panel:#F5F4EF;--rule:#E7E5DF;--rule-soft:#F0EEE8;--ink:#102A23;--ink-2:#3A4A43;--muted:#66645A;--faint:#A39E8C;--under:#D6D3CA;
 --seller:#0B7A55;--seller-ink:#0B5A40;--seller-soft:#E6F4EE;--buyer:#E0A93B;--buyer-ink:#8A6417;--buyer-soft:#F7EBD2;
---up:#0B7A55;--down:#9B2C1F;
+--up:#0B7A55;--down:#9B2C1F;--acc:#FF5A1F;
 --sans:"Instrument Sans",system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;
 --mono:"IBM Plex Mono",ui-monospace,"SF Mono",Menlo,Consolas,monospace;
 --gutter:clamp(16px,4.4vw,64px);--max:1312px;--radius:10px}
@@ -69,7 +69,7 @@ header.site{border-bottom:1px solid var(--rule);background:var(--paper)}
 .hbar{max-width:calc(var(--max) + 2*var(--gutter));margin:0 auto;padding:14px var(--gutter);display:flex;flex-wrap:wrap;align-items:center;gap:12px 24px}
 a.brand{display:inline-flex;align-items:center;gap:10px;text-decoration:none;color:var(--ink)}
 .brand .bname{font:600 21px/1.1 var(--sans);letter-spacing:-.02em;white-space:nowrap}
-.brand .bsep{width:1px;height:20px;background:var(--under);margin:0 2px}.brand .bprod{font:500 21px/1.1 var(--sans);letter-spacing:-.01em;color:var(--seller-ink);white-space:nowrap}
+.brand .bsep{width:1px;height:20px;background:var(--under);margin:0 2px}.brand .bprod{font:500 21px/1.1 var(--sans);letter-spacing:-.01em;color:var(--ink-2);white-space:nowrap}
 .netchips{display:inline-flex;gap:6px}
 .chip-sm{font:500 11px/1 var(--mono);padding:4px 7px;border:1px solid var(--rule);border-radius:999px;color:var(--ink-2);white-space:nowrap}
 form.hsearch{flex:1 1 260px;max-width:400px;margin:0}
@@ -231,6 +231,112 @@ figure.net figcaption{padding:10px 18px;border-top:1px solid var(--rule);font-si
 .cov .notice{background:var(--panel);border:1px solid var(--rule);padding:12px 14px;border-radius:var(--radius)}
 .cov svg{width:100%;height:auto;display:block;background:var(--panel);border:1px solid var(--rule);border-radius:var(--radius)}
 .cov h1{margin-top:40px}.cov h2{font-size:clamp(20px,2.2vw,26px);margin:40px 0 10px}.asof{margin-top:40px;font-size:13px}
+/* the home page (front_door.py, 2026-10-15): what the Atlas offers, the agent economy moving, the network, the Square */
+.fp{--fp-mut:#6E6E73;--fp-hair:#ECECEE}
+.fp-hero{padding:56px 0 8px}.fp-hgrid{display:grid;grid-template-columns:1.25fr 1fr;gap:56px;align-items:start}
+.fp-kick{font:500 12.5px var(--mono);color:var(--fp-mut);display:flex;align-items:center;gap:8px;margin:0}
+.fp-kick:before{content:"";width:7px;height:7px;border-radius:50%;background:var(--acc);box-shadow:0 0 0 4px rgba(255,90,31,.15)}
+.fp h1{font:600 clamp(40px,5.6vw,76px)/.98 var(--sans);letter-spacing:-.05em;margin:18px 0 22px;max-width:13ch}
+.fp-sub{font-size:19px;line-height:1.5;color:#3A3A3E;max-width:46ch;margin:0 0 28px}
+.fp-cta{display:flex;gap:10px;flex-wrap:wrap}
+.fp-btn{padding:11px 19px;border-radius:999px;font-weight:500;font-size:15px;border:1px solid var(--ink);color:var(--ink);text-decoration:none;background:var(--paper)}
+.fp-btn.dark{background:var(--ink);color:#fff}.fp-btn:hover{text-decoration:none;opacity:.9}
+.fp-feed{border:1px solid var(--fp-hair);border-radius:18px;padding:18px 18px 6px;background:var(--paper);box-shadow:0 10px 30px rgba(0,0,0,.05)}
+.fp-feed .fhd{display:flex;justify-content:space-between;align-items:baseline;gap:10px;margin-bottom:6px}.fp-feed .fhd b{font-size:14px}.fp-feed .fhd span{font-size:12px;color:var(--fp-mut)}
+#fp-feed{list-style:none;margin:0;padding:0;height:396px;overflow:hidden}
+#fp-feed li{display:grid;grid-template-columns:34px 1fr;gap:12px;padding:12px 0;border-top:1px solid var(--fp-hair);animation:fpin .5s ease;font-size:13.5px;line-height:1.4}
+@keyframes fpin{from{opacity:0;transform:translateY(-8px)}}
+@media (prefers-reduced-motion:reduce){#fp-feed li{animation:none}}
+.fp-av{width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:600;font-size:13px;color:#fff;overflow:hidden}
+.fp-av.ic{background:var(--paper);color:var(--ink);box-shadow:0 0 0 1px rgba(0,0,0,.08)}.fp-av img{width:62%;height:62%;object-fit:contain}
+#fp-feed b a{color:var(--ink)}#fp-feed .t{color:#3A3A3E}
+.fp-chip{display:inline-block;font:500 10.5px/1 var(--mono);padding:4px 7px;border-radius:999px;margin:0 6px;vertical-align:1px;text-transform:uppercase;letter-spacing:.04em;background:#F3F3F5;color:#3A3A3E}
+.fp-chip.c-joined{background:#EEF0FF;color:#3B3FD8}.fp-chip.c-offer,.fp-chip.c-ask{background:#FFF0E8;color:#C2410C}.fp-chip.c-team{background:#F1ECFF;color:#6D28D9}
+.fp-chip.c-paid{background:#FFF0E8;color:#D9480F}.fp-chip.c-new{background:#EAF7FF;color:#0369A1}
+#fp-feed .fw{display:block;font:12px var(--mono);color:var(--fp-mut);margin-top:3px}
+.fp-offer{display:grid;grid-template-columns:repeat(4,1fr);margin-top:56px;border-top:1px solid var(--ink)}
+.fp-offer a{padding:18px 20px 18px 0;display:flex;flex-direction:column;gap:8px;text-decoration:none;color:var(--ink)}.fp-offer a+a{padding-left:20px;border-left:1px solid var(--fp-hair)}
+.fp-offer a:hover b{text-decoration:underline;text-decoration-color:var(--acc);text-underline-offset:3px}
+.fp-offer .on{font:500 12px var(--mono);color:#D9480F}.fp-offer b{font-size:16px;font-weight:600;letter-spacing:-.015em;line-height:1.3}.fp-offer .pr{font-size:12.5px;color:var(--fp-mut)}
+.fp-kpi{display:grid;grid-template-columns:repeat(5,1fr);margin:0;border-top:1px solid var(--fp-hair)}
+.fp-kpi div{padding:16px 0}.fp-kpi div+div{padding-left:22px;border-left:1px solid var(--fp-hair)}
+.fp-kpi dt{font-size:12.5px;color:var(--fp-mut)}.fp-kpi dd{margin:6px 0 0;font:500 28px/1 var(--mono);letter-spacing:-.04em;font-variant-numeric:tabular-nums}
+.fp-kpi .acc{color:#D9480F}
+.fp-note{font-size:12.5px;color:var(--fp-mut);margin:4px 0 0}
+.fp-net{position:relative;height:640px;margin:36px calc(50% - 50vw) 0;border-top:1px solid var(--fp-hair);border-bottom:1px solid var(--fp-hair);overflow:hidden;
+background:radial-gradient(circle at 1px 1px,#E9E9EC 1px,transparent 1.4px) 0 0/22px 22px}
+.fp-net canvas{position:absolute;inset:0}
+.fp-seller{position:absolute;left:0;top:0;border-radius:50%;background:var(--paper);box-shadow:0 0 0 1px rgba(0,0,0,.08),0 6px 18px rgba(0,0,0,.08);display:flex;align-items:center;justify-content:center;overflow:hidden;font-weight:600;color:var(--ink);text-decoration:none;will-change:transform;transition:box-shadow .2s}
+.fp-seller img{width:62%;height:62%;object-fit:contain}
+.fp-seller.ping{box-shadow:0 0 0 1px rgba(0,0,0,.08),0 0 0 6px rgba(255,90,31,.25),0 6px 18px rgba(0,0,0,.08)}.fp-seller.dim{opacity:.25}
+.fp-tip{position:absolute;pointer-events:none;background:var(--ink);color:#fff;padding:9px 12px;border-radius:10px;font-size:13px;line-height:1.35;transform:translate(-50%,calc(-100% - 14px));opacity:0;transition:opacity .12s;white-space:nowrap;z-index:2}
+.fp-tip b{display:block;font-size:14px}.fp-tip span{font:12px var(--mono);color:#C9C9CE}
+.fp-cap{font-size:12.5px;color:var(--fp-mut);margin:12px 0 0}
+.fp-two{display:grid;grid-template-columns:1.35fr 1fr;gap:56px;padding:56px 0 24px}
+.fp h2{font:600 28px/1.1 var(--sans);letter-spacing:-.035em;margin:0 0 6px}
+.fp-h2s{color:var(--fp-mut);font-size:14px;margin:0 0 18px;display:block}
+.fp-lb{list-style:none;margin:0;padding:0;border-top:1px solid var(--ink)}
+.fp-lb li{display:grid;grid-template-columns:28px 44px 1fr auto;gap:14px;align-items:center;padding:12px 0;border-bottom:1px solid var(--fp-hair)}
+.fp-lb .rk{font:500 13px var(--mono);color:var(--fp-mut)}
+.fp-ic{width:44px;height:44px;border-radius:50%;box-shadow:0 0 0 1px rgba(0,0,0,.08);display:flex;align-items:center;justify-content:center;overflow:hidden;background:var(--paper)}
+.fp-ic img{width:60%;height:60%;object-fit:contain}
+.fp-lb .who a{display:block;font-size:15.5px;font-weight:600;letter-spacing:-.01em;color:var(--ink);text-decoration:none;overflow-wrap:anywhere}.fp-lb .who span{font-size:12.5px;color:var(--fp-mut)}
+.fp-lb .amt{font:500 20px var(--mono);letter-spacing:-.03em;text-align:right}
+.fp-side{border:1px solid var(--fp-hair);border-radius:18px;padding:26px;align-self:start}
+.fp-crowd{position:relative;height:190px;margin:8px 0 14px}
+.fp-crowd .m{position:absolute;display:flex;flex-direction:column;align-items:center;gap:5px;font-size:11.5px;color:#3A3A3E;transform:translate(-50%,-50%);white-space:nowrap}
+.fp-crowd .m a{color:#3A3A3E}
+.fp-crowd .m i{position:relative;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;font-style:normal;font-weight:600;box-shadow:0 0 0 3px #fff,0 6px 16px rgba(0,0,0,.12)}
+.fp-crowd .m.mb i:after{content:"M";position:absolute;right:-4px;bottom:-4px;width:16px;height:16px;border-radius:50%;background:var(--ink);color:#fff;font:600 9px/16px var(--sans);text-align:center;box-shadow:0 0 0 2px #fff}
+.fp-crowd .ghost{position:absolute;border-radius:50%;border:1.5px dashed #D9D9DE;transform:translate(-50%,-50%)}
+.fp-sqn{display:grid;grid-template-columns:repeat(4,1fr);border-top:1px solid var(--fp-hair);margin-bottom:18px}
+.fp-sqn div{padding:12px 4px 0 0}.fp-sqn b{display:block;font:500 22px var(--mono);letter-spacing:-.03em}.fp-sqn span{font-size:11.5px;color:var(--fp-mut);line-height:1.3;display:block}
+.fp-rails{font-size:13px;color:var(--fp-mut);margin:18px 0 0}.fp-rails a{color:var(--ink);text-decoration-color:var(--acc)}
+.fp-check{padding:40px 0 8px;border-top:1px solid var(--fp-hair);margin-top:32px}
+.fp-check input{width:100%;max-width:760px;padding:13px 16px;border-radius:12px;border:1px solid var(--fp-hair);font:16px var(--sans);background:#FAFAFA}
+@media (max-width:900px){.fp-hgrid,.fp-two{grid-template-columns:1fr;gap:36px}.fp-offer{grid-template-columns:1fr 1fr}
+.fp-offer a:nth-child(3){padding-left:0;border-left:0}.fp-offer a:nth-child(n+3){border-top:1px solid var(--fp-hair)}
+.fp-kpi{grid-template-columns:1fr 1fr}.fp-kpi div{padding-left:0!important;border-left:0!important}.fp-net{height:500px}.fp-hero{padding-top:36px}}
+/* /rails/ (rails_page.py): a screener. Black on white, hairlines, one accent for what the Atlas itself counts */
+.rails{--r-ink:#0B0B0C;--r-mut:#6E6E73;--r-hair:#E8E8EA;--r-acc:#FF5A1F;--r-acc-2:#FFB596;--r-row:#FAFAFA}
+.rails{color:var(--r-ink)}
+.rails .rkick{margin:44px 0 6px;font-size:13px;color:var(--r-mut)}
+.rails h1{font:600 clamp(30px,3.6vw,44px)/1.08 var(--sans);letter-spacing:-.032em;margin:0 0 10px}
+.rails .rlede{font-size:16px;line-height:1.5;color:var(--r-mut);max-width:62ch;margin:0 0 28px}
+.rails .rkpi{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));margin:0;border-top:1px solid var(--r-ink);border-bottom:1px solid var(--r-hair)}
+.rails .rkpi div{padding:14px 18px 14px 0}.rails .rkpi div+div{padding-left:18px;border-left:1px solid var(--r-hair)}
+.rails .rkpi dt{font-size:12px;color:var(--r-mut);margin:0 0 6px}
+.rails .rkpi dd{margin:0}.rails .rkpi b{font:500 24px/1 var(--mono);letter-spacing:-.03em;font-variant-numeric:tabular-nums}
+.rails .rkpi b.acc{color:var(--r-acc)}.rails .rkpi small{font-size:14px;color:var(--r-mut)}
+.rails .rnote{margin:10px 0 0;font-size:12.5px;color:var(--r-mut);max-width:90ch}
+.rails h2.rhead{font:600 13px/1 var(--sans);letter-spacing:0;margin:44px 0 12px;color:var(--r-ink)}
+.rails .rbar{display:flex;gap:3px;height:10px}.rails .rbar span{flex:1;border-radius:2px}
+.rails .see-yes{background:var(--r-acc)}.rails .see-not-yet{background:var(--r-acc-2)}
+.rails .see-no{background:repeating-linear-gradient(135deg,var(--r-hair) 0 3px,#fff 3px 6px);box-shadow:inset 0 0 0 1px var(--r-hair)}
+.rails .rkey{display:flex;flex-wrap:wrap;gap:6px 22px;margin:10px 0 0;font-size:12.5px;color:var(--r-mut)}
+.rails .rkey i{display:inline-block;width:9px;height:9px;border-radius:2px;margin-right:6px;vertical-align:0}.rails .rkey b{color:var(--r-ink);font:500 12.5px var(--mono);margin-left:4px}
+.rails .rscroll{overflow-x:auto}
+.rails .rtab{width:100%;border-collapse:collapse;font-size:13.5px}
+.rails .rtab th{font-family:var(--sans);text-transform:none;letter-spacing:0}
+.rails .rtab thead th{font-weight:500;font-size:12px;color:var(--r-mut);text-align:left;padding:0 12px 8px 0;border-bottom:1px solid var(--r-ink);white-space:nowrap}
+.rails .rtab td{padding:11px 12px 11px 0;border-bottom:1px solid var(--r-hair);vertical-align:top}
+.rails .rtab tbody tr:not(.grp):hover td{background:var(--r-row)}
+.rails .rtab tr.grp th{text-align:left;font-weight:600;font-size:12px;padding:18px 0 6px;border-bottom:1px solid var(--r-hair);color:var(--r-ink)}
+.rails .rtab tr.grp th span{color:var(--r-mut);font:500 12px var(--mono);margin-left:6px}
+.rails .rtab td b{font-weight:600}.rails .rtab td>span:not(.rst){display:block;color:var(--r-mut);font:12px/1.4 var(--sans);letter-spacing:0;margin-top:2px}
+.rails .rtab td.rk{color:var(--r-mut);max-width:220px}
+.rails .rtab .num{text-align:right;padding-right:16px}
+.rails .rfig b{font:500 15px var(--mono);letter-spacing:-.02em;font-variant-numeric:tabular-nums}.rails .rfig b.rnone{color:var(--r-mut)}
+.rails .rtab td.rd{white-space:nowrap;padding-right:0}.rails .rtab td.rd a{color:var(--r-ink);text-decoration-color:var(--r-hair)}
+.rails .rst{display:inline-flex;align-items:center;gap:7px;white-space:nowrap}
+.rails .rst i{display:inline-block;width:8px;height:8px;border-radius:50%;flex:none}
+.rails .rst.see-yes,.rails .rst.see-not-yet,.rails .rst.see-no{background:none;box-shadow:none}
+.rails .rst.see-yes i{background:var(--r-acc)}.rails .rst.see-not-yet i{background:var(--r-acc-2)}.rails .rst.see-no i{background:#fff;box-shadow:inset 0 0 0 1.5px #B9B9BE}
+.rails .rread{max-width:72ch;font-size:14px;color:var(--r-mut);margin:0}
+@media (max-width:760px){.rails .rtab .rk,.rails .rtab .rd,.rails .rtab thead{display:none}.rails .rkpi div{padding-left:0!important;border-left:0!important}
+.rails .rtab,.rails .rtab tbody,.rails .rtab tr.grp,.rails .rtab tr.grp th{display:block}
+.rails .rtab tbody tr:not(.grp){display:grid;grid-template-columns:1fr auto;gap:6px 14px;padding:12px 0;border-bottom:1px solid var(--r-hair)}
+.rails .rtab tbody tr:not(.grp) td{padding:0;border:0}.rails .rtab td.rfig{grid-column:2;grid-row:1/span 2;padding:0;max-width:140px;white-space:normal}.rails .rfig b{white-space:nowrap}}
 /* forms */
 .form{display:grid;gap:14px;max-width:560px}.form label{font-weight:600;font-size:14px;display:block;margin-bottom:4px}
 .form input,.form select,.form textarea{width:100%;font:16px var(--sans);color:var(--ink);background:var(--paper);border:1px solid var(--rule);border-radius:8px;padding:10px 12px}
@@ -291,7 +397,7 @@ HEAD = """<!doctype html><html lang="en"><meta charset="utf-8">
 <span class="netchips" title="Covers x402 payments on Base"><span class="chip-sm">x402</span><span class="chip-sm">Base</span></span>
 <form class="hsearch" role="search" action="%(root)s/" method="get"><label class="vh" for="hq">Search the record</label>
 <input id="hq" name="q" type="search" placeholder="Search sellers, operators, wallets, or a job" autocomplete="off"></form>
-<nav class="main" aria-label="Main"><a href="%(root)s/square/">Square</a><a href="%(root)s/board/">Board</a><a href="%(root)s/brief/">Brief</a><details class="navmore"><summary>Explore</summary><div class="navpanel"><a href="%(root)s/s/">Sellers</a><a href="%(root)s/o/">Operators</a><a href="%(root)s/b/">Buyers</a><a href="%(root)s/map/">Map</a><a href="%(root)s/leaders/">Leaders</a><a href="%(root)s/prices/">Prices</a><a href="%(root)s/where/">Where</a><a href="%(root)s/watch/">Watch</a></div></details><a href="%(root)s/pricing/">Pricing</a><a href="%(root)s/docs/">Docs</a><details class="navmore"><summary>Company</summary><div class="navpanel"><a href="%(root)s/about/">About</a><a href="%(root)s/contact/">Contact</a></div></details><a class="pro" href="%(root)s/pro.html">Pro</a></nav>
+<nav class="main" aria-label="Main"><a href="%(root)s/square/">The Square</a><a href="%(root)s/board/">Board</a><a href="%(root)s/brief/">Brief</a><details class="navmore"><summary>Explore</summary><div class="navpanel"><a href="%(root)s/s/">Sellers</a><a href="%(root)s/o/">Operators</a><a href="%(root)s/b/">Buyers</a><a href="%(root)s/map/">Map</a><a href="%(root)s/leaders/">Leaders</a><a href="%(root)s/prices/">Prices</a><a href="%(root)s/where/">Where</a><a href="%(root)s/rails/">Rails</a><a href="%(root)s/watch/">Watch</a></div></details><a href="%(root)s/pricing/">Pricing</a><a href="%(root)s/docs/">Docs</a><details class="navmore"><summary>Company</summary><div class="navpanel"><a href="%(root)s/about/">About</a><a href="%(root)s/contact/">Contact</a></div></details><a class="pro" href="%(root)s/pro.html">Pro</a></nav>
 </div></header>
 """
 

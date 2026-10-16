@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Copied from the Aušrinė lab (commit f04f064). Edit it there, not here.
+# Copied from the Aušrinė lab (commit abfcd4a). Edit it there, not here.
 """buyer_pages_test.py — a page for every buyer wallet, from a synthetic rollup. No network.
 
     python3 buyer_pages_test.py
@@ -175,10 +175,8 @@ class Pages(unittest.TestCase):
     def test_the_nav_and_the_front_door_point_at_the_buyers(self):
         self.assertIn('<a href="https://example.test/atlas/b/">Buyers</a>', self.page("s", "solo.example", "index.html"))
         self.assertIn('<a href="https://example.test/atlas/b/">Buyers</a>', self.page("b", PLAIN, "index.html"))
-        door = self.page("index.html")
-        self.assertIn('<a href="https://example.test/atlas/b/%s/"><code>0xAbCd…a1a1</code></a>' % self.agent, door)
+        door = self.page("index.html")          # the home page points at the buyers through its "agents at work" figure (2026-10-15)
         self.assertIn('<a href="https://example.test/atlas/b/">agents at work</a>: wallets paying 3+ sellers', door)
-        self.assertIn('<a href="https://example.test/atlas/b/">All buyers</a>', door)
 
 
 class WhatItBought(unittest.TestCase):

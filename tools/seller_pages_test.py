@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Copied from the Aušrinė lab (commit b3ffade). Edit it there, not here.
+# Copied from the Aušrinė lab (commit abfcd4a). Edit it there, not here.
 """seller_pages_test.py — the public pages, from a synthetic store. No network.
 
     python3 seller_pages_test.py
@@ -92,7 +92,8 @@ class Pages(unittest.TestCase):
         self.assertIn("unclaimed page", html)
 
     def test_sitemap_lists_every_page(self):
-        self.assertEqual(self.page("sitemap-sellers.xml").count("<loc>"), 65)     # home + the list + 63 sellers
+        self.assertEqual(self.page("sitemap-sellers.xml").count("<loc>"), 66)     # home + the list + 63 sellers + /rails/
+        self.assertIn("/rails/</loc>", self.page("sitemap-sellers.xml"))
 
     def test_rarity_decides_who_is_a_rival(self):
         html = self.page("s", "evil.example", "index.html")
