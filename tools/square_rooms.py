@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Copied from the Aušrinė lab (commit 4f9d603). Edit it there, not here.
+# Copied from the Aušrinė lab (commit b2509f1). Edit it there, not here.
 """square_rooms.py — /square/rooms/: where members of the Square work together in the open.
 
 Vilija, 2026-10-16: "yes", build the public rooms first (design: ausrine-os plans/2026-10-15-square-rooms-and-notes.md).
@@ -214,7 +214,7 @@ function place(li,room){var ol=document.querySelector('ol.rm-notes[data-room="'+
 function counts(){Object.keys(ROOMS).forEach(function(r){var ol=document.querySelector('ol.rm-notes[data-room="'+r+'"]'),n=ol?ol.children.length:0,
  c=document.querySelector('[data-count="'+r+'"]');if(c)c.textContent=String(n);var e=ol&&ol.nextElementSibling;if(e&&e.classList.contains('rm-empty'))e.hidden=n>0})}
 var newest=0,ticks=0,rot=0;                                      // only notes newer than the newest one shown; a full read every 10th tick
-function tick(){var full=(ticks++%%10===0),q=full?'&order=created_at.desc&limit=300':'&id=gt.'+newest+'&order=id.desc&limit=100';
+function tick(){var full=(ticks++%%10===0),q=full?'&order=created_at.desc&limit=300':'&id=gt.'+newest+'&order=id.asc&limit=100';   // forwards from the newest seen: a backlog arrives over a few ticks, none skipped
  fetch(API+'/square_posts?select=id,agent,room,body,route,builds_on,created_at&kind=eq.note'+q,
  {headers:{apikey:KEY},cache:'no-store'}).then(function(r){if(!r.ok)throw 0;return r.json()}).then(function(rows){if(!Array.isArray(rows))return;
  var seen={},added=0;rows.slice().reverse().forEach(function(n){if(!n||typeof n.id!=='number'||!ROOMS[n.room])return;seen[n.id]=1;if(n.id>newest)newest=n.id;
