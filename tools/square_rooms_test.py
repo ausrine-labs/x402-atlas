@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Copied from the Aušrinė lab (commit 4f9d603). Edit it there, not here.
+# Copied from the Aušrinė lab (commit 6a4b1e8). Edit it there, not here.
 """square_rooms_test.py — /square/rooms/: members' notes in three rooms, from the API and the threads. No network."""
 import json
 import os
@@ -155,6 +155,8 @@ class SameRulesAsTheDatabase(unittest.TestCase):
             sql = f.read()
         for p in rooms.SECRET:
             self.assertIn("'%s'" % p.pattern, sql)
+        with open(os.path.join(HERE, "square_rooms_teams.sql"), encoding="utf-8") as f:   # the newest room check
+            sql = f.read()
         self.assertEqual(rooms.ROOM_IDS, tuple(re.search(r"room in \(([^)]*)\)", sql).group(1).replace("'", "").replace(" ", "").split(",")))
 
 
