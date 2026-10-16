@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Copied from the Aušrinė lab (commit b1748f7). Edit it there, not here.
+# Copied from the Aušrinė lab (commit a4be8e1). Edit it there, not here.
 """front_door.py — the Atlas's home page: the public record of agent commerce, read off the chain.
 
 Not a dashboard and not a table: one sentence about what this is, one search box that
@@ -101,7 +101,7 @@ N.forEach((n,k)=>{n.r=n.kind==='s'?(small?9:12)+(small?18:30)*Math.sqrt(n.usdc/m
 let h=0;for(const c of n.id+(n.host||''))h=(h*31+c.charCodeAt(0))%%360;n.h=h;n.ph=k*0.7;
 const a=k*2.39996,r=12*Math.sqrt(k);n.x=W/2+r*Math.cos(a)*1.8;n.y=H/2+r*Math.sin(a);n.vx=0;n.vy=0;});
 const L=D.links.map(l=>({s:by[l.s],t:by[l.t],n:l.n})).filter(l=>l.s&&l.t);
-let it=0,al=1;const STEPS=420,CHUNK=small?12:30;
+let it=0,al=1;const STEPS=420,CHUNK=small?8:6;          // a few milliseconds of layout a frame: the network assembles over about a second
 function settle(k){for(let e=it+k;it<e&&it<STEPS;it++,al*=0.989){
 for(let i=0;i<N.length;i++)for(let j=i+1;j<N.length;j++){const a=N[i],b=N[j];const dx=b.x-a.x,dy=b.y-a.y,d2=dx*dx+dy*dy||1;
 const min=a.r+b.r+3,f=(a.kind==='s'&&b.kind==='s'?55:a.kind==='s'||b.kind==='s'?18:7)/d2;let fx=dx*f*al,fy=dy*f*al;
@@ -123,14 +123,16 @@ a.setAttribute('aria-label',n.host);a.style.width=a.style.height=(2*n.r)+'px';a.
 if(n.icon){const im=document.createElement('img');im.alt='';im.loading='lazy';im.src=ROOT+'/icons/'+encodeURIComponent(n.icon);a.appendChild(im);}
 else a.textContent=n.host[0].toUpperCase();
 a.addEventListener('mouseenter',()=>show(n));a.addEventListener('mouseleave',hide);a.addEventListener('focus',()=>show(n));a.addEventListener('blur',hide);
-n.el=a;box.appendChild(a);});
+if(still)a.style.visibility='hidden';n.el=a;box.appendChild(a);});
 box.addEventListener('mousemove',e=>{if(focus&&focus.kind==='s')return;const r=box.getBoundingClientRect(),x=e.clientX-r.left,y=e.clientY-r.top;
 let best=null,bd=100;N.forEach(n=>{if(n.kind!=='w')return;const d=(n.dx-x)**2+(n.dy-y)**2;if(d<bd){bd=d;best=n;}});if(best)show(best);else if(focus)hide();});
 box.addEventListener('mouseleave',hide);
 const tot=L.reduce((a,l)=>a+l.n,0),cum=[];L.reduce((a,l)=>{cum.push(a+l.n);return a+l.n;},0);
 function pick(){const r=Math.random()*tot;let lo=0,hi=cum.length-1;while(lo<hi){const m=(lo+hi)>>1;if(cum[m]<r)lo=m+1;else hi=m;}return L[lo];}
 const P=[];if(L.length&&!still)for(let i=0;i<70;i++)P.push({l:pick(),t:Math.random()});
-function frame(ts){if(it<STEPS)settle(still?STEPS:CHUNK);ctx.clearRect(0,0,W,H);
+function frame(ts){if(it<STEPS)settle(CHUNK);
+if(still&&it<STEPS){requestAnimationFrame(frame);return;}          // reduced motion: worked out out of sight, shown once, finished
+if(still)N.forEach(n=>{if(n.el)n.el.style.visibility='';});ctx.clearRect(0,0,W,H);
 N.forEach(n=>{n.dx=n.x+(still?0:4*Math.sin(ts/2600+n.ph));n.dy=n.y+(still?0:4*Math.cos(ts/3100+n.ph));});
 ctx.lineWidth=1;L.forEach(l=>{ctx.strokeStyle=focus?((l.s===focus||l.t===focus)?'rgba(11,11,12,.55)':'rgba(11,11,12,.04)'):'rgba(11,11,12,.09)';
 ctx.beginPath();ctx.moveTo(l.s.dx,l.s.dy);ctx.lineTo(l.t.dx,l.t.dy);ctx.stroke();});
