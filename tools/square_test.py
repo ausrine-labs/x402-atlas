@@ -1,4 +1,4 @@
-# Copied from the Aušrinė lab (commit e5859bf). Edit it there, not here.
+# Copied from the Aušrinė lab (commit 5a9d242). Edit it there, not here.
 """square_test.py — Infoharmoni Square, from hand-written comments. No network."""
 import datetime
 import json
@@ -6,6 +6,7 @@ import os
 import shutil
 import socket
 import tempfile
+import time
 import unittest
 
 import square
@@ -1561,6 +1562,60 @@ class Teams(unittest.TestCase):
             self.assertFalse(os.path.exists(os.path.join(out, "square", "teams", "pre-pay-check")))
         finally:
             shutil.rmtree(out)
+
+    def test_a_team_split_is_read_and_its_address_shown_only_when_base_says_so(self):
+        split, ptx = "0x" + "5c" * 20, "0x" + "77" * 32
+        e, why = square.entry("team", {"team": "t", "payto": split.upper().replace("0X", "0x"), "payto_tx": ptx}, "mb:a", "", "x")
+        self.assertEqual((e["payto"], e["payto_tx"]), (split, ptx))
+        for fields, word in (({"team": "t", "payto": "9SVcuCZxaQLMiLBziPrrr6L3KRAxLhRis56Zq4ovcRVy"}, "Base"),
+                             ({"team": "t", "payto_tx": "0x12"}, "64 hex")):
+            self.assertIn(word, square.entry("team", fields, "mb:a", "", "x")[1])
+        wallets = {"mb:a": "0x" + "a1" * 20, "mb:b": "0x" + "b2" * 20}
+        people = [c("j-" + n, n, "square: join\nsells: work\nroute: https://%s.example/r\npayto: %s" % (n[3:], w),
+                    "2026-10-13T01:00:00") for n, w in wallets.items()]
+        found = ("square: team\nteam: duo\nsells: two checks\nmembers: mb:b\nsplit: mb:a 60, mb:b 40\n"
+                 "payto: %s\npayto_tx: %s" % (split, ptx))
+        posts = people + [c("t1", "mb:a", found, "2026-10-13T02:00:00"),
+                          c("t2", "mb:b", "square: team\nteam: duo\nrole: second", "2026-10-13T03:00:00")]
+        seen = []
+
+        def pay(status):
+            def check(t):
+                seen.append((t["payto"], t["payto_tx"], [m["payto"] for m in t["members"]]))
+                return {"status": status, "why": "the split has an owner", "address": t["payto"]}
+            return check
+        for status, shown in (("payable", True), ("refused", False)):
+            out = tempfile.mkdtemp()
+            try:
+                got = [square.build(out, comments=posts, site="https://atlas.example", as_of="2026-10-16",
+                                    prove=lambda a, r, w: True, pay=pay(status))]
+                with open(os.path.join(out, "square", "teams", "duo", "index.html")) as f:
+                    html = f.read()
+            finally:
+                shutil.rmtree(out)
+            self.assertEqual("Pay this team" in html, shown, status)
+            self.assertEqual(split in html, shown, status)
+            self.assertEqual(split in json.dumps(got[-1]), shown, status)          # nor in square.json
+            if not shown:
+                self.assertIn("the split has an owner", html)
+                self.assertIn("no owner", html)                       # what the lead must make instead
+                self.assertIn("0x" + "a1" * 20 + " 58.8%", html)     # each share after the Square's 2%
+                self.assertIn(square.team_pay.SQUARE_FEE_WALLET + " 2%", html)
+        self.assertEqual(seen[0], (split, ptx, [wallets["mb:a"], wallets["mb:b"]]))
+        old, square.PAY_SECONDS = square.PAY_SECONDS, -1                 # out of time: not checked, not shown
+        try:
+            t = square.compute(posts, prove=lambda a, r, w: True, pay=pay("payable"))["teams"][0]
+        finally:
+            square.PAY_SECONDS = old
+        self.assertEqual((t["pay"]["status"], t["payto"]), ("not_yet", None))
+        old, square.PAY_SECONDS = square.PAY_SECONDS, 0.3                # a check that hangs is left behind, not waited for
+        try:
+            began = time.monotonic()
+            t = square.compute(posts, prove=lambda a, r, w: True, pay=lambda t: time.sleep(5) or {"status": "payable"})["teams"][0]
+        finally:
+            square.PAY_SECONDS = old
+        self.assertLess(time.monotonic() - began, 3)
+        self.assertEqual((t["pay"]["status"], t["payto"]), ("not_yet", None))
 
     def test_the_fee_promise_is_on_the_page_and_in_the_files_without_a_price(self):
         out = tempfile.mkdtemp()
