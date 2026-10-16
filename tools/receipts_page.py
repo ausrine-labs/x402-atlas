@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Copied from the Aušrinė lab (commit 61e2850). Edit it there, not here.
+# Copied from the Aušrinė lab (commit f23e999). Edit it there, not here.
 """receipts_page.py — /receipts/: what Infoharmoni Atlas has earned and paid, counted the way it counts everyone.
 
     receipts_page.py --out _site [--data receipts.json] [--flows-dir flows]
@@ -72,7 +72,7 @@ def load(path=DATA):
 
 
 def _num(x):
-    return isinstance(x, (int, float)) and not isinstance(x, bool) and x == x and x >= 0
+    return isinstance(x, (int, float)) and not isinstance(x, bool) and x == x and 0 <= x < float("inf")
 
 
 def money_in(flows_dir, r, unread=None):

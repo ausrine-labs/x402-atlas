@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Copied from the Aušrinė lab (commit 61e2850). Edit it there, not here.
+# Copied from the Aušrinė lab (commit f23e999). Edit it there, not here.
 """receipts_page_test.py — /receipts/: our money in (from the chain, sorted three ways) and out (by hand). No network."""
 import json
 import os
@@ -61,6 +61,9 @@ class Receipts(unittest.TestCase):
         self.assertEqual(days["2026-10-14"]["ours"][:2], [1, 0.005])
         self.assertEqual(days["2026-10-14"]["robots"][:2], [1, 0.001])
         self.assertEqual(days["2026-10-13"], {})                                      # read, nothing for us
+        with open(os.path.join(self.flows, "flows-2026-10-12.json"), "w") as f:
+            f.write('{"date": "2026-10-12", "sellers": {}, "edges": [{"from": "%s", "to": "%s", "n_x402": Infinity, "usdc_x402": Infinity}]}' % (CUST, US))
+        self.assertEqual(rp.money_in(self.flows, rp.load(self.data))["2026-10-12"], {})          # an infinite row is not money
 
     def test_the_page_says_what_came_in_and_went_out(self):
         r, page = self.build()
