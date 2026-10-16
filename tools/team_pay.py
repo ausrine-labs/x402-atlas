@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Copied from the Aušrinė lab (commit 5a9d242). Edit it there, not here.
+# Copied from the Aušrinė lab (commit 6232f82). Edit it there, not here.
 """team_pay.py — a team's pay-out address on the Square, checked on Base before the card shows it.
 
 Vilija, 2026-10-16: every team is paid through its own split (0xSplits v2 on Base), made by the team, never by us;
@@ -105,6 +105,8 @@ def expected(team):
         return None, "the team has no split on its card yet"
     want = {}
     for who, pct in split:
+        if pct <= 0:                           # a 0% seat is paid nothing, so the split leaves it out
+            continue
         m = members.get(who)
         w = (m or {}).get("payto")
         if not m or not m.get("wallet_proven") or not w:
