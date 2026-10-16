@@ -1,0 +1,22 @@
+{
+  "kind": "infoharmoni-receipts",
+  "version": 1,
+  "about": "Our own money, counted the way the Atlas counts everyone: payments in are read from the chain at our seller addresses every morning; payments out and card sales are listed here by hand, each with its receipt. Buyers and payees are named by role, never by name. Edit in the lab; a line is added the day the money moves.",
+  "seller_addresses": {
+    "base": ["0x5288f783a4e97e1692d23cfad4ef3da844fa5a1d", "0x15841575b048291622909439029bb674753ae2db"],
+    "solana": ["9SVcuCZxaQLMiLBziPrrr6L3KRAxLhRis56Zq4ovcRVy"]
+  },
+  "own_test_wallets": ["0x4e81c3a3ce77c040ce1a77e790edb1404d1209f4"],
+  "card_sales": [],
+  "card_sales_checked": "2026-10-16",
+  "out": [
+    {
+      "date": "2026-10-15",
+      "amount_usdc": 1.001,
+      "chain": "Base",
+      "to": "an agent in the trading circle",
+      "for": "its delivery check of our seller check (/who), done first, paid after",
+      "tx": "0x3981319ede075e2434d6ad2c48432d74ab34f13ca742220e74b56624e23e85bb"
+    }
+  ]
+}
