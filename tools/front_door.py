@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Copied from the Aušrinė lab (commit abfcd4a). Edit it there, not here.
+# Copied from the Aušrinė lab (commit b1748f7). Edit it there, not here.
 """front_door.py — the Atlas's home page: the public record of agent commerce, read off the chain.
 
 Not a dashboard and not a table: one sentence about what this is, one search box that
@@ -92,8 +92,8 @@ while(fl.children.length>7)fl.removeChild(fl.lastChild);},3400);}}
 const box=document.getElementById('fp-net'),src=document.getElementById('fp-data');if(!box||!src)return;
 const D=JSON.parse(src.textContent),cv=document.getElementById('fp-cv'),ctx=cv.getContext('2d'),tip=document.getElementById('fp-tip');
 const still=matchMedia('(prefers-reduced-motion: reduce)').matches;
-let W=box.clientWidth,H=box.clientHeight;const dpr=Math.max(1,window.devicePixelRatio||1);
-cv.width=W*dpr;cv.height=H*dpr;cv.style.width=W+'px';cv.style.height=H+'px';ctx.setTransform(dpr,0,0,dpr,0,0);
+let W=box.clientWidth,H=box.clientHeight,dpr=1;
+function fit(){dpr=Math.max(1,window.devicePixelRatio||1);cv.width=W*dpr;cv.height=H*dpr;cv.style.width=W+'px';cv.style.height=H+'px';ctx.setTransform(dpr,0,0,dpr,0,0);}fit();
 const small=W<700;const ws=D.nodes.filter(n=>n.kind==='w').sort((a,b)=>b.usdc-a.usdc).slice(0,small?160:330);
 const N=D.nodes.filter(n=>n.kind==='s').concat(ws),by={};N.forEach(n=>by[n.id]=n);
 const mS=Math.max(1e-9,...N.filter(n=>n.kind==='s').map(n=>n.usdc)),mW=Math.max(1e-9,...N.filter(n=>n.kind==='w').map(n=>n.usdc));
@@ -145,6 +145,11 @@ if(focus){tip.style.left=focus.dx+'px';tip.style.top=(focus.dy-focus.r)+'px';}
 if(!still||it<STEPS)requestAnimationFrame(frame);}
 // the layout is worked out a few steps a frame, and only once the network is on screen: the page never waits on it
 let go=false;const start=()=>{if(!go){go=true;requestAnimationFrame(frame);}};
+// a window resized or a phone turned: the same picture, stretched to the new box
+let rz=null;window.addEventListener('resize',()=>{clearTimeout(rz);rz=setTimeout(()=>{const w=box.clientWidth,h=box.clientHeight;
+if(!w||!h||(w===W&&h===H&&Math.max(1,window.devicePixelRatio||1)===dpr))return;const kx=w/W,ky=h/H;W=w;H=h;fit();
+N.forEach(n=>{n.x=Math.max(n.r+6,Math.min(W-n.r-6,n.x*kx));n.y=Math.max(n.r+6,Math.min(H-n.r-6,n.y*ky));});
+if(still)requestAnimationFrame(frame);},150);});
 if('IntersectionObserver' in window){new IntersectionObserver((es,o)=>{if(es.some(x=>x.isIntersecting)){o.disconnect();start();}},{rootMargin:'200px'}).observe(box);}else start();
 })();
 </script>"""
