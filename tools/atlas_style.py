@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Copied from the Aušrinė lab (commit 4f9d603). Edit it there, not here.
+# Copied from the Aušrinė lab (commit 61e2850). Edit it there, not here.
 """atlas_style.py — the one look of the Infoharmoni Atlas: stylesheet, header, footer.
 
 Every page the site build writes carries the same three things, written here once:
@@ -311,6 +311,11 @@ background:radial-gradient(circle at 1px 1px,#E9E9EC 1px,transparent 1.4px) 0 0/
 .rm-live{font:12.5px var(--mono);color:var(--muted);margin:10px 0 0}.rm-live:before{content:"";display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--acc);margin-right:8px;vertical-align:1px}
 .rm-note.rm-new{background:linear-gradient(90deg,rgba(255,90,31,.08),transparent 60%);transition:background 1s}
 .rm-how{margin:48px 0 24px;max-width:860px}.rm-how h2{font:600 22px var(--sans);letter-spacing:-.02em}
+/* /receipts/ (receipts_page.py, 2026-10-16): our own money, in and out */
+.rc h1{font:600 clamp(36px,4.6vw,56px)/1 var(--sans);letter-spacing:-.045em;margin:12px 0 12px}.rc-lede{font-size:17px;color:var(--ink-2);max-width:62ch}
+.rc-kpi{display:grid;grid-template-columns:repeat(3,1fr);margin:24px 0 8px;border-top:1px solid var(--ink)}.rc-kpi div{padding:14px 0}.rc-kpi div+div{padding-left:20px;border-left:1px solid var(--rule)}
+.rc-kpi dt{font-size:12.5px;color:var(--muted)}.rc-kpi dd{margin:6px 0 0;font:500 28px/1 var(--mono);letter-spacing:-.03em}.rc-warn{font-weight:600;color:var(--down)}.rc-list{padding-left:18px}.rc-list li{margin:0 0 8px}
+@media (max-width:760px){.rc-kpi{grid-template-columns:1fr}.rc-kpi div+div{padding-left:0;border-left:0}}
 /* /rails/ (rails_page.py): a screener. Black on white, hairlines, one accent for what the Atlas itself counts */
 .rails{--r-ink:#0B0B0C;--r-mut:#6E6E73;--r-hair:#E8E8EA;--r-acc:#FF5A1F;--r-acc-2:#FFB596;--r-row:#FAFAFA}
 .rails{color:var(--r-ink)}
@@ -411,7 +416,7 @@ HEAD = """<!doctype html><html lang="en"><meta charset="utf-8">
 <span class="netchips" title="Covers x402 payments on Base"><span class="chip-sm">x402</span><span class="chip-sm">Base</span></span>
 <form class="hsearch" role="search" action="%(root)s/" method="get"><label class="vh" for="hq">Search the record</label>
 <input id="hq" name="q" type="search" placeholder="Search sellers, operators, wallets, or a job" autocomplete="off"></form>
-<nav class="main" aria-label="Main"><a href="%(root)s/square/">The Square</a><a href="%(root)s/board/">Board</a><a href="%(root)s/brief/">Brief</a><details class="navmore"><summary>Explore</summary><div class="navpanel"><a href="%(root)s/s/">Sellers</a><a href="%(root)s/o/">Operators</a><a href="%(root)s/b/">Buyers</a><a href="%(root)s/map/">Map</a><a href="%(root)s/leaders/">Leaders</a><a href="%(root)s/prices/">Prices</a><a href="%(root)s/where/">Where</a><a href="%(root)s/rails/">Rails</a><a href="%(root)s/watch/">Watch</a></div></details><a href="%(root)s/pricing/">Pricing</a><a href="%(root)s/docs/">Docs</a><details class="navmore"><summary>Company</summary><div class="navpanel"><a href="%(root)s/about/">About</a><a href="%(root)s/contact/">Contact</a></div></details><a class="pro" href="%(root)s/pro.html">Pro</a></nav>
+<nav class="main" aria-label="Main"><a href="%(root)s/square/">The Square</a><a href="%(root)s/board/">Board</a><a href="%(root)s/brief/">Brief</a><details class="navmore"><summary>Explore</summary><div class="navpanel"><a href="%(root)s/s/">Sellers</a><a href="%(root)s/o/">Operators</a><a href="%(root)s/b/">Buyers</a><a href="%(root)s/map/">Map</a><a href="%(root)s/leaders/">Leaders</a><a href="%(root)s/prices/">Prices</a><a href="%(root)s/where/">Where</a><a href="%(root)s/rails/">Rails</a><a href="%(root)s/watch/">Watch</a></div></details><a href="%(root)s/pricing/">Pricing</a><a href="%(root)s/docs/">Docs</a><details class="navmore"><summary>Company</summary><div class="navpanel"><a href="%(root)s/about/">About</a><a href="%(root)s/contact/">Contact</a><a href="%(root)s/receipts/">Receipts</a></div></details><a class="pro" href="%(root)s/pro.html">Pro</a></nav>
 </div></header>
 """
 

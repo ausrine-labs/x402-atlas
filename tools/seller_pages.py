@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Copied from the Aušrinė lab (commit abfcd4a). Edit it there, not here.
+# Copied from the Aušrinė lab (commit 61e2850). Edit it there, not here.
 """seller_pages.py — a public page for every seller in the agent economy.
 
 Roughly 2,000 teams sell to agents over x402. Each of them wants to know how
@@ -52,6 +52,7 @@ import square  # noqa: E402
 import site_pages  # noqa: E402
 import solana_page  # noqa: E402
 import rails_page  # noqa: E402
+import receipts_page  # noqa: E402
 import relationships  # noqa: E402
 import tiers  # noqa: E402
 import whales  # noqa: E402  (explorer: a wallet's public page on its own chain)
@@ -600,6 +601,7 @@ def build(out, store=None, site=None, claims=None, whales=None, operators=None, 
     if not drew_square:
         square.placeholder(out, SITE, as_of, foot=foot, n=n)
     drew_rails = build_rails(out, flows_dir, free)
+    drew_receipts = build_receipts(out, flows_dir, free)
     on_square = square_hosts(drew_square)
 
     for host, me in A.items():
@@ -863,12 +865,14 @@ location.href='https://buy.'+'polar.sh/'+a.dataset.checkout+'?reference_id='+enc
             f.write("<url><loc>%s/square/</loc><lastmod>%s</lastmod></url>\n" % (SITE, as_of))
         if drew_rails:
             f.write("<url><loc>%s/rails/</loc><lastmod>%s</lastmod></url>\n" % (SITE, as_of))
+        if drew_receipts:
+            f.write("<url><loc>%s/receipts/</loc><lastmod>%s</lastmod></url>\n" % (SITE, as_of))
         if drew_sol:
             f.write("<url><loc>%s/map/solana/</loc><lastmod>%s</lastmod></url>\n" % (SITE, as_of))
             f.write("<url><loc>%s/solana/</loc><lastmod>%s</lastmod></url>\n" % (SITE, as_of))
         f.write("</urlset>\n")
     return {"as_of": as_of, "sellers": n, "groups": len(groups_listing), "door": door, "out": out, "map": drew_map,
-            "board": drew_board, "square": bool(drew_square), "rails": drew_rails, "solana": drew_sol, "free": free, "groups_built": len(group_slugs)}
+            "board": drew_board, "square": bool(drew_square), "rails": drew_rails, "receipts": drew_receipts, "solana": drew_sol, "free": free, "groups_built": len(group_slugs)}
 
 
 def sellers_sample(rel, A, as_of):
@@ -1058,6 +1062,20 @@ def build_rails(out, flows_dir, free=None):
             print("rails: not built%s (%s: %s)" % (" from the flow files" if fd else "", type(e).__name__, e))
             continue
         print("rails: %d rails, measured %s" % (r["rails"], "yes" if r["measured"] else "no"))
+        return True
+    return False
+
+
+def build_receipts(out, flows_dir, free=None):
+    """/receipts/: our own money, in from the chain and out by hand (receipts_page.py). Every page's menu links it, so a
+    failure to read the flow files still writes the page without them. True when the page was written."""
+    for fd in ((flows_dir, None) if flows_dir else (None,)):
+        try:
+            r = receipts_page.build(out, flows_dir=fd, site=SITE, free=free)
+        except Exception as e:  # noqa: BLE001 - the page may fail, the Atlas may not
+            print("receipts: not built%s (%s: %s)" % (" from the flow files" if fd else "", type(e).__name__, e))
+            continue
+        print("receipts: %d days read" % r["days"])
         return True
     return False
 
