@@ -1,0 +1,265 @@
+{
+  "kind": "infoharmoni-rails",
+  "version": 1,
+  "about": "The rails AI agents pay on, which of them settle where we can read every payment, and what each says about itself. Updated each week with the market brief: add a dated line to a rail's changes, and change its latest figure only with the page it came from. Each rail has a short \"by\" (who runs it, a few words). A claim may carry a short figure (at most 12 characters) and a label for it; without one the page says no figures were published.",
+  "rails": [
+    {
+      "id": "x402-base",
+      "name": "x402 on Base",
+      "by": "x402 Foundation · Coinbase",
+      "kind": "per-call payments over HTTP",
+      "who": "an open standard stewarded by the x402 Foundation (Linux Foundation); Coinbase runs the main facilitator",
+      "moves": "USDC, one signed payment per HTTP call, answered in the same request",
+      "settles": "chain",
+      "we_see": "daily",
+      "measured": "base",
+      "claim": {
+        "text": "x402 overall, last 30 days: 75.41M transactions, $24.24M, 94.06K buyers, 22K sellers (all chains, all payees)",
+        "date": "2026-08-25",
+        "source": "https://www.x402.org",
+        "self_reported": true,
+        "figure": "$24.24M",
+        "figure_label": "x402 in 30 days, all chains"
+      },
+      "changes": [
+        {
+          "date": "2026-10-15",
+          "text": "On this page from today. The Atlas reads every payment to sellers listed in Coinbase's registry, every morning."
+        }
+      ]
+    },
+    {
+      "id": "x402-solana",
+      "name": "x402 on Solana",
+      "by": "x402 · payAI, Figment, Coinbase",
+      "kind": "per-call payments over HTTP",
+      "who": "the same standard; processors payAI, Figment, Coinbase and others",
+      "moves": "USDC, one payment per call, settled by a processor",
+      "settles": "chain",
+      "we_see": "windows",
+      "measured": "solana",
+      "claim": {
+        "text": "Solana had about 70% of monthly x402 volume in mid-August (tracker not named)",
+        "date": "2026-09-15",
+        "source": "https://cryptobriefing.com/solana-x402-market-share-dominance/",
+        "self_reported": false,
+        "figure": "~70%",
+        "figure_label": "of x402 volume in mid-August"
+      },
+      "changes": [
+        {
+          "date": "2026-10-15",
+          "text": "On this page from today. The Atlas reads every payment the 27 known processors settle, in six-hour windows."
+        }
+      ]
+    },
+    {
+      "id": "virtuals-acp",
+      "name": "Virtuals Agent Commerce Protocol",
+      "by": "Virtuals",
+      "kind": "jobs between agents, with escrow and an evaluator",
+      "who": "Virtuals Protocol",
+      "moves": "tokens and USDC in on-chain escrow, released when an evaluator signs off",
+      "settles": "chain",
+      "we_see": "not_yet",
+      "claim": {
+        "text": "$470M in \"agent GDP\" and 1.77M completed jobs by February 2026",
+        "date": "2026-02",
+        "source": "https://forkast.news/the-machine-as-buyer-virtuals-acp-and-the-evaluator-problem/",
+        "self_reported": true,
+        "figure": "$470M",
+        "figure_label": "\"agent GDP\" by February 2026"
+      },
+      "changes": [
+        {
+          "date": "2026-10-15",
+          "text": "On this page from today. It settles on Base, but the Atlas does not read its escrow contracts yet."
+        }
+      ]
+    },
+    {
+      "id": "olas-mech",
+      "name": "Olas Mech Marketplace",
+      "by": "Olas",
+      "kind": "agents buying model and tool requests from other agents",
+      "who": "Olas (Autonolas)",
+      "moves": "small on-chain payments per request; a 15% fee since 15 June 2026",
+      "settles": "chain",
+      "we_see": "not_yet",
+      "claim": {
+        "text": "14,792,330 agent-to-agent transactions all time; $109,979.63 marketplace turnover",
+        "date": "2026-10-15",
+        "source": "https://olas.network/",
+        "self_reported": true,
+        "figure": "14.8M",
+        "figure_label": "agent-to-agent transactions, all time"
+      },
+      "changes": [
+        {
+          "date": "2026-10-15",
+          "text": "On this page from today. On public chains, not read by the Atlas yet."
+        }
+      ]
+    },
+    {
+      "id": "near-agent-market",
+      "name": "NEAR Agent Market",
+      "by": "NEAR AI",
+      "kind": "jobs by bid, held payment, a judge",
+      "who": "NEAR AI (market.near.ai)",
+      "moves": "a prepaid balance (card or crypto), or x402 USDC on NEAR between agents",
+      "settles": "mixed",
+      "we_see": "not_yet",
+      "claim": {
+        "text": "\"Today it completes a few jobs per day\"; the stated goal is 1,000 a day",
+        "date": "2026-10-12",
+        "source": "https://market.near.ai/jobs",
+        "self_reported": true,
+        "figure": "a few a day",
+        "figure_label": "jobs completed; the goal is 1,000"
+      },
+      "changes": [
+        {
+          "date": "2026-10-15",
+          "text": "On this page from today. We bid there as a worker; its x402 path runs on NEAR, which the Atlas does not read."
+        }
+      ]
+    },
+    {
+      "id": "visa-intelligent-commerce",
+      "name": "Visa Intelligent Commerce",
+      "by": "Visa",
+      "kind": "card payments made by agents",
+      "who": "Visa",
+      "moves": "card payments with tokens that carry who the agent is and what the payment is for",
+      "settles": "off_chain",
+      "we_see": "no",
+      "claim": {
+        "text": "No agent payment figures published. New in June: a directory of agents and merchants Visa has checked, an Agent Score for merchant sites, and an OpenAI partnership",
+        "date": "2026-06-10",
+        "source": "https://usa.visa.com/about-visa/newsroom/press-releases.releaseId.22491.html",
+        "self_reported": true
+      },
+      "changes": [
+        {
+          "date": "2026-10-15",
+          "text": "On this page from today."
+        }
+      ]
+    },
+    {
+      "id": "mastercard-agent-pay",
+      "name": "Mastercard Agent Pay",
+      "by": "Mastercard",
+      "kind": "card payments made by agents",
+      "who": "Mastercard",
+      "moves": "card payments with Agentic Tokens, each scoped to what the agent may buy",
+      "settles": "off_chain",
+      "we_see": "no",
+      "claim": {
+        "text": "Launched 29 April 2025 with Microsoft, IBM, Braintree and Checkout.com; no figures published",
+        "date": "2025-04-29",
+        "source": "https://www.maginative.com/article/mastercard-unveils-agent-pay-to-let-ai-agents-shop-and-pay-on-your-behalf/",
+        "self_reported": true
+      },
+      "changes": [
+        {
+          "date": "2026-10-15",
+          "text": "On this page from today."
+        }
+      ]
+    },
+    {
+      "id": "acp-openai-stripe",
+      "name": "Agentic Commerce Protocol",
+      "by": "OpenAI · Stripe",
+      "kind": "checkout inside an AI assistant",
+      "who": "OpenAI and Stripe",
+      "moves": "card payments through Stripe's Shared Payment Token; the merchant stays merchant of record",
+      "settles": "off_chain",
+      "we_see": "no",
+      "claim": {
+        "text": "ChatGPT is the first platform to use it; no merchant count or volume published",
+        "date": "2026-10-15",
+        "source": "https://www.agenticcommerce.dev",
+        "self_reported": true
+      },
+      "changes": [
+        {
+          "date": "2026-10-15",
+          "text": "On this page from today."
+        }
+      ]
+    },
+    {
+      "id": "stripe-mpp",
+      "name": "Machine Payments Protocol",
+      "by": "Stripe",
+      "kind": "per-call payments, like x402",
+      "who": "Stripe",
+      "moves": "a payment per request, over card rails, wallets or, where supported, crypto",
+      "settles": "mixed",
+      "we_see": "no",
+      "claim": {
+        "text": "Launched in March 2026 as a coordination layer, not a settlement network; no figures published",
+        "date": "2026-03-23",
+        "source": "https://cointelegraph.com/news/stripe-mpp-ai-agents-micropayments-forrester",
+        "self_reported": false
+      },
+      "changes": [
+        {
+          "date": "2026-10-15",
+          "text": "On this page from today."
+        }
+      ]
+    },
+    {
+      "id": "ucp",
+      "name": "Universal Commerce Protocol",
+      "by": "Google · Shopify",
+      "kind": "a standard for agents to check out at any merchant",
+      "who": "Google and Shopify",
+      "moves": "nothing itself: it carries the checkout; any payment processor moves the money",
+      "settles": "off_chain",
+      "we_see": "no",
+      "claim": {
+        "text": "Announced 11 January 2026, \"endorsed by 20+ retailers and platforms\"; no volume published",
+        "date": "2026-01-11",
+        "source": "https://www.shopify.com/news/ai-commerce-at-scale",
+        "self_reported": true,
+        "figure": "20+",
+        "figure_label": "retailers and platforms endorsing it"
+      },
+      "changes": [
+        {
+          "date": "2026-10-15",
+          "text": "On this page from today."
+        }
+      ]
+    },
+    {
+      "id": "ap2",
+      "name": "Agent Payments Protocol (AP2)",
+      "by": "Google",
+      "kind": "proof of what an agent was allowed to buy",
+      "who": "an open project led by Google",
+      "moves": "nothing itself: signed mandates that say what the agent may buy, carried with a card or other payment",
+      "settles": "off_chain",
+      "we_see": "no",
+      "claim": {
+        "text": "3.2k GitHub stars; no release yet (\"a PyPI package will be published at a later time\")",
+        "date": "2026-10-15",
+        "source": "https://github.com/google-agentic-commerce/AP2",
+        "self_reported": false,
+        "figure": "3.2k",
+        "figure_label": "GitHub stars; no release yet"
+      },
+      "changes": [
+        {
+          "date": "2026-10-15",
+          "text": "On this page from today."
+        }
+      ]
+    }
+  ]
+}
