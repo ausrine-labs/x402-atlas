@@ -107,6 +107,35 @@ class Changed(unittest.TestCase):
         self.write(dict(self.live, now={"as_of": "x", "founding": {"members": ["sq:a", "sq:b"]}}))
         self.assertTrue(square_refresh.changed(self.tmp.name, "u", get=lambda u: json.dumps(self.live).encode()))
 
+    def test_a_new_note_in_the_rooms_is_published(self):
+        self.write(dict(self.live, now={"as_of": "2026-10-15T18:01Z", "founding": {"members": ["sq:a"]}}))
+        rooms = os.path.join(self.tmp.name, "square", "rooms")
+        os.makedirs(rooms)
+        with open(os.path.join(rooms, "rooms.json"), "w") as f:
+            json.dump({"as_of": "2026-10-16", "notes": [{"id": 10, "text": "new"}]}, f)
+        live_rooms = {"as_of": "2026-10-15", "notes": []}
+        get = lambda u: json.dumps(live_rooms if u.endswith("rooms/rooms.json") else self.live).encode()
+        self.assertTrue(square_refresh.changed(self.tmp.name, "https://x/square/square.json", get=get))
+        live_rooms["notes"] = [{"id": 10, "text": "new"}]                  # the same notes, another build time: nothing new
+        self.assertFalse(square_refresh.changed(self.tmp.name, "https://x/square/square.json", get=get))
+        down = lambda u: json.dumps(self.live).encode() if u.endswith("square.json") else (_ for _ in ()).throw(OSError("404"))
+        self.assertTrue(square_refresh.changed(self.tmp.name, "https://x/square/square.json", get=down))
+
+    def test_rooms_that_could_not_be_rebuilt_are_kept_as_live(self):
+        live = {"index.html": b"<html>live rooms</html>", "rooms.json": json.dumps({"notes": [{"id": 11}]}).encode()}
+        get = lambda u: live[u.rsplit("/", 1)[1]]
+        self.assertTrue(square_refresh.keep_live_rooms(self.tmp.name, get=get))
+        with open(os.path.join(self.tmp.name, "square", "rooms", "rooms.json")) as f:
+            self.assertEqual(json.load(f)["notes"], [{"id": 11}])
+        self.assertFalse(square_refresh.keep_live_rooms(self.tmp.name, get=get))     # rebuilt (or kept): left alone
+        self.write(self.live)
+        self.assertFalse(square_refresh.changed(self.tmp.name, "https://x/square/square.json",
+                                                get=lambda u: live["rooms.json"] if u.endswith("rooms.json") else json.dumps(self.live).encode()))
+        other = tempfile.TemporaryDirectory()
+        self.addCleanup(other.cleanup)
+        self.assertFalse(square_refresh.keep_live_rooms(other.name, get=lambda u: b"<html>not json"))
+        self.assertFalse(os.path.exists(os.path.join(other.name, "square", "rooms")))
+
     def test_a_live_square_that_cannot_be_read_publishes(self):
         self.write(self.live)
 

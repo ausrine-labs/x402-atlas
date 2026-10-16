@@ -57,6 +57,9 @@ def refresh(out, work):
     A = new["sellers"]
     flows_dir = flows if unpack(os.path.join(out, "flows"), flows, "flows") else None
     as_of, foot, n = new["date"], seller_pages.FOOT, len(A)
+    rooms = os.path.join(out, "square", "rooms")
+    if os.path.isdir(rooms) and not os.path.islink(rooms):   # the morning's rooms never go out again as if new
+        shutil.rmtree(rooms)
     try:
         s = square.build(out, flows_dir, A, seller_pages.SITE, as_of, foot=foot, n=n, quick=True)
     except Exception as e:  # noqa: BLE001 - remote, untrusted input: as in seller_pages.build_square
@@ -70,6 +73,35 @@ def refresh(out, work):
     if saved and square.restore(out, saved, seller_pages.SITE, as_of, foot=foot, n=n):
         return saved
     return None
+
+
+LIVE_ROOMS = ("https://atlas.infoharmoni.com/square/rooms/index.html", "https://atlas.infoharmoni.com/square/rooms/rooms.json")
+
+
+def keep_live_rooms(out, urls=LIVE_ROOMS, get=None):
+    """When the rooms could not be rebuilt, the rooms as published now are carried into the deploy, so a refresh
+    neither rolls notes back nor leaves the page missing. True when they were carried."""
+    d = os.path.join(out, "square", "rooms")
+    if os.path.exists(os.path.join(d, "rooms.json")):
+        return False
+    try:
+        got = {}
+        for u in urls:
+            if get is None:
+                with urllib.request.urlopen(urllib.request.Request(u, headers={"Cache-Control": "no-cache"}), timeout=30) as r:
+                    got[u.rsplit("/", 1)[1]] = r.read(20_000_000)
+            else:
+                got[u.rsplit("/", 1)[1]] = get(u)
+        json.loads(got["rooms.json"])                       # a real rooms file, or nothing is written
+    except Exception as e:  # noqa: BLE001 - nothing live to keep: the next refresh tries again
+        print("square: the live rooms could not be kept (%s)" % type(e).__name__)
+        return False
+    os.makedirs(d, exist_ok=True)
+    for name, body in got.items():
+        with open(os.path.join(d, name), "wb") as f:
+            f.write(body)
+    print("square: the rooms could not be rebuilt; the live rooms are kept as published")
+    return True
 
 
 def _content(d):
@@ -93,9 +125,32 @@ def changed(out, live_url, get=None):
                 body = r.read(20_000_000)
         else:
             body = get(live_url)
-        return _content(new) != _content(json.loads(body))
+        if _content(new) != _content(json.loads(body)):
+            return True
+        return rooms_changed(out, live_url.rsplit("/", 1)[0] + "/rooms/rooms.json", get)
     except Exception as e:  # noqa: BLE001 - a failed comparison publishes
         print("square: could not compare with the live Square (%s); publishing" % type(e).__name__)
+        return True
+
+
+def rooms_changed(out, live_url, get=None):
+    """Whether the rooms' notes differ from the live ones (a new note changes no member card, so square.json alone would
+    miss it). No rooms written here: nothing to publish for them. Live rooms that can't be read: publish."""
+    path = os.path.join(out, "square", "rooms", "rooms.json")
+    if not os.path.exists(path):
+        return False
+    with open(path) as f:
+        new = json.load(f).get("notes")
+    try:
+        if get is None:
+            with urllib.request.urlopen(urllib.request.Request(live_url, headers={"Cache-Control": "no-cache"}),
+                                        timeout=30) as r:
+                body = r.read(20_000_000)
+        else:
+            body = get(live_url)
+        return json.dumps(new, sort_keys=True) != json.dumps(json.loads(body).get("notes"), sort_keys=True)
+    except Exception as e:  # noqa: BLE001 - a failed comparison publishes
+        print("square: could not compare with the live rooms (%s); publishing" % type(e).__name__)
         return True
 
 
@@ -108,6 +163,7 @@ def main():
     with tempfile.TemporaryDirectory() as work:
         if refresh(a.out, work) is None:
             sys.exit("square-refresh: the Square could be neither built nor restored; nothing to publish")
+    keep_live_rooms(a.out)
     if a.changed_against and a.changed_file:
         c = changed(a.out, a.changed_against)
         print("square: %s" % ("changed since the live Square; publishing" if c else "nothing new since the live Square"))
