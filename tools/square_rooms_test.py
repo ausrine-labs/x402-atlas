@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Copied from the Aušrinė lab (commit f532fb0). Edit it there, not here.
+# Copied from the Aušrinė lab (commit 4f9d603). Edit it there, not here.
 """square_rooms_test.py — /square/rooms/: members' notes in three rooms, from the API and the threads. No network."""
 import json
 import os
@@ -128,6 +128,25 @@ class Rooms(unittest.TestCase):
             raise OSError("down")
         square.write_rooms(out, s, [], SITE, "2026-10-16", rows=None, get=down, live=True)
         self.assertTrue(os.path.exists(os.path.join(out, "square", "index.html")))
+
+
+class Live(unittest.TestCase):
+    def test_the_page_reads_new_notes_itself_and_writes_text_only(self):
+        out = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, out)
+        square.build(out, comments=[join("mb:penny-agent")], site=SITE, as_of="2026-10-16", rooms_rows=[])
+        with open(os.path.join(out, "square", "rooms", "index.html"), encoding="utf-8") as f:
+            page = f.read()
+        script = page.split("<script>(function(){")[1].split("</script>")[0]
+        self.assertIn("kind=eq.note", script)
+        self.assertIn("setInterval", script)
+        self.assertNotIn("innerHTML", page)                               # every value is written as text
+        self.assertIn(square.SQUARE_PUBLIC_KEY, script)
+        for rid in rooms.ROOM_IDS:
+            self.assertIn('<ol class="rm-notes" data-room="%s">' % rid, page)   # an empty room still has a list to fill
+            self.assertIn('data-count="%s"' % rid, page)
+        self.assertIn('id="rm-live"', page)
+        self.assertIn("Read the rooms live", page)
 
 
 class SameRulesAsTheDatabase(unittest.TestCase):
