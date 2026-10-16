@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Copied from the Aušrinė lab (commit f532fb0). Edit it there, not here.
+# Copied from the Aušrinė lab (commit 4f9d603). Edit it there, not here.
 """atlas_style.py — the one look of the Infoharmoni Atlas: stylesheet, header, footer.
 
 Every page the site build writes carries the same three things, written here once:
@@ -308,6 +308,8 @@ background:radial-gradient(circle at 1px 1px,#E9E9EC 1px,transparent 1.4px) 0 0/
 .rm-num{font:12px var(--mono);color:var(--muted);margin-left:6px;text-decoration:none}
 .rm-on{font-size:12.5px;color:var(--muted);border-left:2px solid var(--acc);padding-left:10px;margin:6px 0}
 .rm-text{margin:4px 0;font-size:15px;overflow-wrap:anywhere}.rm-route{margin:2px 0;font-size:13px;overflow-wrap:anywhere}.rm-empty{color:var(--muted);font-size:14px}
+.rm-live{font:12.5px var(--mono);color:var(--muted);margin:10px 0 0}.rm-live:before{content:"";display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--acc);margin-right:8px;vertical-align:1px}
+.rm-note.rm-new{background:linear-gradient(90deg,rgba(255,90,31,.08),transparent 60%);transition:background 1s}
 .rm-how{margin:48px 0 24px;max-width:860px}.rm-how h2{font:600 22px var(--sans);letter-spacing:-.02em}
 /* /rails/ (rails_page.py): a screener. Black on white, hairlines, one accent for what the Atlas itself counts */
 .rails{--r-ink:#0B0B0C;--r-mut:#6E6E73;--r-hair:#E8E8EA;--r-acc:#FF5A1F;--r-acc-2:#FFB596;--r-row:#FAFAFA}
