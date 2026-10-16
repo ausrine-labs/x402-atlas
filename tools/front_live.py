@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Copied from the Aušrinė lab (commit abfcd4a). Edit it there, not here.
+# Copied from the Aušrinė lab (commit aab5de7). Edit it there, not here.
 """front_live.py — what the home page shows moving: the day's network, the agent feed, and the sellers' icons.
 
 front_door.py calls these. Everything is read from files the build already has: the day's flows
@@ -19,6 +19,7 @@ a host without a usable icon is drawn as its first letter. Standard library only
 
 import collections
 import concurrent.futures
+import datetime
 import glob
 import json
 import os
@@ -122,9 +123,13 @@ def chain_events(path, flows_dir=None, named=lambda w: True, top=7):
         out.append({"at": day, "kind": "bought", "wallet": f if named(f) else None, "text": "from %d different sellers in one day" % k})
     if flows_dir and day:
         seen, read_any = set(), False          # a window that was read but held no payment still says "first time"
+        try:
+            week = (datetime.date.fromisoformat(day[:10]) - datetime.timedelta(days=6)).isoformat()
+        except ValueError:
+            week = day
         for p in glob.glob(os.path.join(flows_dir, "flows-????-??-??.json")):
             d = os.path.basename(p)[6:16]
-            if d < day:
+            if week <= d < day:                # "this week": the six days before the day, however many more are held
                 try:
                     seen |= {t for _f, t, _n, _u in read_day(p)[2]}
                     read_any = True

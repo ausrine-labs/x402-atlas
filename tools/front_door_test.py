@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Copied from the Aušrinė lab (commit abfcd4a). Edit it there, not here.
+# Copied from the Aušrinė lab (commit aab5de7). Edit it there, not here.
 """front_door_test.py — the home page, from a synthetic store, rollup, flows day and Square. No network.
 
     python3 front_door_test.py
@@ -207,6 +207,21 @@ class Live(unittest.TestCase):
         self.addCleanup(shutil.rmtree, alone)
         shutil.copy(self.day, alone)                                       # no window at all: nothing can be called new
         self.assertFalse([e for e in front_live.chain_events(os.path.join(alone, "flows-2026-01-02.json"), alone) if e["kind"] == "new"])
+
+    def test_first_time_means_this_week(self):
+        d = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, d)
+        with open(self.day) as f:
+            day = json.load(f)
+        day["date"] = "2026-01-10"
+        with open(os.path.join(d, "flows-2026-01-10.json"), "w") as f:
+            json.dump(day, f)
+        with open(os.path.join(d, "flows-2026-01-04.json"), "w") as f:              # in the week: nothing paid
+            json.dump({"date": "2026-01-04", "edges": [], "sellers": {}}, f)
+        with open(os.path.join(d, "flows-2026-01-03.json"), "w") as f:              # the week before: newcomer was paid
+            json.dump({"date": "2026-01-03", "edges": [edge(W[4], S4, 1, 1.0)], "sellers": {S4: ["newcomer.example"]}}, f)
+        new = [e["host"] for e in front_live.chain_events(os.path.join(d, "flows-2026-01-10.json"), d) if e["kind"] == "new"]
+        self.assertIn("newcomer.example", new)                                     # paid long ago, but not this week
 
     def test_a_wallet_is_named_only_where_the_tier_allows(self):
         _r, page, _o = self.build(named=[])
