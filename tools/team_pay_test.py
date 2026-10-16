@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Copied from the Aušrinė lab (commit 5a9d242). Edit it there, not here.
+# Copied from the Aušrinė lab (commit 6232f82). Edit it there, not here.
 """Tests for team_pay.py: a team's split is shown only when Base says it pays the card's terms, with no owner."""
 
 import os
@@ -90,6 +90,11 @@ class TeamPay(unittest.TestCase):
         self.assertEqual(tp.check(team(), call=chain(fail=True))["status"], "not_yet")
         self.assertEqual(tp.check(team(payto=None), call=chain())["status"], "not_yet")
         self.assertEqual(tp.check(team(tx=None), call=chain())["status"], "refused")
+
+    def test_a_zero_share_seat_needs_no_wallet_and_is_left_out(self):
+        tm = team(split=(("sq:a", 60), ("sq:b", 40), ("sq:c", 0)))
+        tm["members"].append({"author": "sq:c", "wallet_proven": False, "payto": None})
+        self.assertEqual(tp.check(tm, call=chain())["status"], "payable")
 
     def test_terms_tell_the_lead_what_to_enter(self):
         got, why = tp.terms(team())
