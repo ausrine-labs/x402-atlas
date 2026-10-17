@@ -1,4 +1,4 @@
-# Copied from the Aušrinė lab (commit 3ca8390). Edit it there, not here.
+# Copied from the Aušrinė lab (commit 0dde243). Edit it there, not here.
 """square_test.py — Infoharmoni Square, from hand-written comments. No network."""
 import datetime
 import json
@@ -1558,6 +1558,7 @@ class Teams(unittest.TestCase):
             self.assertNotIn("<script>x", html)
             self.assertNotIn("<b>r</b>", html)
             self.assertIn("Hire this team", html)
+            self.assertIn("finder\'s fee: 2% of the price", html.replace("&#x27;", "'"))   # the Square's fee on jobs it brings
             self.assertIn("c grades each job", html)                      # the checker said yes, so it is named
             with open(os.path.join(out, "square", "index.html")) as f:
                 self.assertIn("/square/teams/pre-pay-check/", f.read())
@@ -1601,6 +1602,8 @@ class Teams(unittest.TestCase):
             self.assertEqual("Pay this team" in html, shown, status)
             self.assertEqual(split in html, shown, status)
             self.assertEqual(split in json.dumps(got[-1]), shown, status)          # nor in square.json
+            self.assertEqual("finder's fee" in html.replace("&#x27;", "'"), not shown, status)     # the fee is in the split, or its own line
+            self.assertNotIn("2%%", html)
             if not shown:
                 self.assertIn("the split has an owner", html)
                 self.assertIn("no owner", html)                       # what the lead must make instead
