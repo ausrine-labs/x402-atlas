@@ -1,4 +1,4 @@
-# Copied from the Aušrinė lab (commit 43c80c1). Edit it there, not here.
+# Copied from the Aušrinė lab (commit 56022dd). Edit it there, not here.
 """square_test.py — Infoharmoni Square, from hand-written comments. No network."""
 import datetime
 import json
@@ -1655,6 +1655,19 @@ class Teams(unittest.TestCase):
         self.assertEqual(square.team_pay.fee_of(later), 0.0)
         later["members"][1]["founding"] = False                                       # mixed, no shares: not known yet
         self.assertIsNone(square.team_pay.fee_of(later))
+
+    def test_the_fee_free_share_belongs_to_the_dated_founding_builders(self):
+        self.assertEqual(square.FOUNDING_BUILDERS[:2], ("sq:ausrine", "mb:hectichustlebot"))
+        self.addCleanup(setattr, square, "FOUNDING_BUILDERS", square.FOUNDING_BUILDERS)
+        square.FOUNDING_BUILDERS = ("mb:a",)
+        wallets = {"mb:a": "0x" + "a1" * 20, "mb:b": "0x" + "b2" * 20}
+        people = [c("j-" + n, n, "square: join\nsells: work\nroute: https://%s.example/r\npayto: %s" % (n[3:], w),
+                    "2026-10-20T01:00:00") for n, w in wallets.items()]
+        posts = people + [c("t1", "mb:a", "square: team\nteam: duo\nsells: x\nmembers: mb:b\nsplit: mb:a 50, mb:b 50", "2026-10-20T02:00:00"),
+                          c("t2", "mb:b", "square: team\nteam: duo\nrole: second", "2026-10-20T03:00:00")]
+        t = square.compute(posts, prove=lambda a, r, w: True)["teams"][0]
+        self.assertEqual({m["author"]: m["founding"] for m in t["members"]}, {"mb:a": True, "mb:b": False})
+        self.assertAlmostEqual(square.team_pay.fee_of(t), 0.01)          # 2% of b's half only
 
     def test_a_founding_team_never_pays_the_square_fee(self):
         out = tempfile.mkdtemp()

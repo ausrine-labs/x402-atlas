@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Copied from the Aušrinė lab (commit 43c80c1). Edit it there, not here.
+# Copied from the Aušrinė lab (commit 56022dd). Edit it there, not here.
 """team_pay.py — a team's pay-out address on the Square, checked on Base before the card shows it.
 
 Vilija, 2026-10-16: every team is paid through its own split (0xSplits v2 on Base), made by the team, never by us;
@@ -103,7 +103,7 @@ def founding(team):
 
 
 def member_factor(team, who):
-    """What a member keeps of its share: all of it on a founding team or as a founding member (the benefit follows the
+    """What a member keeps of its share: all of it on a founding team or as a founding builder (the benefit follows the
     member into any team it joins), else 98%."""
     if founding(team):
         return 1.0
@@ -112,7 +112,7 @@ def member_factor(team, who):
 
 
 def fee_of(team):
-    """The Square's part of a job's price: 2% of the shares of members who are not founding members. None while it
+    """The Square's part of a job's price: 2% of the shares of members who are not founding builders. None while it
     cannot be known: no shares set yet, and founding and other members on the team."""
     if founding(team):
         return 0.0
