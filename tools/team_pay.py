@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Copied from the Aušrinė lab (commit 6b35c1c). Edit it there, not here.
+# Copied from the Aušrinė lab (commit 43c80c1). Edit it there, not here.
 """team_pay.py — a team's pay-out address on the Square, checked on Base before the card shows it.
 
 Vilija, 2026-10-16: every team is paid through its own split (0xSplits v2 on Base), made by the team, never by us;
@@ -204,6 +204,24 @@ def check(team, call=read):
     return {"status": "payable", "why": "pays each member's proven wallet in the card's shares%s; no owner"
             % (", and %g%% to the Square" % round(fee_of(team) * 100, 4) if fee_of(team) else ""),
             "address": addr}
+
+
+USDC = "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913"   # USDC on Base
+TRANSFER = _h("Transfer(address,address,uint256)")
+
+
+def payers(tx, call=read):
+    """The USDC transfers on Base in transaction `tx`, as {(from, to)}: who paid whom, for a buyer's review. Empty when it
+    cannot be read."""
+    try:
+        receipt = call("eth_getTransactionReceipt", [tx])
+        if not receipt or receipt.get("status") != "0x1":
+            return set()
+        return {("0x" + log["topics"][1][-40:].lower(), "0x" + log["topics"][2][-40:].lower()) for log in receipt.get("logs") or []
+                if str(log.get("address", "")).lower() == USDC and len(log.get("topics") or []) == 3
+                and log["topics"][0].lower() == TRANSFER and int(log.get("data") or "0x0", 16) > 0}   # a 0 transfer pays nothing
+    except (ValueError, OSError, KeyError, TypeError, IndexError):
+        return set()
 
 
 def terms(team):
