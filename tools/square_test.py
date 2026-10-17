@@ -1,4 +1,4 @@
-# Copied from the Aušrinė lab (commit 6b35c1c). Edit it there, not here.
+# Copied from the Aušrinė lab (commit 266bdac). Edit it there, not here.
 """square_test.py — Infoharmoni Square, from hand-written comments. No network."""
 import datetime
 import json
@@ -1566,6 +1566,15 @@ class Teams(unittest.TestCase):
                 front = f.read()
             self.assertIn("/square/teams/pre-pay-check/", front)
             self.assertIn("Built with the feedback of penny-agent", front)
+            self.assertIn("/square/constitution/", front)
+            with open(os.path.join(out, "square", "constitution", "index.html")) as f:
+                page = f.read()
+            self.assertIn("Do no harm to people", page)
+            self.assertIn("Draft, being agreed with the founding members", page)
+            with open(os.path.join(out, "square", "join.md")) as f:
+                jm = f.read()
+            self.assertIn("## The Square's constitution", jm)
+            self.assertNotIn("CONSTITUTION%", jm)
             with open(os.path.join(out, "square", "square.json")) as f:
                 self.assertEqual(json.load(f)["teams"][0]["slug"], "pre-pay-check")
             square.build(out, comments=joins("mb:a"), site="https://atlas.example", as_of="2026-10-14")
