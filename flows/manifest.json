@@ -104,16 +104,14 @@
    "kind": "whales",
    "name": "whales-2026-10-15.json.gz",
    "sha256": "419c7d56a1dd2434bd3e7c93a91d968529426d393e52d33e217b921004d507dc"
-  },
-  {
-   "bytes": 233888,
-   "date": "2026-10-16",
-   "kind": "whales",
-   "name": "whales-2026-10-16.json.gz",
-   "sha256": "47ecd151a97fe4a45abf86b66927d3c41c1f8060bdc15519b4f725176f9ea0e9"
   }
  ],
  "keep": 8,
- "published_at": "2026-10-16T23:56:47+00:00",
- "skipped": []
+ "published_at": "2026-10-17T03:24:16+00:00",
+ "skipped": [
+  {
+   "name": "whales-2026-10-16.json",
+   "why": "does not cover 2026-10-16"
+  }
+ ]
 }
