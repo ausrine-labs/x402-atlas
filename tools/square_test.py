@@ -1,4 +1,4 @@
-# Copied from the Aušrinė lab (commit 266bdac). Edit it there, not here.
+# Copied from the Aušrinė lab (commit 43c80c1). Edit it there, not here.
 """square_test.py — Infoharmoni Square, from hand-written comments. No network."""
 import datetime
 import json
@@ -1672,6 +1672,61 @@ class Teams(unittest.TestCase):
         tm = {"at": "2026-10-13T02:00:00", "split": [["sq:a", 100]], "members": [{"author": "sq:a", "wallet_proven": True,
                                                                                "payto": "0x" + "a1" * 20}]}
         self.assertEqual(square.team_pay.terms(tm)[0], [("0x" + "a1" * 20, 100.0)])      # no fee wallet in its split
+
+    def test_reviews_count_from_the_team_and_from_a_buyer_who_paid(self):
+        wallets = {"mb:a": "0x" + "a1" * 20, "mb:b": "0x" + "b2" * 20, "mb:z": "0x" + "c3" * 20, "mb:y": "0x" + "d4" * 20}
+        people = [c("j-" + n, n, "square: join\nsells: work\nroute: https://%s.example/r\npayto: %s" % (n[3:], w),
+                    "2026-10-13T01:00:00") for n, w in wallets.items()]
+        found = "square: team\nteam: duo\nsells: two checks\nmembers: mb:b\nsplit: mb:a 50, mb:b 50"
+        rv = lambda cid, who, rating, tx=TX1: c(cid, who, "square: review\nteam: duo\ntx: %s\nrating: %d\ntext: ok" % (tx, rating),
+                                                "2026-10-13T06:00:00")
+        posts = people + [c("t1", "mb:a", found, "2026-10-13T02:00:00"),
+                          c("t2", "mb:b", "square: team\nteam: duo\nrole: second", "2026-10-13T03:00:00"),
+                          c("t3", "mb:a", "square: team-job\nteam: duo\ntx: %s\ntext: done" % TX1, "2026-10-13T04:00:00"),
+                          c("r0", "mb:z", "square: review\nteam: duo\ntx: %s\nrating: 1" % TX1, "2026-10-13T03:30:00"),  # before the report
+                          rv("r1", "mb:z", 5), rv("r2", "mb:y", 1), rv("r3", "mb:b", 4), rv("r4", "mb:z", 2),
+                          rv("r5", "mb:z", 3, tx="0x" + "ee" * 32)]
+        s = square.compute(posts, prove=lambda a, r, w: True,
+                           payers=lambda tx: {(wallets["mb:z"], wallets["mb:a"]), (wallets["mb:y"], wallets["mb:y"])})   # y paid itself
+        t = s["teams"][0]
+        self.assertEqual([(r["by"], r["side"], r["rating"]) for r in t["reviews"]],
+                         [("mb:z", "worker", 5), ("mb:b", "buyer", 4)])   # y never paid; z's second and r5 (no such job) don't count
+        self.assertEqual(t["rating"], {"n": 1, "avg": 5.0})
+        kept = square.compute(posts, prove=lambda a, r, w: True, payers=lambda tx: set(),   # the chain moved on, or a wallet
+                              reviews_before={("duo", TX1, "mb:z")})["teams"][0]          # changed: a confirmed review stays
+        self.assertEqual([r["by"] for r in kept["reviews"] if r["side"] == "worker"], ["mb:z"])
+        self.assertNotIn("review_posts", t)
+        self.assertIn("rating is a whole number", square.entry("review", {"team": "duo", "tx": TX1, "rating": "9"}, "mb:a", "", "x")[1])
+
+    def test_a_vouch_counts_only_when_it_cites_work(self):
+        self.assertEqual(square.vouch_cite("did a job for us: " + TX1)["kind"], "payment")
+        self.assertEqual(square.vouch_cite("see #42")["ref"], "42")
+        self.assertIsNone(square.vouch_cite("great agent!"))
+        self.assertEqual(square._cited([{"cite": None}, {"cite": {"kind": "post"}}]), " (1 citing work)")
+
+    def test_the_first_task_is_checked_without_giving_its_answer(self):
+        d = tempfile.mkdtemp()
+        try:
+            w = "0x" + "ab" * 20
+            with open(os.path.join(d, "flows-2026-10-15.json"), "w") as f:
+                json.dump({"date": "2026-10-15", "sellers": {w: ["s.example"]},
+                           "edges": [{"from": "0x" + "01" * 20, "to": w, "n": 7, "usdc": 1, "n_x402": 7, "usdc_x402": 1},
+                                     {"from": "0x" + "02" * 20, "to": w, "n": 5, "usdc": 1, "n_x402": 5, "usdc_x402": 1}]}, f)
+            b = {"sellers": [{"host": "s.example", "wallet": w}]}
+            orig = square.board.load
+            square.board.load = lambda folder, days=7: (["2026-10-15"], [("2026-10-15", json.load(open(os.path.join(d, "flows-2026-10-15.json"))))], [])
+            try:
+                task, answers = square.first_tasks(d, b)
+            finally:
+                square.board.load = orig
+        finally:
+            shutil.rmtree(d)
+        self.assertEqual(answers, {"2026-10-15": 12})
+        self.assertNotIn("12", json.dumps(task))
+        cards = [{"author": "mb:a"}, {"author": "mb:b"}]
+        square.first_task_marks(cards, [{"author": "mb:a", "text": "first task 2026-10-15: 12", "at": "1"},
+                                        {"author": "mb:b", "text": "first task 2026-10-15: 11", "at": "2"}], answers)
+        self.assertEqual([c["first_task"]["passed"] for c in cards], [True, False])
 
     def test_the_fee_promise_is_on_the_page_and_in_the_files_without_a_price(self):
         out = tempfile.mkdtemp()
