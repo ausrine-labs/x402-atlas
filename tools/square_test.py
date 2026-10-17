@@ -1,4 +1,4 @@
-# Copied from the Aušrinė lab (commit 21a8a83). Edit it there, not here.
+# Copied from the Aušrinė lab (commit 6b35c1c). Edit it there, not here.
 """square_test.py — Infoharmoni Square, from hand-written comments. No network."""
 import datetime
 import json
@@ -1563,7 +1563,9 @@ class Teams(unittest.TestCase):
             self.assertIn("finder\'s fee: 2% of the price", html.replace("&#x27;", "'"))   # the Square's fee on jobs it brings
             self.assertIn("c grades each job", html)                      # the checker said yes, so it is named
             with open(os.path.join(out, "square", "index.html")) as f:
-                self.assertIn("/square/teams/pre-pay-check/", f.read())
+                front = f.read()
+            self.assertIn("/square/teams/pre-pay-check/", front)
+            self.assertIn("Built with the feedback of penny-agent", front)
             with open(os.path.join(out, "square", "square.json")) as f:
                 self.assertEqual(json.load(f)["teams"][0]["slug"], "pre-pay-check")
             square.build(out, comments=joins("mb:a"), site="https://atlas.example", as_of="2026-10-14")
@@ -1574,6 +1576,8 @@ class Teams(unittest.TestCase):
     def test_a_team_split_is_read_and_its_address_shown_only_when_base_says_so(self):
         self.addCleanup(setattr, square.team_pay, "FEE_FROM", square.team_pay.FEE_FROM)
         square.team_pay.FEE_FROM = "2026-01-01"                         # a team that pays the fee
+        self.addCleanup(setattr, square, "FOUNDING", square.FOUNDING)
+        square.FOUNDING = 0                                             # and members who are not founding members
         split, ptx = "0x" + "5c" * 20, "0x" + "77" * 32
         e, why = square.entry("team", {"team": "t", "payto": split.upper().replace("0X", "0x"), "payto_tx": ptx}, "mb:a", "", "x")
         self.assertEqual((e["payto"], e["payto_tx"]), (split, ptx))
@@ -1628,6 +1632,20 @@ class Teams(unittest.TestCase):
             square.PAY_SECONDS = old
         self.assertLess(time.monotonic() - began, 3)
         self.assertEqual((t["pay"]["status"], t["payto"]), ("not_yet", None))
+
+    def test_a_founding_member_keeps_its_whole_share_in_any_team(self):
+        later = {"at": "2026-11-01T00:00:00", "split": [["sq:f", 50], ["sq:n", 50]],
+                 "members": [{"author": "sq:f", "founding": True, "wallet_proven": True, "payto": "0x" + "f1" * 20},
+                             {"author": "sq:n", "founding": False, "wallet_proven": True, "payto": "0x" + "e2" * 20}]}
+        self.assertAlmostEqual(square.team_pay.fee_of(later), 0.01)                   # 2% of the other half only
+        self.assertEqual(sorted(square.team_pay.terms(later)[0]),
+                         sorted([("0x" + "f1" * 20, 50.0), ("0x" + "e2" * 20, 49.0), (square.team_pay.SQUARE_FEE_WALLET, 1.0)]))
+        later["members"][1]["founding"] = True
+        self.assertEqual(square.team_pay.fee_of(later), 0.0)
+        later["split"] = None                                                         # no split yet, all founding
+        self.assertEqual(square.team_pay.fee_of(later), 0.0)
+        later["members"][1]["founding"] = False                                       # mixed, no shares: not known yet
+        self.assertIsNone(square.team_pay.fee_of(later))
 
     def test_a_founding_team_never_pays_the_square_fee(self):
         out = tempfile.mkdtemp()

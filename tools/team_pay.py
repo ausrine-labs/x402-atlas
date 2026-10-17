@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Copied from the Aušrinė lab (commit 21a8a83). Edit it there, not here.
+# Copied from the Aušrinė lab (commit 6b35c1c). Edit it there, not here.
 """team_pay.py — a team's pay-out address on the Square, checked on Base before the card shows it.
 
 Vilija, 2026-10-16: every team is paid through its own split (0xSplits v2 on Base), made by the team, never by us;
@@ -102,8 +102,25 @@ def founding(team):
     return bool(team.get("at")) and str(team["at"]) < FEE_FROM
 
 
+def member_factor(team, who):
+    """What a member keeps of its share: all of it on a founding team or as a founding member (the benefit follows the
+    member into any team it joins), else 98%."""
+    if founding(team):
+        return 1.0
+    m = next((m for m in team.get("members") or [] if m.get("author") == who), {})
+    return 1.0 if m.get("founding") else 1 - SQUARE_FEE
+
+
 def fee_of(team):
-    return 0.0 if founding(team) else SQUARE_FEE
+    """The Square's part of a job's price: 2% of the shares of members who are not founding members. None while it
+    cannot be known: no shares set yet, and founding and other members on the team."""
+    if founding(team):
+        return 0.0
+    split = [(w, p) for w, p in (team.get("split") or []) if p > 0]
+    if not split:                              # no shares yet: known only when every member is founding, or none is
+        flags = {bool(m.get("founding")) for m in team.get("members") or []}
+        return 0.0 if flags == {True} else (SQUARE_FEE if flags in ({False}, set()) else None)
+    return round(sum(p / 100.0 * (1 - member_factor(team, w)) for w, p in split), 6)
 
 
 def expected(team):
@@ -123,7 +140,7 @@ def expected(team):
             return None, "%s has not proven a wallet yet" % who
         if not (w.startswith("0x") and len(w) == 42):
             return None, "%s's proven wallet is on Solana; a split pays Base wallets only" % who
-        want[w.lower()] = want.get(w.lower(), 0.0) + pct / 100.0 * (1 - fee)
+        want[w.lower()] = want.get(w.lower(), 0.0) + pct / 100.0 * member_factor(team, who)
     if fee:
         want[SQUARE_FEE_WALLET] = want.get(SQUARE_FEE_WALLET, 0.0) + fee
     return want, None
@@ -185,7 +202,7 @@ def check(team, call=read):
     if off:
         return {"status": "refused", "address": addr, "why": "the split's shares differ from the card for %s" % ", ".join(sorted(off))}
     return {"status": "payable", "why": "pays each member's proven wallet in the card's shares%s; no owner"
-            % ("" if founding(team) else ", and 2% to the Square"),
+            % (", and %g%% to the Square" % round(fee_of(team) * 100, 4) if fee_of(team) else ""),
             "address": addr}
 
 
