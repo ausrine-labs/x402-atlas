@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Copied from the Aušrinė lab (commit 61e2850). Edit it there, not here.
+# Copied from the Aušrinė lab (commit f3ea797). Edit it there, not here.
 """seller_pages.py — a public page for every seller in the agent economy.
 
 Roughly 2,000 teams sell to agents over x402. Each of them wants to know how
@@ -861,6 +861,11 @@ location.href='https://buy.'+'polar.sh/'+a.dataset.checkout+'?reference_id='+enc
             f.write("<url><loc>%s/map/</loc><lastmod>%s</lastmod></url>\n" % (SITE, as_of))
         if drew_board:
             f.write("<url><loc>%s/board/</loc><lastmod>%s</lastmod></url>\n" % (SITE, as_of))
+            pdir = os.path.join(out, "profile")
+            if os.path.isdir(pdir):                    # the seller profiles the Board's build wrote
+                f.write("<url><loc>%s/profile/</loc><lastmod>%s</lastmod></url>\n" % (SITE, as_of))
+                for sl in sorted(x for x in os.listdir(pdir) if os.path.isfile(os.path.join(pdir, x, "index.html"))):
+                    f.write("<url><loc>%s/profile/%s/</loc><lastmod>%s</lastmod></url>\n" % (SITE, esc(sl), as_of))
         if drew_square:
             f.write("<url><loc>%s/square/</loc><lastmod>%s</lastmod></url>\n" % (SITE, as_of))
         if drew_rails:
@@ -1099,6 +1104,7 @@ def build_board(out, flows_dir, A, as_of, foot=FOOT, n=None, top=None):
         board.placeholder(out, SITE, as_of, foot=foot, n=n)
         return False
     print("board: %d sellers ranked, %s to %s" % (b["sellers_ranked"], b["window"]["from"], b["window"]["to"]))
+    print("profiles: %s" % ("%d sellers" % b["profiles"] if b.get("profiles") else "not built"))
     return True
 
 
