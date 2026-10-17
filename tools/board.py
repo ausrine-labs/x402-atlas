@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Copied from the Aušrinė lab (commit 0aebe92). Edit it there, not here.
+# Copied from the Aušrinė lab (commit f3ea797). Edit it there, not here.
 """board.py — The Board: every x402 seller on Base ranked by the payer wallets that come back, not by money.
 
 A directory that ranks by payments rewards loops and single payers: one wallet paying
@@ -48,6 +48,7 @@ import datetime
 import json
 import math
 import os
+import shutil
 import re
 import statistics
 import sys
@@ -308,6 +309,8 @@ def page(b, site=SITE, as_of=None, foot=None, n=None):
          "of the last 3 days; <b>uneven</b> anything else.</li>"
          "<li>A wallet is not a person, and nothing here says who holds or runs one.</li></ul>"
          % (ROBOT, "{:,}".format(b["robots"]["wallets"]), ONE_PAYER),
+         ('<p><b>What kind of seller is each one?</b> <a href="%s/profile/">Free seller profiles</a>: the type, read from its '
+          'own payments, and its three priorities.</p>' % esc(site) if b.get("profiles") else "") +
          '<p class="muted">For agents: <a href="%s/board/board.json">board.json</a> holds the same numbers for every '
          "ranked seller, with its category and what it sells.</p>" % esc(site)]
     rows = b["sellers"]
@@ -346,6 +349,7 @@ def placeholder(out, site=SITE, as_of=None, foot=None, n=None):
     os.makedirs(os.path.dirname(path), exist_ok=True)
     with open(path, "w") as f:
         f.write("\n".join(p))
+    shutil.rmtree(os.path.join(out, "profile"), ignore_errors=True)   # no Board here: no profiles from an old one
     return True
 
 
@@ -368,6 +372,13 @@ def build(out, folder, snapshot, site=SITE, as_of=None, foot=None, n=None, top=N
         b["categories"] = [c for c in b["categories"] if any(r["category"] == c for r in b["sellers"])]
         b["locked"] = tiers.locked_json("%s more ranked sellers, past the %d shown"
                                         % ("{:,}".format(b["ranked_total"] - top), top), site, tiers.LIST_WAYS)
+    try:                                               # a free profile for each seller shown (seller_profile.py); the
+        import seller_profile                          # Board links /profile/ only when they were written
+        b["profiles"] = len(seller_profile.build(out, b, root=site, free=top is not None))
+    except (OSError, ValueError, KeyError, TypeError) as e:
+        print("profiles: not built (%s: %s)" % (type(e).__name__, e))
+        shutil.rmtree(os.path.join(out, "profile"), ignore_errors=True)   # no stale profiles, none in the sitemap
+        b["profiles"] = 0
     html_page = page(b, site, as_of, foot, n)          # its links are written against the site
     b["page"] = site + "/board/"
     b["json"] = site + "/board/board.json"
