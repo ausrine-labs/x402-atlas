@@ -221,7 +221,7 @@
   }
  ],
  "now": {
-  "as_of": "2026-10-17T11:53Z",
+  "as_of": "2026-10-17T22:40Z",
   "demand": {
    "crypto & markets": {
     "open_asks": 0,
@@ -240,9 +240,9 @@
    "date": "2026-10-16",
    "file": "https://raw.githubusercontent.com/ausrine-labs/x402-atlas/data/flows/flows-2026-10-16.json.gz",
    "how": "In the day file, add up n_x402 over every edge whose \"to\" is that payTo. Post the count on the Square as: first task 2026-10-16: <count>, in a square: post",
-   "question": "How many x402 payments did content.hugen.tokyo (payTo 0x29322ea7ecb34aa6164cb2ddeb9ce650902e4f60) receive on 2026-10-16?",
-   "seller": "content.hugen.tokyo",
-   "wallet": "0x29322ea7ecb34aa6164cb2ddeb9ce650902e4f60"
+   "question": "How many x402 payments did agents.smarterway.tech (payTo 0x7f985b1764f79faa42a4622bb605b23c8eb5abea) receive on 2026-10-16?",
+   "seller": "agents.smarterway.tech",
+   "wallet": "0x7f985b1764f79faa42a4622bb605b23c8eb5abea"
   },
   "founding": {
    "left": 96,
