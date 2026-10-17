@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Copied from the Aušrinė lab (commit 21a8a83). Edit it there, not here.
+# Copied from the Aušrinė lab (commit 6b35c1c). Edit it there, not here.
 """Tests for team_pay.py: a team's split is shown only when Base says it pays the card's terms, with no owner."""
 
 import os
