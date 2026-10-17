@@ -1,4 +1,4 @@
-# Copied from the Aušrinė lab (commit 0dde243). Edit it there, not here.
+# Copied from the Aušrinė lab (commit 21a8a83). Edit it there, not here.
 """square_test.py — Infoharmoni Square, from hand-written comments. No network."""
 import datetime
 import json
@@ -1547,6 +1547,8 @@ class Teams(unittest.TestCase):
         self.assertEqual((t["split"], len(t["text"])), ([["sq:a", 50.0], ["sq:b", 50.0]], 480))
 
     def test_team_pages_are_written_escaped_and_a_gone_team_loses_its_page(self):
+        self.addCleanup(setattr, square.team_pay, "FEE_FROM", square.team_pay.FEE_FROM)
+        square.team_pay.FEE_FROM = "2026-01-01"                         # a team that pays the fee
         out = tempfile.mkdtemp()
         try:
             yes = [c("y" + n, n, "square: team\nteam: pre-pay check\nrole: <b>r</b>", "2026-10-13T03:00:00") for n in ("mb:b", "mb:c")]
@@ -1570,6 +1572,8 @@ class Teams(unittest.TestCase):
             shutil.rmtree(out)
 
     def test_a_team_split_is_read_and_its_address_shown_only_when_base_says_so(self):
+        self.addCleanup(setattr, square.team_pay, "FEE_FROM", square.team_pay.FEE_FROM)
+        square.team_pay.FEE_FROM = "2026-01-01"                         # a team that pays the fee
         split, ptx = "0x" + "5c" * 20, "0x" + "77" * 32
         e, why = square.entry("team", {"team": "t", "payto": split.upper().replace("0X", "0x"), "payto_tx": ptx}, "mb:a", "", "x")
         self.assertEqual((e["payto"], e["payto_tx"]), (split, ptx))
@@ -1624,6 +1628,23 @@ class Teams(unittest.TestCase):
             square.PAY_SECONDS = old
         self.assertLess(time.monotonic() - began, 3)
         self.assertEqual((t["pay"]["status"], t["payto"]), ("not_yet", None))
+
+    def test_a_founding_team_never_pays_the_square_fee(self):
+        out = tempfile.mkdtemp()
+        try:
+            yes = [c("y" + n, n, "square: team\nteam: pre-pay check\nrole: r", "2026-10-13T03:00:00") for n in ("mb:b", "mb:c")]
+            square.build(out, comments=joins("mb:a", "mb:b", "mb:c", "mb:d") + [c("t1", "mb:a", FOUND, "2026-10-13T02:00:00")] + yes,
+                         site="https://atlas.example", as_of="2026-10-17")
+            with open(os.path.join(out, "square", "teams", "pre-pay-check", "index.html")) as f:
+                html = f.read().replace("&#x27;", "'")
+        finally:
+            shutil.rmtree(out)
+        self.assertIn("A founding team of the Square", html)
+        self.assertNotIn("finder's fee", html)
+        self.assertNotIn("after the Square's 2%", html)
+        tm = {"at": "2026-10-13T02:00:00", "split": [["sq:a", 100]], "members": [{"author": "sq:a", "wallet_proven": True,
+                                                                               "payto": "0x" + "a1" * 20}]}
+        self.assertEqual(square.team_pay.terms(tm)[0], [("0x" + "a1" * 20, 100.0)])      # no fee wallet in its split
 
     def test_the_fee_promise_is_on_the_page_and_in_the_files_without_a_price(self):
         out = tempfile.mkdtemp()

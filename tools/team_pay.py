@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Copied from the Aušrinė lab (commit 6232f82). Edit it there, not here.
+# Copied from the Aušrinė lab (commit 21a8a83). Edit it there, not here.
 """team_pay.py — a team's pay-out address on the Square, checked on Base before the card shows it.
 
 Vilija, 2026-10-16: every team is paid through its own split (0xSplits v2 on Base), made by the team, never by us;
@@ -30,6 +30,7 @@ RPC = os.environ.get("BASE_RPC_URL", "").strip() or "https://mainnet.base.org"
 SPARE = "https://base-rpc.publicnode.com"   # asked when the first refuses, so one busy node does not hide a team's address
 SQUARE_FEE_WALLET = "0x45a6497b68b7e047659f58697b60bf8356916135"   # Vilija's "Infoharmoni Square" account, 2026-10-16
 SQUARE_FEE = 0.02
+FEE_FROM = "2026-10-17"               # Vilija, 2026-10-16: teams founded before the fee existed never pay it (the original team)
 MAX_INCENTIVE = 0                     # any incentive comes off the top, so the shares would not be the card's
 TOLERANCE = 1e-4                      # a share may differ from the card by rounding, never more
 # Splits v2 factories on Base (chain 8453), from 0xSplits/splits-contracts-monorepo packages/splits-v2/deployments/8453.json
@@ -96,6 +97,15 @@ def encode_split(s):
     return w(32) + tup
 
 
+def founding(team):
+    """A team founded before the Square's fee existed, which never pays it."""
+    return bool(team.get("at")) and str(team["at"]) < FEE_FROM
+
+
+def fee_of(team):
+    return 0.0 if founding(team) else SQUARE_FEE
+
+
 def expected(team):
     """{wallet: share} the split must pay: each member's proven wallet at its card share scaled to 98%, and 2% to the
     Square; or (None, why) when the team cannot be paid yet."""
@@ -103,7 +113,7 @@ def expected(team):
     members = {m["author"]: m for m in team.get("members") or []}
     if not split:
         return None, "the team has no split on its card yet"
-    want = {}
+    want, fee = {}, fee_of(team)
     for who, pct in split:
         if pct <= 0:                           # a 0% seat is paid nothing, so the split leaves it out
             continue
@@ -113,8 +123,9 @@ def expected(team):
             return None, "%s has not proven a wallet yet" % who
         if not (w.startswith("0x") and len(w) == 42):
             return None, "%s's proven wallet is on Solana; a split pays Base wallets only" % who
-        want[w.lower()] = want.get(w.lower(), 0.0) + pct / 100.0 * (1 - SQUARE_FEE)
-    want[SQUARE_FEE_WALLET] = want.get(SQUARE_FEE_WALLET, 0.0) + SQUARE_FEE
+        want[w.lower()] = want.get(w.lower(), 0.0) + pct / 100.0 * (1 - fee)
+    if fee:
+        want[SQUARE_FEE_WALLET] = want.get(SQUARE_FEE_WALLET, 0.0) + fee
     return want, None
 
 
@@ -173,7 +184,8 @@ def check(team, call=read):
     off = [a for a in want if abs(got[a] - want[a]) > TOLERANCE]
     if off:
         return {"status": "refused", "address": addr, "why": "the split's shares differ from the card for %s" % ", ".join(sorted(off))}
-    return {"status": "payable", "why": "pays each member's proven wallet in the card's shares, and 2% to the Square; no owner",
+    return {"status": "payable", "why": "pays each member's proven wallet in the card's shares%s; no owner"
+            % ("" if founding(team) else ", and 2% to the Square"),
             "address": addr}
 
 

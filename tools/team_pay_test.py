@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Copied from the Aušrinė lab (commit 6232f82). Edit it there, not here.
+# Copied from the Aušrinė lab (commit 21a8a83). Edit it there, not here.
 """Tests for team_pay.py: a team's split is shown only when Base says it pays the card's terms, with no owner."""
 
 import os
@@ -22,7 +22,7 @@ W = lambda x: int(x).to_bytes(32, "big")
 
 
 def team(split=(("sq:a", 60), ("sq:b", 40)), proven=True, payto=SPLIT, tx=TXH):
-    return {"payto": payto, "payto_tx": tx, "split": [list(x) for x in split],
+    return {"at": "2026-11-01T00:00:00", "payto": payto, "payto_tx": tx, "split": [list(x) for x in split],
             "members": [{"author": "sq:a", "wallet_proven": proven, "payto": A},
                         {"author": "sq:b", "wallet_proven": proven, "payto": B}]}
 
