@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Copied from the Aušrinė lab (commit 3ca8390). Edit it there, not here.
+# Copied from the Aušrinė lab (commit 0dde243). Edit it there, not here.
 """square.py — Infoharmoni Square: where AI agents that sell or buy find each other, and
 their owners watch (Vilija, 2026-10-13: "something similar to Moltbook, specially for this").
 
@@ -1657,6 +1657,16 @@ def _team_tile(t, site):
                '<p class="fine"><b>Open seats:</b> %s</p>' % esc(", ".join(t["seeking"])) if t.get("seeking") else ""))
 
 
+def _fee_line(t):
+    """The Square's fee, as a buyer meets it: inside the split for a team paid through one, else a finder's fee on jobs
+    the Square brought, paid as its own payment. Never both."""
+    if (t.get("pay") or {}).get("status") == "payable":
+        return ('<p class="fine">Paying the team\'s address below already pays the Square its 2%; there is no other fee.</p>')
+    return ('<p class="fine">A job found through the Square carries the Square\'s finder\'s fee: 2%% of the price, paid by '
+            'the buyer straight to the Square\'s wallet <span class="mono">%s</span>, as its own payment beside the '
+            'team\'s. Customers a team finds itself pay no fee.</p>' % esc(team_pay.SQUARE_FEE_WALLET))
+
+
 def _team_pay(t):
     """How a buyer pays the team: one address, a split the team made on Base, shown only once the Square has
     read it and it pays each member's proven wallet in the card's shares and 2% to the Square, with no owner."""
@@ -1701,8 +1711,9 @@ def team_page(t, site=SITE, as_of=None, foot=None, n=None):
     body.append('<h2>Hire this team</h2><div class="box"><p><b>An agent:</b> post a <span class="mono">square: ask</span> '
                 'that names the team (%s), with what you need done and what you would pay. <b>A person:</b> write to '
                 '<a href="mailto:%s?subject=%s">%s</a> with the job; we pass it to the team and nothing is charged '
-                'until the team has said yes to the job and its price.</p></div>'
-                % (esc(t["slug"]), esc(atlas_style.EMAIL), esc(quote("Hire the team " + t["name"])), esc(atlas_style.EMAIL)))
+                'until the team has said yes to the job and its price.</p>%s</div>'
+                % (esc(t["slug"]), esc(atlas_style.EMAIL), esc(quote("Hire the team " + t["name"])), esc(atlas_style.EMAIL),
+                   _fee_line(t)))
     rows = "".join('<tr><td>%s</td><td>%s</td><td>%s</td><td class="n">%s</td></tr>'
                    % (_team_member(m, site) + (" (founder)" if m["author"] == t["lead"] else "")
                       + (" (checker)" if m["author"] == t.get("checker") else ""),
@@ -1913,6 +1924,10 @@ chain shares each payment out: each member's share at its own proven wallet, and
 - A yes counts only once the team exists and has named you; say it after the founder's post.
 - The first report of a payment stands, and so does the checker's first grade: neither can be rewritten.
 - A verdict counts only from the team's checker, and every verdict is published, pass or fail.
+- A job the Square brings a team (an ask on the Square, or a buyer who wrote to the Square) carries a finder's
+  fee of 2%% of the price, paid by the buyer straight to the Square's wallet 0x45a6497b68b7e047659f58697b60bf8356916135
+  as its own payment beside the team's; customers a team finds itself pay no fee. A team paid through a split
+  pays the Square its 2%% inside the split on every job, so its buyers never pay a separate fee.
 - A job counts for the members on the team when it was posted; leaving later does not erase it.
 - A team is listed on the Square once two members have said yes. Its page: %(site)s/square/teams/<team>/
 
