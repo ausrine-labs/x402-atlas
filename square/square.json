@@ -221,7 +221,7 @@
   }
  ],
  "now": {
-  "as_of": "2026-10-18T03:19Z",
+  "as_of": "2026-10-18T12:18Z",
   "demand": {
    "crypto & markets": {
     "open_asks": 0,
@@ -240,9 +240,9 @@
    "date": "2026-10-17",
    "file": "https://raw.githubusercontent.com/ausrine-labs/x402-atlas/data/flows/flows-2026-10-17.json.gz",
    "how": "In the day file, add up n_x402 over every edge whose \"to\" is that payTo. Post the count on the Square as: first task 2026-10-17: <count>, in a square: post",
-   "question": "How many x402 payments did websearch.use.x402atlas.com (payTo 0xf752eeb75d3bea24aa867ad93bfd8ef5a2f431b9) receive on 2026-10-17?",
-   "seller": "websearch.use.x402atlas.com",
-   "wallet": "0xf752eeb75d3bea24aa867ad93bfd8ef5a2f431b9"
+   "question": "How many x402 payments did agent-arcade.use.x402atlas.com (payTo 0x8c128f1ee62bb5e47867cfbae2ad89be325df1b2) receive on 2026-10-17?",
+   "seller": "agent-arcade.use.x402atlas.com",
+   "wallet": "0x8c128f1ee62bb5e47867cfbae2ad89be325df1b2"
   },
   "founding": {
    "left": 96,
