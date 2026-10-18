@@ -1,0 +1,1898 @@
+{
+ "chain": "solana",
+ "date": "2026-10-18",
+ "day": "2026-10-18",
+ "hours": 6.0,
+ "since": "2026-10-18T06:00:00Z",
+ "until": "2026-10-18T12:00:00Z",
+ "x402_means": "a known payment processor (solana_facilitators.json) paid the fee, and the stablecoin balances moved exactly once down and once up between two owners: that processor settled it",
+ "counts": "every payment a known processor settled, whoever the payee is; a payee the registry does not list is still counted and shows as its wallet",
+ "signatures": 12877,
+ "unread": 0,
+ "other_shape": 23,
+ "failed": 0,
+ "not_processor": 1,
+ "rpc": [
+  "https://solana-rpc.publicnode.com",
+  "https://api.mainnet-beta.solana.com"
+ ],
+ "edges": [
+  {
+   "from": "22CdX2YyLMNb3XJ4cV2VtxbJ7ivQbf59HSpXEyfCSeBb",
+   "to": "AQqnMFBwGZEoti85aTVRy8XYpKrho7GaMDx9ZB3CEeKA",
+   "n": 11084,
+   "usdc": 11.227898,
+   "n_x402": 11084,
+   "usdc_x402": 11.227898,
+   "first": "2026-10-18T06:02:08Z",
+   "last": "2026-10-18T11:58:29Z",
+   "active_hours": [
+    6,
+    7,
+    8,
+    9,
+    10,
+    11
+   ]
+  },
+  {
+   "from": "CfniJtJEMZPuKJfLmdXae8sfem1uzkAFWfs3a9bv14T",
+   "to": "AQqnMFBwGZEoti85aTVRy8XYpKrho7GaMDx9ZB3CEeKA",
+   "n": 235,
+   "usdc": 1.440148,
+   "n_x402": 235,
+   "usdc_x402": 1.440148,
+   "first": "2026-10-18T06:00:06Z",
+   "last": "2026-10-18T11:56:31Z",
+   "active_hours": [
+    6,
+    7,
+    8,
+    9,
+    10,
+    11
+   ]
+  },
+  {
+   "from": "2SDQqgZf4wXrMh9bxfKy4YgnqX2yaqjPFrszjWE6jgHo",
+   "to": "7xvuVbuyzfoE8jLRAbdqwjNYgqLs9pVNx9FpkXPwVDVP",
+   "n": 126,
+   "usdc": 998.0,
+   "n_x402": 126,
+   "usdc_x402": 998.0,
+   "first": "2026-10-18T08:22:52Z",
+   "last": "2026-10-18T09:24:49Z",
+   "active_hours": [
+    8,
+    9
+   ]
+  },
+  {
+   "from": "AvEtWjd9PQGeKLaog7DZFosapvFFcdsZBx3evttsAdoM",
+   "to": "FwZqFPkaE5xiCq5QmTmAkQJpwFzX44DxrGhf6JphRoPr",
+   "n": 81,
+   "usdc": 0.81,
+   "n_x402": 81,
+   "usdc_x402": 0.81,
+   "first": "2026-10-18T06:00:39Z",
+   "last": "2026-10-18T10:44:56Z",
+   "active_hours": [
+    6,
+    7,
+    8,
+    9,
+    10
+   ]
+  },
+  {
+   "from": "6UTo8ufWJWGNuXAioP4eZwieTh2jeGStYJ1fPiNeUjU4",
+   "to": "AQqnMFBwGZEoti85aTVRy8XYpKrho7GaMDx9ZB3CEeKA",
+   "n": 75,
+   "usdc": 0.208559,
+   "n_x402": 75,
+   "usdc_x402": 0.208559,
+   "first": "2026-10-18T06:04:00Z",
+   "last": "2026-10-18T11:57:06Z",
+   "active_hours": [
+    6,
+    7,
+    8,
+    9,
+    10,
+    11
+   ]
+  },
+  {
+   "from": "8Sx9ueDnPaDMUQzDTJp9N4rjQYUeRyaew8XQ347BHPJX",
+   "to": "AQqnMFBwGZEoti85aTVRy8XYpKrho7GaMDx9ZB3CEeKA",
+   "n": 72,
+   "usdc": 9.310617,
+   "n_x402": 72,
+   "usdc_x402": 9.310617,
+   "first": "2026-10-18T06:03:37Z",
+   "last": "2026-10-18T11:55:43Z",
+   "active_hours": [
+    6,
+    7,
+    8,
+    9,
+    10,
+    11
+   ]
+  },
+  {
+   "from": "CPCJ3aBhwGmB7gHReKTjqgxZbSnuZpB6ggyauY128ikM",
+   "to": "AQqnMFBwGZEoti85aTVRy8XYpKrho7GaMDx9ZB3CEeKA",
+   "n": 72,
+   "usdc": 0.195074,
+   "n_x402": 72,
+   "usdc_x402": 0.195074,
+   "first": "2026-10-18T06:03:53Z",
+   "last": "2026-10-18T11:55:25Z",
+   "active_hours": [
+    6,
+    7,
+    8,
+    9,
+    10,
+    11
+   ]
+  },
+  {
+   "from": "3mA8zj5hgG6W3qvXDU6Hc7WiS743ezUbhsrdCvgEAdzc",
+   "to": "AQqnMFBwGZEoti85aTVRy8XYpKrho7GaMDx9ZB3CEeKA",
+   "n": 71,
+   "usdc": 0.193085,
+   "n_x402": 71,
+   "usdc_x402": 0.193085,
+   "first": "2026-10-18T06:07:10Z",
+   "last": "2026-10-18T11:59:26Z",
+   "active_hours": [
+    6,
+    7,
+    8,
+    9,
+    10,
+    11
+   ]
+  },
+  {
+   "from": "CGMqFhvvTUJLoukCSJpq1LUoy7U2eFsgsmvPmQD69Vgu",
+   "to": "AQqnMFBwGZEoti85aTVRy8XYpKrho7GaMDx9ZB3CEeKA",
+   "n": 70,
+   "usdc": 0.182751,
+   "n_x402": 70,
+   "usdc_x402": 0.182751,
+   "first": "2026-10-18T06:07:01Z",
+   "last": "2026-10-18T11:55:34Z",
+   "active_hours": [
+    6,
+    7,
+    8,
+    9,
+    10,
+    11
+   ]
+  },
+  {
+   "from": "3aAD9oELtRvg65B7QH8WupUnYmiMBD5Sm7Axh5ewExCK",
+   "to": "AQqnMFBwGZEoti85aTVRy8XYpKrho7GaMDx9ZB3CEeKA",
+   "n": 57,
+   "usdc": 0.074287,
+   "n_x402": 57,
+   "usdc_x402": 0.074287,
+   "first": "2026-10-18T06:00:03Z",
+   "last": "2026-10-18T11:53:12Z",
+   "active_hours": [
+    6,
+    7,
+    8,
+    9,
+    10,
+    11
+   ]
+  },
+  {
+   "from": "BWky7uXkjuiXB85zgXujtN65U7zKZuimLZGNiQLpCwTM",
+   "to": "d8X2MdS7QMiMFVWzYMVTeKhm1BVx75GoHskf9ws74nM",
+   "n": 30,
+   "usdc": 0.75,
+   "n_x402": 30,
+   "usdc_x402": 0.75,
+   "first": "2026-10-18T08:48:16Z",
+   "last": "2026-10-18T08:52:12Z",
+   "active_hours": [
+    8
+   ]
+  },
+  {
+   "from": "HWqdtkVpsNxE9mR1oGGWDbzLP7pNeLi8xsubS6Trg5Ge",
+   "to": "AQqnMFBwGZEoti85aTVRy8XYpKrho7GaMDx9ZB3CEeKA",
+   "n": 27,
+   "usdc": 0.088244,
+   "n_x402": 27,
+   "usdc_x402": 0.088244,
+   "first": "2026-10-18T06:03:35Z",
+   "last": "2026-10-18T11:52:37Z",
+   "active_hours": [
+    6,
+    7,
+    8,
+    9,
+    10,
+    11
+   ]
+  },
+  {
+   "from": "5XarVYaci4bR8tvdSAJR78EjoNMC7zEgoUJRVM6wnDNz",
+   "to": "d8X2MdS7QMiMFVWzYMVTeKhm1BVx75GoHskf9ws74nM",
+   "n": 25,
+   "usdc": 0.97,
+   "n_x402": 25,
+   "usdc_x402": 0.97,
+   "first": "2026-10-18T08:48:14Z",
+   "last": "2026-10-18T08:50:49Z",
+   "active_hours": [
+    8
+   ]
+  },
+  {
+   "from": "34WhwW7PQwharvScNbEx7kmoABbTCtxEZSxF3nGTWsLj",
+   "to": "Bd2xS189uhhnxUeBeVF3JFXrg8zQgrvqZtpqh8hgkCEQ",
+   "n": 24,
+   "usdc": 0.48,
+   "n_x402": 24,
+   "usdc_x402": 0.48,
+   "first": "2026-10-18T06:06:36Z",
+   "last": "2026-10-18T11:55:57Z",
+   "active_hours": [
+    6,
+    7,
+    8,
+    9,
+    10,
+    11
+   ]
+  },
+  {
+   "from": "3C8ZdvNHSkftK6EuSP57cEsxpk6TUWDCpjYAskk3LDmC",
+   "to": "Bd2xS189uhhnxUeBeVF3JFXrg8zQgrvqZtpqh8hgkCEQ",
+   "n": 24,
+   "usdc": 0.48,
+   "n_x402": 24,
+   "usdc_x402": 0.48,
+   "first": "2026-10-18T06:09:07Z",
+   "last": "2026-10-18T11:47:07Z",
+   "active_hours": [
+    6,
+    7,
+    8,
+    9,
+    10,
+    11
+   ]
+  },
+  {
+   "from": "3J6GdNjsqmGWE96T8Med8Uyy9EFJcmgta93jBTWDNFHU",
+   "to": "Bd2xS189uhhnxUeBeVF3JFXrg8zQgrvqZtpqh8hgkCEQ",
+   "n": 24,
+   "usdc": 0.48,
+   "n_x402": 24,
+   "usdc_x402": 0.48,
+   "first": "2026-10-18T06:07:40Z",
+   "last": "2026-10-18T11:50:12Z",
+   "active_hours": [
+    6,
+    7,
+    8,
+    9,
+    10,
+    11
+   ]
+  },
+  {
+   "from": "42hk81LJC9rQRzEC412MsH2BkqA94QGirmxYWuFVyCqa",
+   "to": "d8X2MdS7QMiMFVWzYMVTeKhm1BVx75GoHskf9ws74nM",
+   "n": 24,
+   "usdc": 0.96,
+   "n_x402": 24,
+   "usdc_x402": 0.96,
+   "first": "2026-10-18T08:48:07Z",
+   "last": "2026-10-18T08:50:37Z",
+   "active_hours": [
+    8
+   ]
+  },
+  {
+   "from": "5g6VzjPfH19wWSQLbMLttAdGTFY3MbYGBagLTEeyDuqM",
+   "to": "Bd2xS189uhhnxUeBeVF3JFXrg8zQgrvqZtpqh8hgkCEQ",
+   "n": 24,
+   "usdc": 0.48,
+   "n_x402": 24,
+   "usdc_x402": 0.48,
+   "first": "2026-10-18T06:00:03Z",
+   "last": "2026-10-18T11:45:29Z",
+   "active_hours": [
+    6,
+    7,
+    8,
+    9,
+    10,
+    11
+   ]
+  },
+  {
+   "from": "64s4Mzu3P3AR5xADy5xVdpuszmbHdzg6ywA9FR6MY7qP",
+   "to": "Bd2xS189uhhnxUeBeVF3JFXrg8zQgrvqZtpqh8hgkCEQ",
+   "n": 24,
+   "usdc": 0.48,
+   "n_x402": 24,
+   "usdc_x402": 0.48,
+   "first": "2026-10-18T06:05:27Z",
+   "last": "2026-10-18T11:55:25Z",
+   "active_hours": [
+    6,
+    7,
+    8,
+    9,
+    10,
+    11
+   ]
+  },
+  {
+   "from": "6cJB1ye3EKz3dF1p45QoABjerSmEUxyDSmkF6QeHBH9y",
+   "to": "HJHeNjURYf3Lwp5iTnfSt8ktn3oGGTV3A8atJHLn281K",
+   "n": 24,
+   "usdc": 0.384,
+   "n_x402": 24,
+   "usdc_x402": 0.384,
+   "first": "2026-10-18T06:08:42Z",
+   "last": "2026-10-18T06:09:15Z",
+   "active_hours": [
+    6
+   ]
+  },
+  {
+   "from": "6wcvDUWdHtUN2PgzkJL8s3L7FuoMS9wyuxH3G1Zbtdyx",
+   "to": "Bd2xS189uhhnxUeBeVF3JFXrg8zQgrvqZtpqh8hgkCEQ",
+   "n": 24,
+   "usdc": 0.48,
+   "n_x402": 24,
+   "usdc_x402": 0.48,
+   "first": "2026-10-18T06:12:27Z",
+   "last": "2026-10-18T11:58:15Z",
+   "active_hours": [
+    6,
+    7,
+    8,
+    9,
+    10,
+    11
+   ]
+  },
+  {
+   "from": "CtGZ1iYEHXinfM287BRUhWNth7qx7NRBXV2qdpJF97mr",
+   "to": "Bd2xS189uhhnxUeBeVF3JFXrg8zQgrvqZtpqh8hgkCEQ",
+   "n": 24,
+   "usdc": 0.48,
+   "n_x402": 24,
+   "usdc_x402": 0.48,
+   "first": "2026-10-18T06:03:37Z",
+   "last": "2026-10-18T11:48:21Z",
+   "active_hours": [
+    6,
+    7,
+    8,
+    9,
+    10,
+    11
+   ]
+  },
+  {
+   "from": "EBykkkakoCG2WdJNXmPE2MHLhVaV1yg1vBi3ZgeB4Us7",
+   "to": "Bd2xS189uhhnxUeBeVF3JFXrg8zQgrvqZtpqh8hgkCEQ",
+   "n": 24,
+   "usdc": 0.48,
+   "n_x402": 24,
+   "usdc_x402": 0.48,
+   "first": "2026-10-18T06:03:03Z",
+   "last": "2026-10-18T11:46:01Z",
+   "active_hours": [
+    6,
+    7,
+    8,
+    9,
+    10,
+    11
+   ]
+  },
+  {
+   "from": "k5KE9pspDK13iUcDgGS4kuUdRx5q4LjRssTLHB6rjM6",
+   "to": "Bd2xS189uhhnxUeBeVF3JFXrg8zQgrvqZtpqh8hgkCEQ",
+   "n": 24,
+   "usdc": 0.48,
+   "n_x402": 24,
+   "usdc_x402": 0.48,
+   "first": "2026-10-18T06:01:17Z",
+   "last": "2026-10-18T11:50:59Z",
+   "active_hours": [
+    6,
+    7,
+    8,
+    9,
+    10,
+    11
+   ]
+  },
+  {
+   "from": "vSNpCZMvyuo3dCCMZ2Z7JD3hDd9kZ5XpRYxvi7x89YK",
+   "to": "Bd2xS189uhhnxUeBeVF3JFXrg8zQgrvqZtpqh8hgkCEQ",
+   "n": 24,
+   "usdc": 0.48,
+   "n_x402": 24,
+   "usdc_x402": 0.48,
+   "first": "2026-10-18T06:11:46Z",
+   "last": "2026-10-18T11:53:45Z",
+   "active_hours": [
+    6,
+    7,
+    8,
+    9,
+    10,
+    11
+   ]
+  },
+  {
+   "from": "7xneZpyyWdHCfSTHkPPuELiHgFJ8oZxAq3eHW2bKKevS",
+   "to": "Bd2xS189uhhnxUeBeVF3JFXrg8zQgrvqZtpqh8hgkCEQ",
+   "n": 23,
+   "usdc": 0.46,
+   "n_x402": 23,
+   "usdc_x402": 0.46,
+   "first": "2026-10-18T06:10:39Z",
+   "last": "2026-10-18T11:51:58Z",
+   "active_hours": [
+    6,
+    7,
+    8,
+    9,
+    10,
+    11
+   ]
+  },
+  {
+   "from": "4j4F1DV8WVjkvKNEN7BVi9frDC2J95kwrJmguB5fvpk4",
+   "to": "d8X2MdS7QMiMFVWzYMVTeKhm1BVx75GoHskf9ws74nM",
+   "n": 22,
+   "usdc": 1.03,
+   "n_x402": 22,
+   "usdc_x402": 1.03,
+   "first": "2026-10-18T08:48:06Z",
+   "last": "2026-10-18T08:50:40Z",
+   "active_hours": [
+    8
+   ]
+  },
+  {
+   "from": "4zXpDyLTwc2V71aLv1CT5oct24kjKdEgKzatP9JmNahX",
+   "to": "d8X2MdS7QMiMFVWzYMVTeKhm1BVx75GoHskf9ws74nM",
+   "n": 22,
+   "usdc": 0.85,
+   "n_x402": 22,
+   "usdc_x402": 0.85,
+   "first": "2026-10-18T08:48:06Z",
+   "last": "2026-10-18T08:50:43Z",
+   "active_hours": [
+    8
+   ]
+  },
+  {
+   "from": "8JkuMoTjHr3g8TtFYB68CKmocnwgRJ558iWVSJhcb4Sp",
+   "to": "Bd2xS189uhhnxUeBeVF3JFXrg8zQgrvqZtpqh8hgkCEQ",
+   "n": 22,
+   "usdc": 0.44,
+   "n_x402": 22,
+   "usdc_x402": 0.44,
+   "first": "2026-10-18T06:14:23Z",
+   "last": "2026-10-18T11:57:46Z",
+   "active_hours": [
+    6,
+    7,
+    8,
+    9,
+    10,
+    11
+   ]
+  },
+  {
+   "from": "47qVXdActUwAcfNtUXUnUMUWASwBnJUGsDLYRzSV61iN",
+   "to": "d8X2MdS7QMiMFVWzYMVTeKhm1BVx75GoHskf9ws74nM",
+   "n": 21,
+   "usdc": 0.84,
+   "n_x402": 21,
+   "usdc_x402": 0.84,
+   "first": "2026-10-18T08:48:10Z",
+   "last": "2026-10-18T08:50:39Z",
+   "active_hours": [
+    8
+   ]
+  },
+  {
+   "from": "6rfDGs24xpVK3T1vBuJw9CPZwoMoqFp6fpZPiNmenPJT",
+   "to": "d8X2MdS7QMiMFVWzYMVTeKhm1BVx75GoHskf9ws74nM",
+   "n": 20,
+   "usdc": 0.65,
+   "n_x402": 20,
+   "usdc_x402": 0.65,
+   "first": "2026-10-18T08:48:03Z",
+   "last": "2026-10-18T08:50:33Z",
+   "active_hours": [
+    8
+   ]
+  },
+  {
+   "from": "BAsRU28RuhvsmeAivFshfUzVsSW4cunBYXBkRgPyz9vc",
+   "to": "d8X2MdS7QMiMFVWzYMVTeKhm1BVx75GoHskf9ws74nM",
+   "n": 20,
+   "usdc": 0.83,
+   "n_x402": 20,
+   "usdc_x402": 0.83,
+   "first": "2026-10-18T08:48:12Z",
+   "last": "2026-10-18T08:50:36Z",
+   "active_hours": [
+    8
+   ]
+  },
+  {
+   "from": "3sng11LXu3jeAiHvqcEgpqLnErFDfKyqSz3k2VunT8oS",
+   "to": "6XcSfqJHr9vNW2vbiRaMqUYVm7shDgLepca54wUTDPN5",
+   "n": 19,
+   "usdc": 0.019,
+   "n_x402": 19,
+   "usdc_x402": 0.019,
+   "first": "2026-10-18T06:24:12Z",
+   "last": "2026-10-18T11:51:29Z",
+   "active_hours": [
+    6,
+    7,
+    8,
+    9,
+    10,
+    11
+   ]
+  },
+  {
+   "from": "95b1bqjMF6eU92eBzDpLTBRSJzHurTyh45LnJ4soHpRF",
+   "to": "d8X2MdS7QMiMFVWzYMVTeKhm1BVx75GoHskf9ws74nM",
+   "n": 19,
+   "usdc": 1.0,
+   "n_x402": 19,
+   "usdc_x402": 1.0,
+   "first": "2026-10-18T08:48:13Z",
+   "last": "2026-10-18T08:50:25Z",
+   "active_hours": [
+    8
+   ]
+  },
+  {
+   "from": "ByuUUXVHbj7mPjgdgaRRrz7ziqe8pyJjbgffj88AvUXq",
+   "to": "d8X2MdS7QMiMFVWzYMVTeKhm1BVx75GoHskf9ws74nM",
+   "n": 18,
+   "usdc": 0.81,
+   "n_x402": 18,
+   "usdc_x402": 0.81,
+   "first": "2026-10-18T08:48:16Z",
+   "last": "2026-10-18T08:50:23Z",
+   "active_hours": [
+    8
+   ]
+  },
+  {
+   "from": "2ZaQzq1N5Ziug4gk1q1NyKW3oHYGQy6CFPDu5WnUzkx3",
+   "to": "d8X2MdS7QMiMFVWzYMVTeKhm1BVx75GoHskf9ws74nM",
+   "n": 17,
+   "usdc": 0.8,
+   "n_x402": 17,
+   "usdc_x402": 0.8,
+   "first": "2026-10-18T08:47:57Z",
+   "last": "2026-10-18T08:50:15Z",
+   "active_hours": [
+    8
+   ]
+  },
+  {
+   "from": "HMtmon43RkaR3fdEuTKZvrE9TjaKkhFqUi91b2enMNaL",
+   "to": "FJqAJ4dXkFbrp3EEo8E9x98iaBGUQwaU8Srz5ePfUXLH",
+   "n": 17,
+   "usdc": 0.103,
+   "n_x402": 17,
+   "usdc_x402": 0.103,
+   "first": "2026-10-18T08:23:07Z",
+   "last": "2026-10-18T08:25:53Z",
+   "active_hours": [
+    8
+   ]
+  },
+  {
+   "from": "3h2EhBZAEwNXRrt9Jc75q2cGqZE6bAtGDUibBJ9Pb37C",
+   "to": "d8X2MdS7QMiMFVWzYMVTeKhm1BVx75GoHskf9ws74nM",
+   "n": 16,
+   "usdc": 0.88,
+   "n_x402": 16,
+   "usdc_x402": 0.88,
+   "first": "2026-10-18T08:47:59Z",
+   "last": "2026-10-18T08:50:15Z",
+   "active_hours": [
+    8
+   ]
+  },
+  {
+   "from": "J27hmYhf4AptM5fCFpSn4R4H6Gr2QuutfjejftQCW6DA",
+   "to": "6XcSfqJHr9vNW2vbiRaMqUYVm7shDgLepca54wUTDPN5",
+   "n": 16,
+   "usdc": 0.016,
+   "n_x402": 16,
+   "usdc_x402": 0.016,
+   "first": "2026-10-18T06:24:38Z",
+   "last": "2026-10-18T11:51:54Z",
+   "active_hours": [
+    6,
+    7,
+    9,
+    10,
+    11
+   ]
+  },
+  {
+   "from": "2eczs3GScWBAkyoLkSVxjiSUxjKKnsMn1uS8nqM4MUCg",
+   "to": "6XcSfqJHr9vNW2vbiRaMqUYVm7shDgLepca54wUTDPN5",
+   "n": 14,
+   "usdc": 0.014,
+   "n_x402": 14,
+   "usdc_x402": 0.014,
+   "first": "2026-10-18T08:32:51Z",
+   "last": "2026-10-18T11:52:19Z",
+   "active_hours": [
+    8,
+    9,
+    10,
+    11
+   ]
+  },
+  {
+   "from": "5xoboHF74HbdWxAd4aBmNbQxVJ8Lwtr3M7Xx9wFfthPf",
+   "to": "7r4e5dwNS68MDaxbw7N8jbzHq7RCMBp9z6smHFH4NXWw",
+   "n": 14,
+   "usdc": 0.14,
+   "n_x402": 14,
+   "usdc_x402": 0.14,
+   "first": "2026-10-18T06:26:08Z",
+   "last": "2026-10-18T11:47:22Z",
+   "active_hours": [
+    6,
+    7,
+    8,
+    10,
+    11
+   ]
+  },
+  {
+   "from": "E8iv1bmnMtGgE4PwvK8HVv1JFuqe9HHKaLcMSKvDwU1j",
+   "to": "d8X2MdS7QMiMFVWzYMVTeKhm1BVx75GoHskf9ws74nM",
+   "n": 13,
+   "usdc": 0.94,
+   "n_x402": 13,
+   "usdc_x402": 0.94,
+   "first": "2026-10-18T08:48:02Z",
+   "last": "2026-10-18T08:49:55Z",
+   "active_hours": [
+    8
+   ]
+  },
+  {
+   "from": "3EzfRqDkHGJxd3KaSya6gE2VUcR8zVUQsYDTKZSu3jax",
+   "to": "AQqnMFBwGZEoti85aTVRy8XYpKrho7GaMDx9ZB3CEeKA",
+   "n": 12,
+   "usdc": 0.44834,
+   "n_x402": 12,
+   "usdc_x402": 0.44834,
+   "first": "2026-10-18T06:00:16Z",
+   "last": "2026-10-18T11:30:16Z",
+   "active_hours": [
+    6,
+    7,
+    8,
+    9,
+    10,
+    11
+   ]
+  },
+  {
+   "from": "5Zg8y9eGkMMo3eaXGHoTPtRwTvKzZn2ipZUL68QoMd2J",
+   "to": "d8X2MdS7QMiMFVWzYMVTeKhm1BVx75GoHskf9ws74nM",
+   "n": 12,
+   "usdc": 0.84,
+   "n_x402": 12,
+   "usdc_x402": 0.84,
+   "first": "2026-10-18T08:48:01Z",
+   "last": "2026-10-18T08:49:55Z",
+   "active_hours": [
+    8
+   ]
+  },
+  {
+   "from": "5x2U2bCCpnAUoHz8WKyM324jiVGzvSSrJvWvdgcyeZ26",
+   "to": "66Qvhr1xnwqbCT36KfHfZF1JpoWdmCQ3uFYTN335CGXe",
+   "n": 12,
+   "usdc": 0.36,
+   "n_x402": 12,
+   "usdc_x402": 0.36,
+   "first": "2026-10-18T06:07:26Z",
+   "last": "2026-10-18T11:37:26Z",
+   "active_hours": [
+    6,
+    7,
+    8,
+    9,
+    10,
+    11
+   ]
+  },
+  {
+   "from": "EQiAcdJCnqM8cJmRn1TT1wWBYvnPen13jBi5dbopFgW9",
+   "to": "3Pmft74EbGeVFMpQjGCnjuRi8kDw6JrbX2VJ2WnCw9hH",
+   "n": 11,
+   "usdc": 0.011,
+   "n_x402": 11,
+   "usdc_x402": 0.011,
+   "first": "2026-10-18T06:00:52Z",
+   "last": "2026-10-18T11:01:00Z",
+   "active_hours": [
+    6,
+    7,
+    8,
+    9,
+    10,
+    11
+   ]
+  },
+  {
+   "from": "6JVATAmECuTJc1XX7GxPRdSfnRSRmVci4LiN9hH8CLt1",
+   "to": "AQqnMFBwGZEoti85aTVRy8XYpKrho7GaMDx9ZB3CEeKA",
+   "n": 9,
+   "usdc": 9.751468,
+   "n_x402": 9,
+   "usdc_x402": 9.751468,
+   "first": "2026-10-18T07:22:06Z",
+   "last": "2026-10-18T11:35:30Z",
+   "active_hours": [
+    7,
+    10,
+    11
+   ]
+  },
+  {
+   "from": "6sexPtY6CKLkf1795fJRRdG7AbqfmdRQWqy9QK5spkn5",
+   "to": "d8X2MdS7QMiMFVWzYMVTeKhm1BVx75GoHskf9ws74nM",
+   "n": 9,
+   "usdc": 0.72,
+   "n_x402": 9,
+   "usdc_x402": 0.72,
+   "first": "2026-10-18T08:48:16Z",
+   "last": "2026-10-18T08:49:40Z",
+   "active_hours": [
+    8
+   ]
+  },
+  {
+   "from": "EU36u7KUr4QRLQsZerfpowYVuHBnBJ2zwoCXiWxE7sjB",
+   "to": "d8X2MdS7QMiMFVWzYMVTeKhm1BVx75GoHskf9ws74nM",
+   "n": 9,
+   "usdc": 0.63,
+   "n_x402": 9,
+   "usdc_x402": 0.63,
+   "first": "2026-10-18T08:48:09Z",
+   "last": "2026-10-18T08:49:39Z",
+   "active_hours": [
+    8
+   ]
+  },
+  {
+   "from": "5qdBBiaWJjFHFM8NBCvTMtwD5h3T9mY9UfDdHmok424G",
+   "to": "6SzYcMJoE2iecdHNHjUmZ9ewj1hy4dLuFNd11GzU4qTN",
+   "n": 8,
+   "usdc": 0.012362,
+   "n_x402": 8,
+   "usdc_x402": 0.012362,
+   "first": "2026-10-18T08:27:11Z",
+   "last": "2026-10-18T09:40:01Z",
+   "active_hours": [
+    8,
+    9
+   ]
+  },
+  {
+   "from": "34CMQ3HB3aDWPxwAbLSbQPrBtrFhi354zAsfbb3z5v2z",
+   "to": "HcjfmZLgWRZzwj4deEiS7pewc4KBYSw39mW5nTyt3pz2",
+   "n": 7,
+   "usdc": 0.0275,
+   "n_x402": 7,
+   "usdc_x402": 0.0275,
+   "first": "2026-10-18T06:00:08Z",
+   "last": "2026-10-18T09:30:25Z",
+   "active_hours": [
+    6,
+    9
+   ]
+  },
+  {
+   "from": "BveR2eAGcCLheSqn6XxgU6wSsLk5HYFkgyA9waMD9N2A",
+   "to": "AQqnMFBwGZEoti85aTVRy8XYpKrho7GaMDx9ZB3CEeKA",
+   "n": 7,
+   "usdc": 0.017248,
+   "n_x402": 7,
+   "usdc_x402": 0.017248,
+   "first": "2026-10-18T06:07:04Z",
+   "last": "2026-10-18T11:17:21Z",
+   "active_hours": [
+    6,
+    7,
+    8,
+    9,
+    10,
+    11
+   ]
+  },
+  {
+   "from": "F5oyUYrE2hJXPXQ9BRLHZZhmU9inMaJjJUvgvkMARUC4",
+   "to": "7xvuVbuyzfoE8jLRAbdqwjNYgqLs9pVNx9FpkXPwVDVP",
+   "n": 7,
+   "usdc": 206.82,
+   "n_x402": 7,
+   "usdc_x402": 206.82,
+   "first": "2026-10-18T08:29:50Z",
+   "last": "2026-10-18T08:42:25Z",
+   "active_hours": [
+    8
+   ]
+  },
+  {
+   "from": "36kfkGZGjvCNGqXDBt1PGxmynbMMvps3SfbdYU9wC3jV",
+   "to": "9MkM5Ra48KFcSv9HDQ8sb3C3r5HjouEwGQ6sp1cx1vde",
+   "n": 6,
+   "usdc": 0.03,
+   "n_x402": 6,
+   "usdc_x402": 0.03,
+   "first": "2026-10-18T07:58:23Z",
+   "last": "2026-10-18T07:59:48Z",
+   "active_hours": [
+    7
+   ]
+  },
+  {
+   "from": "97yYecV9Ekd8t6qcvDiryihqxYQp9541oKfWoczb7HjF",
+   "to": "AQqnMFBwGZEoti85aTVRy8XYpKrho7GaMDx9ZB3CEeKA",
+   "n": 6,
+   "usdc": 0.026944,
+   "n_x402": 6,
+   "usdc_x402": 0.026944,
+   "first": "2026-10-18T08:54:34Z",
+   "last": "2026-10-18T08:54:35Z",
+   "active_hours": [
+    8
+   ]
+  },
+  {
+   "from": "eGPLEKaXw9KKZXjQzi8fiJfLnQ59eVupss9kwQAdrWP",
+   "to": "9MkM5Ra48KFcSv9HDQ8sb3C3r5HjouEwGQ6sp1cx1vde",
+   "n": 6,
+   "usdc": 0.03,
+   "n_x402": 6,
+   "usdc_x402": 0.03,
+   "first": "2026-10-18T10:50:23Z",
+   "last": "2026-10-18T10:56:40Z",
+   "active_hours": [
+    10
+   ]
+  },
+  {
+   "from": "53JhuF8bgxvUQ59nDG6kWs4awUQYCS3wswQmUsV5uC7t",
+   "to": "J7ZvJEspvwP1oRxQZ7mYmNmT22NTm3GWq3t7HEbvPZYx",
+   "n": 5,
+   "usdc": 0.09,
+   "n_x402": 5,
+   "usdc_x402": 0.09,
+   "first": "2026-10-18T11:39:21Z",
+   "last": "2026-10-18T11:39:21Z",
+   "active_hours": [
+    11
+   ]
+  },
+  {
+   "from": "7iSx8zpmAH3gYgCFk9AjcN6WaJXApjZqpAX93zDywtzf",
+   "to": "GgS891nMiEETjBEFw1QQxVcAqsRV34mDYpxh24TrpCiD",
+   "n": 5,
+   "usdc": 0.45,
+   "n_x402": 5,
+   "usdc_x402": 0.45,
+   "first": "2026-10-18T08:30:20Z",
+   "last": "2026-10-18T08:31:05Z",
+   "active_hours": [
+    8
+   ]
+  },
+  {
+   "from": "B95RupqiVS8sBSZD6kvYDVWmUoz5FLV1i9GMuPk9Jhc4",
+   "to": "7xvuVbuyzfoE8jLRAbdqwjNYgqLs9pVNx9FpkXPwVDVP",
+   "n": 5,
+   "usdc": 25.0,
+   "n_x402": 5,
+   "usdc_x402": 25.0,
+   "first": "2026-10-18T07:50:37Z",
+   "last": "2026-10-18T07:54:23Z",
+   "active_hours": [
+    7
+   ]
+  },
+  {
+   "from": "2b1JD7tcidGtAYCVm1dDKTgVHRoihSJ1uqz3jf9WwSLP",
+   "to": "53JhuF8bgxvUQ59nDG6kWs4awUQYCS3wswQmUsV5uC7t",
+   "n": 4,
+   "usdc": 0.048,
+   "n_x402": 4,
+   "usdc_x402": 0.048,
+   "first": "2026-10-18T06:03:35Z",
+   "last": "2026-10-18T11:31:37Z",
+   "active_hours": [
+    6,
+    7,
+    8,
+    11
+   ]
+  },
+  {
+   "from": "562xmccoBnjPs4jjx4Q751nMULqZW26UkpZcY3vi6Guk",
+   "to": "7xvuVbuyzfoE8jLRAbdqwjNYgqLs9pVNx9FpkXPwVDVP",
+   "n": 4,
+   "usdc": 20.0,
+   "n_x402": 4,
+   "usdc_x402": 20.0,
+   "first": "2026-10-18T07:27:44Z",
+   "last": "2026-10-18T07:35:35Z",
+   "active_hours": [
+    7
+   ]
+  },
+  {
+   "from": "8nfTkQHy73VxtaDciJdBpL4TZpPNVZMttAPzCC7RjaPD",
+   "to": "9MkM5Ra48KFcSv9HDQ8sb3C3r5HjouEwGQ6sp1cx1vde",
+   "n": 4,
+   "usdc": 0.02,
+   "n_x402": 4,
+   "usdc_x402": 0.02,
+   "first": "2026-10-18T08:30:10Z",
+   "last": "2026-10-18T09:09:28Z",
+   "active_hours": [
+    8,
+    9
+   ]
+  },
+  {
+   "from": "8yw7uZynmig1UbjSoPUvSywW8ixSLPKZzSR4wWaBngQp",
+   "to": "53JhuF8bgxvUQ59nDG6kWs4awUQYCS3wswQmUsV5uC7t",
+   "n": 4,
+   "usdc": 0.004,
+   "n_x402": 4,
+   "usdc_x402": 0.004,
+   "first": "2026-10-18T11:54:41Z",
+   "last": "2026-10-18T11:55:36Z",
+   "active_hours": [
+    11
+   ]
+  },
+  {
+   "from": "A49t7F9HSrCcruMrAoQs9xZuL7p55H1DfrZLmjPmeFVb",
+   "to": "9MkM5Ra48KFcSv9HDQ8sb3C3r5HjouEwGQ6sp1cx1vde",
+   "n": 4,
+   "usdc": 0.02,
+   "n_x402": 4,
+   "usdc_x402": 0.02,
+   "first": "2026-10-18T08:06:43Z",
+   "last": "2026-10-18T08:15:57Z",
+   "active_hours": [
+    8
+   ]
+  },
+  {
+   "from": "2WgRFRmn5JvdbfPxJrnJFLGVzPxsQYmY31HY5nwZ23Wx",
+   "to": "Bd2xS189uhhnxUeBeVF3JFXrg8zQgrvqZtpqh8hgkCEQ",
+   "n": 3,
+   "usdc": 0.07,
+   "n_x402": 3,
+   "usdc_x402": 0.07,
+   "first": "2026-10-18T08:46:28Z",
+   "last": "2026-10-18T10:48:38Z",
+   "active_hours": [
+    8,
+    10
+   ]
+  },
+  {
+   "from": "4yLdZP4w2h2EyHumD4iCrpRNGxf6RjxWqCC6CtwkgCN4",
+   "to": "7xvuVbuyzfoE8jLRAbdqwjNYgqLs9pVNx9FpkXPwVDVP",
+   "n": 3,
+   "usdc": 15.0,
+   "n_x402": 3,
+   "usdc_x402": 15.0,
+   "first": "2026-10-18T07:45:10Z",
+   "last": "2026-10-18T07:47:54Z",
+   "active_hours": [
+    7
+   ]
+  },
+  {
+   "from": "7ACw4C3WwZWC6s8ZBVhxcbBKJB2VeXP9LvR2isCb218",
+   "to": "9MkM5Ra48KFcSv9HDQ8sb3C3r5HjouEwGQ6sp1cx1vde",
+   "n": 3,
+   "usdc": 0.015,
+   "n_x402": 3,
+   "usdc_x402": 0.015,
+   "first": "2026-10-18T08:47:06Z",
+   "last": "2026-10-18T09:07:34Z",
+   "active_hours": [
+    8,
+    9
+   ]
+  },
+  {
+   "from": "AY9Sak3QtPBWpcriu94DqawGDXGiveWgQq9giAgiJzAh",
+   "to": "7xvuVbuyzfoE8jLRAbdqwjNYgqLs9pVNx9FpkXPwVDVP",
+   "n": 3,
+   "usdc": 60.0,
+   "n_x402": 3,
+   "usdc_x402": 60.0,
+   "first": "2026-10-18T07:10:23Z",
+   "last": "2026-10-18T09:08:35Z",
+   "active_hours": [
+    7,
+    9
+   ]
+  },
+  {
+   "from": "GFDLQ3y8QqpUxJ3yQSHeypBDhfp44EzjKeSdWTr6RL2f",
+   "to": "9MkM5Ra48KFcSv9HDQ8sb3C3r5HjouEwGQ6sp1cx1vde",
+   "n": 3,
+   "usdc": 0.015,
+   "n_x402": 3,
+   "usdc_x402": 0.015,
+   "first": "2026-10-18T11:00:05Z",
+   "last": "2026-10-18T11:03:15Z",
+   "active_hours": [
+    11
+   ]
+  },
+  {
+   "from": "YeR7zcz7rvZMSgBokESG9FoY5GoxK34aYAhPnDYgoHt",
+   "to": "9MkM5Ra48KFcSv9HDQ8sb3C3r5HjouEwGQ6sp1cx1vde",
+   "n": 3,
+   "usdc": 0.015,
+   "n_x402": 3,
+   "usdc_x402": 0.015,
+   "first": "2026-10-18T11:02:56Z",
+   "last": "2026-10-18T11:42:57Z",
+   "active_hours": [
+    11
+   ]
+  },
+  {
+   "from": "34CMQ3HB3aDWPxwAbLSbQPrBtrFhi354zAsfbb3z5v2z",
+   "to": "4a8o45skRPcyjAdyR8yES215Swvh8uTpZD6KLarhxCJ7",
+   "n": 2,
+   "usdc": 0.04,
+   "n_x402": 2,
+   "usdc_x402": 0.04,
+   "first": "2026-10-18T06:00:18Z",
+   "last": "2026-10-18T09:30:17Z",
+   "active_hours": [
+    6,
+    9
+   ]
+  },
+  {
+   "from": "5qdBBiaWJjFHFM8NBCvTMtwD5h3T9mY9UfDdHmok424G",
+   "to": "HmsisfphYN2zv65vYd42gb9ajeD8fB4Mbs2A9WDNApHC",
+   "n": 2,
+   "usdc": 0.005,
+   "n_x402": 2,
+   "usdc_x402": 0.005,
+   "first": "2026-10-18T09:34:13Z",
+   "last": "2026-10-18T09:39:46Z",
+   "active_hours": [
+    9
+   ]
+  },
+  {
+   "from": "78B1kkUBfPnyG6MGKT5xwMUSivdfUAtpBn6eXfRfY6th",
+   "to": "9MkM5Ra48KFcSv9HDQ8sb3C3r5HjouEwGQ6sp1cx1vde",
+   "n": 2,
+   "usdc": 0.01,
+   "n_x402": 2,
+   "usdc_x402": 0.01,
+   "first": "2026-10-18T10:26:08Z",
+   "last": "2026-10-18T10:27:10Z",
+   "active_hours": [
+    10
+   ]
+  },
+  {
+   "from": "7V5wVFYkZi44DyPL87xHWyp1c5Qoq73ca7n6DTaHXe8z",
+   "to": "9MkM5Ra48KFcSv9HDQ8sb3C3r5HjouEwGQ6sp1cx1vde",
+   "n": 2,
+   "usdc": 0.01,
+   "n_x402": 2,
+   "usdc_x402": 0.01,
+   "first": "2026-10-18T10:27:41Z",
+   "last": "2026-10-18T10:29:30Z",
+   "active_hours": [
+    10
+   ]
+  },
+  {
+   "from": "BmfTfk51ydcL1c3XXxNXL1FPKA81k59EqfmBnkMYmeME",
+   "to": "7xvuVbuyzfoE8jLRAbdqwjNYgqLs9pVNx9FpkXPwVDVP",
+   "n": 2,
+   "usdc": 70.0,
+   "n_x402": 2,
+   "usdc_x402": 70.0,
+   "first": "2026-10-18T08:25:11Z",
+   "last": "2026-10-18T11:57:44Z",
+   "active_hours": [
+    8,
+    11
+   ]
+  },
+  {
+   "from": "EQxQBTveFjDv2f2o9tUsAacxWrUsCcQoyoPqegwmZyB6",
+   "to": "Fs2zgBUo3jTs3AeZrXyjBQ4FVw1f9HViNudmzxw7rz4B",
+   "n": 2,
+   "usdc": 2.0,
+   "n_x402": 2,
+   "usdc_x402": 2.0,
+   "first": "2026-10-18T09:15:29Z",
+   "last": "2026-10-18T09:30:52Z",
+   "active_hours": [
+    9
+   ]
+  },
+  {
+   "from": "2wWpP8SmDkFWSNPtd8JU7P11xvsU6xGoXLmyAvvUwK2F",
+   "to": "7xvuVbuyzfoE8jLRAbdqwjNYgqLs9pVNx9FpkXPwVDVP",
+   "n": 1,
+   "usdc": 100.0,
+   "n_x402": 1,
+   "usdc_x402": 100.0,
+   "first": "2026-10-18T07:40:54Z",
+   "last": "2026-10-18T07:40:54Z",
+   "active_hours": [
+    7
+   ]
+  },
+  {
+   "from": "3YWrKex5whNtK5QeXaPGDrBZwcAqMsgRigxwFgA3kZ8M",
+   "to": "4rHbgQUBPckbQBEkaLLQ7zoo2MrEmWtQCY9gSYZKmMf8",
+   "n": 1,
+   "usdc": 0.01,
+   "n_x402": 1,
+   "usdc_x402": 0.01,
+   "first": "2026-10-18T07:30:09Z",
+   "last": "2026-10-18T07:30:09Z",
+   "active_hours": [
+    7
+   ]
+  },
+  {
+   "from": "3rm8e619HHCVfM2nzNqAmaYuFEj8CYifarViopVrYjaV",
+   "to": "FJzJDGyi5eyHF2nKVPieUhhMPYvsXhrjWzVq8U8hdarU",
+   "n": 1,
+   "usdc": 0.01,
+   "n_x402": 1,
+   "usdc_x402": 0.01,
+   "first": "2026-10-18T07:47:21Z",
+   "last": "2026-10-18T07:47:21Z",
+   "active_hours": [
+    7
+   ]
+  },
+  {
+   "from": "47TfpicKeN265FTAmpFHEWobznWrb5ZGu56jC2VzaRRr",
+   "to": "DdeMfXrDae49VAkvVZHUhWh7FDuirAuFCuuJruqXv5G2",
+   "n": 1,
+   "usdc": 0.1,
+   "n_x402": 1,
+   "usdc_x402": 0.1,
+   "first": "2026-10-18T08:13:46Z",
+   "last": "2026-10-18T08:13:46Z",
+   "active_hours": [
+    8
+   ]
+  },
+  {
+   "from": "53JhuF8bgxvUQ59nDG6kWs4awUQYCS3wswQmUsV5uC7t",
+   "to": "CDXr4aHpS9ZD4s6tKFpgaTu6nPkn43ni3JhkJHGnyfcQ",
+   "n": 1,
+   "usdc": 0.01,
+   "n_x402": 1,
+   "usdc_x402": 0.01,
+   "first": "2026-10-18T11:39:21Z",
+   "last": "2026-10-18T11:39:21Z",
+   "active_hours": [
+    11
+   ]
+  },
+  {
+   "from": "63J3ZQ43ruaYDJdo8DENFi6AeEjou9eZHPK9JHuqBNJR",
+   "to": "7xvuVbuyzfoE8jLRAbdqwjNYgqLs9pVNx9FpkXPwVDVP",
+   "n": 1,
+   "usdc": 20.0,
+   "n_x402": 1,
+   "usdc_x402": 20.0,
+   "first": "2026-10-18T08:26:54Z",
+   "last": "2026-10-18T08:26:54Z",
+   "active_hours": [
+    8
+   ]
+  },
+  {
+   "from": "729noWe9DrCGz8NYh3dVi8Bxeib1ktDXBp1HcEjf6xqE",
+   "to": "7xvuVbuyzfoE8jLRAbdqwjNYgqLs9pVNx9FpkXPwVDVP",
+   "n": 1,
+   "usdc": 25.0,
+   "n_x402": 1,
+   "usdc_x402": 25.0,
+   "first": "2026-10-18T08:46:41Z",
+   "last": "2026-10-18T08:46:41Z",
+   "active_hours": [
+    8
+   ]
+  },
+  {
+   "from": "7pHrRWDxiAAe6LeMESRp4W7cMnLE29UvQKjECsT6f6BU",
+   "to": "9QJDjm5dBuZFXx43nMKD4u9tozYCZThAHKreNYkNvG3q",
+   "n": 1,
+   "usdc": 0.001,
+   "n_x402": 1,
+   "usdc_x402": 0.001,
+   "first": "2026-10-18T06:14:12Z",
+   "last": "2026-10-18T06:14:12Z",
+   "active_hours": [
+    6
+   ]
+  },
+  {
+   "from": "9KTYu8Ccc9h1NCxzwykjFXseEmjnxnxyzraq2GAP7PxH",
+   "to": "7xvuVbuyzfoE8jLRAbdqwjNYgqLs9pVNx9FpkXPwVDVP",
+   "n": 1,
+   "usdc": 30.0,
+   "n_x402": 1,
+   "usdc_x402": 30.0,
+   "first": "2026-10-18T08:26:34Z",
+   "last": "2026-10-18T08:26:34Z",
+   "active_hours": [
+    8
+   ]
+  },
+  {
+   "from": "9Rp23iL77FtUXtgigFGtdGfna7jHuzLLzvpc6RFr48Xr",
+   "to": "2ZaQzq1N5Ziug4gk1q1NyKW3oHYGQy6CFPDu5WnUzkx3",
+   "n": 1,
+   "usdc": 0.8,
+   "n_x402": 1,
+   "usdc_x402": 0.8,
+   "first": "2026-10-18T08:47:36Z",
+   "last": "2026-10-18T08:47:36Z",
+   "active_hours": [
+    8
+   ]
+  },
+  {
+   "from": "9Rp23iL77FtUXtgigFGtdGfna7jHuzLLzvpc6RFr48Xr",
+   "to": "3h2EhBZAEwNXRrt9Jc75q2cGqZE6bAtGDUibBJ9Pb37C",
+   "n": 1,
+   "usdc": 0.88,
+   "n_x402": 1,
+   "usdc_x402": 0.88,
+   "first": "2026-10-18T08:47:35Z",
+   "last": "2026-10-18T08:47:35Z",
+   "active_hours": [
+    8
+   ]
+  },
+  {
+   "from": "9Rp23iL77FtUXtgigFGtdGfna7jHuzLLzvpc6RFr48Xr",
+   "to": "42hk81LJC9rQRzEC412MsH2BkqA94QGirmxYWuFVyCqa",
+   "n": 1,
+   "usdc": 0.96,
+   "n_x402": 1,
+   "usdc_x402": 0.96,
+   "first": "2026-10-18T08:47:42Z",
+   "last": "2026-10-18T08:47:42Z",
+   "active_hours": [
+    8
+   ]
+  },
+  {
+   "from": "9Rp23iL77FtUXtgigFGtdGfna7jHuzLLzvpc6RFr48Xr",
+   "to": "47qVXdActUwAcfNtUXUnUMUWASwBnJUGsDLYRzSV61iN",
+   "n": 1,
+   "usdc": 0.84,
+   "n_x402": 1,
+   "usdc_x402": 0.84,
+   "first": "2026-10-18T08:47:46Z",
+   "last": "2026-10-18T08:47:46Z",
+   "active_hours": [
+    8
+   ]
+  },
+  {
+   "from": "9Rp23iL77FtUXtgigFGtdGfna7jHuzLLzvpc6RFr48Xr",
+   "to": "4j4F1DV8WVjkvKNEN7BVi9frDC2J95kwrJmguB5fvpk4",
+   "n": 1,
+   "usdc": 1.03,
+   "n_x402": 1,
+   "usdc_x402": 1.03,
+   "first": "2026-10-18T08:47:42Z",
+   "last": "2026-10-18T08:47:42Z",
+   "active_hours": [
+    8
+   ]
+  },
+  {
+   "from": "9Rp23iL77FtUXtgigFGtdGfna7jHuzLLzvpc6RFr48Xr",
+   "to": "4zXpDyLTwc2V71aLv1CT5oct24kjKdEgKzatP9JmNahX",
+   "n": 1,
+   "usdc": 0.85,
+   "n_x402": 1,
+   "usdc_x402": 0.85,
+   "first": "2026-10-18T08:47:45Z",
+   "last": "2026-10-18T08:47:45Z",
+   "active_hours": [
+    8
+   ]
+  },
+  {
+   "from": "9Rp23iL77FtUXtgigFGtdGfna7jHuzLLzvpc6RFr48Xr",
+   "to": "5XarVYaci4bR8tvdSAJR78EjoNMC7zEgoUJRVM6wnDNz",
+   "n": 1,
+   "usdc": 0.97,
+   "n_x402": 1,
+   "usdc_x402": 0.97,
+   "first": "2026-10-18T08:47:47Z",
+   "last": "2026-10-18T08:47:47Z",
+   "active_hours": [
+    8
+   ]
+  },
+  {
+   "from": "9Rp23iL77FtUXtgigFGtdGfna7jHuzLLzvpc6RFr48Xr",
+   "to": "5Zg8y9eGkMMo3eaXGHoTPtRwTvKzZn2ipZUL68QoMd2J",
+   "n": 1,
+   "usdc": 0.84,
+   "n_x402": 1,
+   "usdc_x402": 0.84,
+   "first": "2026-10-18T08:47:40Z",
+   "last": "2026-10-18T08:47:40Z",
+   "active_hours": [
+    8
+   ]
+  },
+  {
+   "from": "9Rp23iL77FtUXtgigFGtdGfna7jHuzLLzvpc6RFr48Xr",
+   "to": "6rfDGs24xpVK3T1vBuJw9CPZwoMoqFp6fpZPiNmenPJT",
+   "n": 1,
+   "usdc": 0.65,
+   "n_x402": 1,
+   "usdc_x402": 0.65,
+   "first": "2026-10-18T08:47:37Z",
+   "last": "2026-10-18T08:47:37Z",
+   "active_hours": [
+    8
+   ]
+  },
+  {
+   "from": "9Rp23iL77FtUXtgigFGtdGfna7jHuzLLzvpc6RFr48Xr",
+   "to": "6sexPtY6CKLkf1795fJRRdG7AbqfmdRQWqy9QK5spkn5",
+   "n": 1,
+   "usdc": 0.72,
+   "n_x402": 1,
+   "usdc_x402": 0.72,
+   "first": "2026-10-18T08:47:50Z",
+   "last": "2026-10-18T08:47:50Z",
+   "active_hours": [
+    8
+   ]
+  },
+  {
+   "from": "9Rp23iL77FtUXtgigFGtdGfna7jHuzLLzvpc6RFr48Xr",
+   "to": "95b1bqjMF6eU92eBzDpLTBRSJzHurTyh45LnJ4soHpRF",
+   "n": 1,
+   "usdc": 1.0,
+   "n_x402": 1,
+   "usdc_x402": 1.0,
+   "first": "2026-10-18T08:47:48Z",
+   "last": "2026-10-18T08:47:48Z",
+   "active_hours": [
+    8
+   ]
+  },
+  {
+   "from": "9Rp23iL77FtUXtgigFGtdGfna7jHuzLLzvpc6RFr48Xr",
+   "to": "BAsRU28RuhvsmeAivFshfUzVsSW4cunBYXBkRgPyz9vc",
+   "n": 1,
+   "usdc": 0.83,
+   "n_x402": 1,
+   "usdc_x402": 0.83,
+   "first": "2026-10-18T08:47:46Z",
+   "last": "2026-10-18T08:47:46Z",
+   "active_hours": [
+    8
+   ]
+  },
+  {
+   "from": "9Rp23iL77FtUXtgigFGtdGfna7jHuzLLzvpc6RFr48Xr",
+   "to": "BWky7uXkjuiXB85zgXujtN65U7zKZuimLZGNiQLpCwTM",
+   "n": 1,
+   "usdc": 0.75,
+   "n_x402": 1,
+   "usdc_x402": 0.75,
+   "first": "2026-10-18T08:47:51Z",
+   "last": "2026-10-18T08:47:51Z",
+   "active_hours": [
+    8
+   ]
+  },
+  {
+   "from": "9Rp23iL77FtUXtgigFGtdGfna7jHuzLLzvpc6RFr48Xr",
+   "to": "ByuUUXVHbj7mPjgdgaRRrz7ziqe8pyJjbgffj88AvUXq",
+   "n": 1,
+   "usdc": 0.81,
+   "n_x402": 1,
+   "usdc_x402": 0.81,
+   "first": "2026-10-18T08:47:50Z",
+   "last": "2026-10-18T08:47:50Z",
+   "active_hours": [
+    8
+   ]
+  },
+  {
+   "from": "9Rp23iL77FtUXtgigFGtdGfna7jHuzLLzvpc6RFr48Xr",
+   "to": "E8iv1bmnMtGgE4PwvK8HVv1JFuqe9HHKaLcMSKvDwU1j",
+   "n": 1,
+   "usdc": 0.94,
+   "n_x402": 1,
+   "usdc_x402": 0.94,
+   "first": "2026-10-18T08:47:40Z",
+   "last": "2026-10-18T08:47:40Z",
+   "active_hours": [
+    8
+   ]
+  },
+  {
+   "from": "9Rp23iL77FtUXtgigFGtdGfna7jHuzLLzvpc6RFr48Xr",
+   "to": "EU36u7KUr4QRLQsZerfpowYVuHBnBJ2zwoCXiWxE7sjB",
+   "n": 1,
+   "usdc": 0.63,
+   "n_x402": 1,
+   "usdc_x402": 0.63,
+   "first": "2026-10-18T08:47:44Z",
+   "last": "2026-10-18T08:47:44Z",
+   "active_hours": [
+    8
+   ]
+  },
+  {
+   "from": "9sMJxSEmKbmCA27scxYgW4o1xmFB1r9PZB4U8DG6yj2u",
+   "to": "4rHbgQUBPckbQBEkaLLQ7zoo2MrEmWtQCY9gSYZKmMf8",
+   "n": 1,
+   "usdc": 0.01,
+   "n_x402": 1,
+   "usdc_x402": 0.01,
+   "first": "2026-10-18T09:28:11Z",
+   "last": "2026-10-18T09:28:11Z",
+   "active_hours": [
+    9
+   ]
+  },
+  {
+   "from": "9yu5uhG2EAm4SKHP1BfeGEZz7y5tyQzXn2BS9jDJc6BD",
+   "to": "7xvuVbuyzfoE8jLRAbdqwjNYgqLs9pVNx9FpkXPwVDVP",
+   "n": 1,
+   "usdc": 20.0,
+   "n_x402": 1,
+   "usdc_x402": 20.0,
+   "first": "2026-10-18T08:44:21Z",
+   "last": "2026-10-18T08:44:21Z",
+   "active_hours": [
+    8
+   ]
+  },
+  {
+   "from": "AKwFj9V8fbZHFVT14C8afYnULV38RUyrqBhg8KE2SxQ7",
+   "to": "GLu63pRCYrp4BJu5P5ciYKxgeZFW9c8TJ8jWzK3TB9AR",
+   "n": 1,
+   "usdc": 0.01,
+   "n_x402": 1,
+   "usdc_x402": 0.01,
+   "first": "2026-10-18T08:41:30Z",
+   "last": "2026-10-18T08:41:30Z",
+   "active_hours": [
+    8
+   ]
+  },
+  {
+   "from": "Axeo4tRh6SFsn9M9UYCXV7ozuhaMnWrkpnYtBdgNxqeu",
+   "to": "7xvuVbuyzfoE8jLRAbdqwjNYgqLs9pVNx9FpkXPwVDVP",
+   "n": 1,
+   "usdc": 10.0,
+   "n_x402": 1,
+   "usdc_x402": 10.0,
+   "first": "2026-10-18T08:09:01Z",
+   "last": "2026-10-18T08:09:01Z",
+   "active_hours": [
+    8
+   ]
+  },
+  {
+   "from": "BXMcy9CpvjbgJTwaN2AMjtPUwRzv13d1fKCMHBU9UdiU",
+   "to": "7xvuVbuyzfoE8jLRAbdqwjNYgqLs9pVNx9FpkXPwVDVP",
+   "n": 1,
+   "usdc": 5.0,
+   "n_x402": 1,
+   "usdc_x402": 5.0,
+   "first": "2026-10-18T08:46:56Z",
+   "last": "2026-10-18T08:46:56Z",
+   "active_hours": [
+    8
+   ]
+  },
+  {
+   "from": "BrMxACQGDoq6ZtFnsCEjWnFSuGWs8HDueDW5qii6Pfwm",
+   "to": "7xvuVbuyzfoE8jLRAbdqwjNYgqLs9pVNx9FpkXPwVDVP",
+   "n": 1,
+   "usdc": 15.0,
+   "n_x402": 1,
+   "usdc_x402": 15.0,
+   "first": "2026-10-18T06:32:05Z",
+   "last": "2026-10-18T06:32:05Z",
+   "active_hours": [
+    6
+   ]
+  },
+  {
+   "from": "DWAnPwpYvphBuFW4wdCyJsVbfV9hUPCxanEL5yZGetCi",
+   "to": "7xvuVbuyzfoE8jLRAbdqwjNYgqLs9pVNx9FpkXPwVDVP",
+   "n": 1,
+   "usdc": 20.0,
+   "n_x402": 1,
+   "usdc_x402": 20.0,
+   "first": "2026-10-18T09:09:43Z",
+   "last": "2026-10-18T09:09:43Z",
+   "active_hours": [
+    9
+   ]
+  },
+  {
+   "from": "ELmjmHc5zf945EtPRb6pNNzHS5ZDvUF43KSQrRCc1fmi",
+   "to": "7xvuVbuyzfoE8jLRAbdqwjNYgqLs9pVNx9FpkXPwVDVP",
+   "n": 1,
+   "usdc": 5.0,
+   "n_x402": 1,
+   "usdc_x402": 5.0,
+   "first": "2026-10-18T11:29:22Z",
+   "last": "2026-10-18T11:29:22Z",
+   "active_hours": [
+    11
+   ]
+  },
+  {
+   "from": "EQxQBTveFjDv2f2o9tUsAacxWrUsCcQoyoPqegwmZyB6",
+   "to": "7LSjfrJf8fNsB8VA9u7N3WEn25smQLpob3SvyUvXacy7",
+   "n": 1,
+   "usdc": 0.01,
+   "n_x402": 1,
+   "usdc_x402": 0.01,
+   "first": "2026-10-18T09:27:44Z",
+   "last": "2026-10-18T09:27:44Z",
+   "active_hours": [
+    9
+   ]
+  },
+  {
+   "from": "FcPMHG1QoG3E6HEfe456Krgp2vLNhQSP2RcVDn54NBYw",
+   "to": "7xvuVbuyzfoE8jLRAbdqwjNYgqLs9pVNx9FpkXPwVDVP",
+   "n": 1,
+   "usdc": 15.0,
+   "n_x402": 1,
+   "usdc_x402": 15.0,
+   "first": "2026-10-18T07:27:46Z",
+   "last": "2026-10-18T07:27:46Z",
+   "active_hours": [
+    7
+   ]
+  },
+  {
+   "from": "FhvUeu5McPtU2ozSSDGYE5PwJL1Hwgf1mGoTbypgRLtt",
+   "to": "7xvuVbuyzfoE8jLRAbdqwjNYgqLs9pVNx9FpkXPwVDVP",
+   "n": 1,
+   "usdc": 100.0,
+   "n_x402": 1,
+   "usdc_x402": 100.0,
+   "first": "2026-10-18T08:51:32Z",
+   "last": "2026-10-18T08:51:32Z",
+   "active_hours": [
+    8
+   ]
+  },
+  {
+   "from": "GKBrZmaN7nsSc3QobSNCcLnZXaaTEqWfPDFC41ohynaM",
+   "to": "7xvuVbuyzfoE8jLRAbdqwjNYgqLs9pVNx9FpkXPwVDVP",
+   "n": 1,
+   "usdc": 5.0,
+   "n_x402": 1,
+   "usdc_x402": 5.0,
+   "first": "2026-10-18T11:46:10Z",
+   "last": "2026-10-18T11:46:10Z",
+   "active_hours": [
+    11
+   ]
+  },
+  {
+   "from": "GTSsWNk4BZi5zMWyqk9AnLHHbRPyv7TT68AzMNx57LXM",
+   "to": "7xvuVbuyzfoE8jLRAbdqwjNYgqLs9pVNx9FpkXPwVDVP",
+   "n": 1,
+   "usdc": 20.0,
+   "n_x402": 1,
+   "usdc_x402": 20.0,
+   "first": "2026-10-18T08:27:11Z",
+   "last": "2026-10-18T08:27:11Z",
+   "active_hours": [
+    8
+   ]
+  },
+  {
+   "from": "HDnn5zgGX9JUBLUPriiqXFwnya5jRjktwRWudPDHaWm7",
+   "to": "53JhuF8bgxvUQ59nDG6kWs4awUQYCS3wswQmUsV5uC7t",
+   "n": 1,
+   "usdc": 0.001,
+   "n_x402": 1,
+   "usdc_x402": 0.001,
+   "first": "2026-10-18T06:04:24Z",
+   "last": "2026-10-18T06:04:24Z",
+   "active_hours": [
+    6
+   ]
+  },
+  {
+   "from": "d8X2MdS7QMiMFVWzYMVTeKhm1BVx75GoHskf9ws74nM",
+   "to": "9Rp23iL77FtUXtgigFGtdGfna7jHuzLLzvpc6RFr48Xr",
+   "n": 1,
+   "usdc": 13.5,
+   "n_x402": 1,
+   "usdc_x402": 13.5,
+   "first": "2026-10-18T08:47:27Z",
+   "last": "2026-10-18T08:47:27Z",
+   "active_hours": [
+    8
+   ]
+  },
+  {
+   "from": "sEet7Ci1PvPnZg4R2ei1UcBkuZdtds7Rhg9oTTTdom2",
+   "to": "7xvuVbuyzfoE8jLRAbdqwjNYgqLs9pVNx9FpkXPwVDVP",
+   "n": 1,
+   "usdc": 200.0,
+   "n_x402": 1,
+   "usdc_x402": 200.0,
+   "first": "2026-10-18T09:33:28Z",
+   "last": "2026-10-18T09:33:28Z",
+   "active_hours": [
+    9
+   ]
+  }
+ ],
+ "processors": {
+  "payAI": {
+   "payments": 11913,
+   "usdc": 36.388663
+  },
+  "coinbase": {
+   "payments": 616,
+   "usdc": 1992.2095
+  },
+  "dexter": {
+   "payments": 324,
+   "usdc": 40.517362
+  }
+ },
+ "assets": {
+  "USDC": {
+   "mint": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+   "payments": 12827,
+   "usdc": 1489.115525
+  },
+  "USDT": {
+   "mint": "Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB",
+   "payments": 26,
+   "usdc": 580.0
+  }
+ },
+ "sellers": {
+  "8iZbjedTiMYVYGE9PZBHPm7k2KeXRqWAuCpSAxHm7j68": [
+   "47620.xyz"
+  ],
+  "8tosK4UvkrkhBq1fFquS4ecZKvHpeYtjCoMRMgMvcsQz": [
+   "aidatatools.dev",
+   "astro-agent.dev"
+  ],
+  "8FpaqrVv86FESBBn1qYgPNvL8EbTbk7W9ccMPqvNELZb": [
+   "aijobsboom-x402.sonofgus.workers.dev"
+  ],
+  "9YLxx6HtrN4HFd2wBTcBX5Uwn2rtMUYxcUwohzG9aBGT": [
+   "anime-intelligence.goodmy0312.workers.dev"
+  ],
+  "HpZ7TcKzX5GQ1jbFFYB3Npq321g8UrmsnaTKVNicu1Dv": [
+   "api.cookin.fun"
+  ],
+  "Bn7sLNmcL9ru5kt9gNwVn8e8Sx912dBTxiUBNiwjbiY8": [
+   "api.deepnets.ai"
+  ],
+  "FrbPNVy38p2czvMSaQDAW5EU7UYHG1VTykfcornDdVHH": [
+   "api.ekospor.com"
+  ],
+  "cpCDBTacxDtgXpKNCeK4WgtCT2EcGRG3GD9rjQYayTP": [
+   "api.groundtruths.xyz"
+  ],
+  "9HkwyUhDMyjbpSpnyu5xuZ9vRaFQeajnJsavhie7XcsT": [
+   "api.loopholetape.com"
+  ],
+  "9mMDrHabSf73MPn1ANdANSmsNw2wKiqE7JZ7eD6EUSRc": [
+   "api.mekler.ai",
+   "citation-overlap-checker.mekler.ai",
+   "csv-validator.mekler.ai",
+   "static-page-extractor.mekler.ai",
+   "vme5zb7fll.execute-api.us-east-1.amazonaws.com"
+  ],
+  "66Qvhr1xnwqbCT36KfHfZF1JpoWdmCQ3uFYTN335CGXe": [
+   "api.solenrich.com"
+  ],
+  "HwXJGH7FMugPCoLiQnuG1nCUMWhBejMhkjdswNHmLeN8": [
+   "api.solsentry.app"
+  ],
+  "CBYMYxfMGdA98qkzrYqTzTiQhP3H2scU95EB4ZxoRxuM": [
+   "api.suverse.io"
+  ],
+  "AMbsiP9F8YY2y8n9uFdqtw7yNZZHvTWFEWSQGHKtmkoQ": [
+   "api.urbangametheory.xyz"
+  ],
+  "HcjfmZLgWRZzwj4deEiS7pewc4KBYSw39mW5nTyt3pz2": [
+   "api.vextorium.com"
+  ],
+  "9DJAmTJ2ucuHZRtQo4EuDLwKiFjQjGWYTgkQmMyuGm1E": [
+   "api.zendiq.ai",
+   "zendiq-backend.onrender.com"
+  ],
+  "FdQ2FmAydXBe87Nm7w4MjksRqTUjahPaqjj7mVshKvNa": [
+   "app.fortiblox.com"
+  ],
+  "4an2sqamWWhny9mjLsMtGXCDXakeNtg6vSLq4QvhdmQu": [
+   "ask.singitai.app"
+  ],
+  "9U88CgNF2AxvuoE9QRCyBVN6d7Ybvgh8VB2XxPdH6CAf": [
+   "bob.assimilatethis.com"
+  ],
+  "9iubApKktcxphCVgBg9CPRPhSH8nkzVRSapxhYwxfCVS": [
+   "cyre.dev"
+  ],
+  "DCi9X5mmacNGLeJvCw9fdWgX3G8V4QquDn4EuXATkcYr": [
+   "derivatives-pricer-production.up.railway.app"
+  ],
+  "22PpHwVGiikZMJKPLjMmbaUhfkoLG6J28NjJurbsM2g1": [
+   "devbox.tail873466.ts.net:10000"
+  ],
+  "J2AjnRuaBKWXmAyrnPpU9S1PEm1AtZh61qDJaLE4fsnW": [
+   "fmcsa-mcp-843680657471.us-central1.run.app"
+  ],
+  "9QJDjm5dBuZFXx43nMKD4u9tozYCZThAHKreNYkNvG3q": [
+   "gdzlcxskuhupymyxywzm.supabase.co"
+  ],
+  "9MkM5Ra48KFcSv9HDQ8sb3C3r5HjouEwGQ6sp1cx1vde": [
+   "glim.sh",
+   "surf.cascade.fyi",
+   "twitter.surf.cascade.fyi"
+  ],
+  "DxnVaGNqTm1yX4Bm5YqtRzfUytF5ZiZ7N2eVXZpVPPP3": [
+   "grov.fun"
+  ],
+  "44QXKrTUzT1j5MPkZCQAE1y5jur6mxvugSrB7g61ERZ3": [
+   "inference.algono.co"
+  ],
+  "8D5DSpGroX5P9v6oGHLUVLFXujp6En1zYdf5KTTQ5N8V": [
+   "insider-radar-agent.insider-radar-agent.workers.dev",
+   "whodeployed.wtf"
+  ],
+  "GFpLvocNdEjnSsLH3VJQL6wGcjGxTbUBrj6fqN3Qe1Gs": [
+   "intel.twzrd.xyz"
+  ],
+  "9qCyPu7sLjnwgcbHYY76eqvtjsrdDxis9nn1sjD8CyJo": [
+   "mcp.blocksize.info"
+  ],
+  "3E6GLvUrVhynV7q19ZUNNJ5qeaL67BkWwx3bcEM43bCs": [
+   "myceliumfinance.com"
+  ],
+  "GqSs5L9aPWGJwyRQe35YKQaWMDPh3R1dMqfSEPhSgkM": [
+   "palmyr.ai",
+   "tiktok.palmyr.ai"
+  ],
+  "E75637r67jVjdYuG6C6Taaf9Gtur4S98GkFmSWwazLC": [
+   "piquesignal.xyz"
+  ],
+  "HFYkH6SUuXLvzGbuB76vJ8u76NG3X25wdd1A7mDM4cSw": [
+   "proxy.suverse.io"
+  ],
+  "BrYj2PMe2YLpEYnUkUDm5B5age2zTp3chWJr2hoAmG5S": [
+   "pumpdata.fun"
+  ],
+  "35tCuyL3E7M88jfhTeEaRxhrbuKFyQLWgxJQyf5QcLLe": [
+   "sanctions.nsgoods.org"
+  ],
+  "7LSjfrJf8fNsB8VA9u7N3WEn25smQLpob3SvyUvXacy7": [
+   "saylorinnovations.com"
+  ],
+  "CTKigV78yuErumvqm7Qor8j1hMK2oxNxdhwpVrAKV85d": [
+   "scry.solanahub.de"
+  ],
+  "9csHbkGGeQqNxvtZw8hPnC34NCcmZoZXVTEGC1MiDNRE": [
+   "softbot-emailcheck-mainnet.softbot.workers.dev",
+   "softbot-reader-mainnet.softbot.workers.dev",
+   "softbot-screenshot-mainnet.softbot.workers.dev",
+   "softbot-sitecheck-mainnet.softbot.workers.dev",
+   "softbot-tokencheck-mainnet.softbot.workers.dev",
+   "softbot-walletcheck-mainnet.softbot.workers.dev"
+  ],
+  "9DbpH2Mf9D26ak4bASsv6KA4Ra4V571oLpiVdZjAjcU8": [
+   "sol.mapleai.shop"
+  ],
+  "4ofUMGcRHsfr6LMY6AuaRSQpqyKsvibSbXmieQL4i8Dc": [
+   "svm402.com"
+  ],
+  "F1AbWuXJcBT9arW9wc6Xr2vom5NBtngWsz6Ht16jRBLM": [
+   "tick.twzrd.xyz"
+  ],
+  "7d2rfr7DEzDFBc1fBvwsHkKJmR7hEcqMT7mReGjQM1iq": [
+   "tokenctl.io"
+  ],
+  "FSnwAPTNNSxqnR8MtuNrtwLkyYusZ4hncp684HxYpdLb": [
+   "toolvend.dev"
+  ],
+  "4WvcrHiCTLEqWod3PeW3iFfjmJFsCbprQfkeNb2Rq59b": [
+   "travel.brij.fi"
+  ],
+  "agTiz33pSciyYZJzYyaiHQJ9uxSdJjciT3verMVAULT": [
+   "vaultbags.app"
+  ],
+  "226DYoWb2e6uYxDkFp7vK8jZhzzh2VNvHH6DgbDsNueC": [
+   "whaletape.xyz"
+  ],
+  "8xbXHAhiVe2BrYDq4qpTA5SSYJG9XNjNN6jcrudhTKCM": [
+   "x402-seller.opencovenant.org"
+  ],
+  "4JVizZAF12UxgMF1Fi1nqcrfBhuuCpHiRM7o9FFfeGdc": [
+   "x402-service-production-e242.up.railway.app"
+  ],
+  "4a8o45skRPcyjAdyR8yES215Swvh8uTpZD6KLarhxCJ7": [
+   "x402.ochinimus.app"
+  ],
+  "Bd2xS189uhhnxUeBeVF3JFXrg8zQgrvqZtpqh8hgkCEQ": [
+   "x402.sniperx.fun"
+  ]
+ },
+ "window": "sol-2026-10-18T06"
+}
