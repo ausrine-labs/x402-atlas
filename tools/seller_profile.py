@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Copied from the Aušrinė lab (commit f3ea797). Edit it there, not here.
+# Copied from the Aušrinė lab (commit 699dff7). Edit it there, not here.
 """seller_profile.py — a free profile for each seller on the Board: what kind of x402 seller it is, from its own chain
 numbers, its top three priorities, and the service that fits. Advice first.
 
@@ -21,6 +21,7 @@ The types (checked in this order; the first that fits is the seller's):
 A wallet is not a person: nothing here says who holds or runs one. Standard library only.
 """
 
+import json
 import os
 import re
 import shutil
@@ -162,7 +163,14 @@ def build(out, b, root="", free=None):
         seen.add(p["slug"])
         ps.append(p)
         cp.write(out, "profile/%s" % p["slug"], seller_page(p, window, as_of, root, free))
-    cp.write(out, "profile", index_page(ps, window, as_of, root, free))
+    doc = {"kind": "infoharmoni-seller-profiles", "version": 1, "window": window,
+           "means": "Each x402 seller on the Board, typed by a fixed rule from its own week of payments on Base (see "
+                    "seller_profile.py). A wallet is not a person; nothing here says who holds or runs one.",
+           "types": {k: {"name": v[0], "means": v[1], "priorities": v[2], "offer": v[3]} for k, v in TYPES.items()},
+           "sellers": [{"host": p["host"], "type": p["kind"], "why": p["why"], "page": "%s/profile/%s/" % (root, p["slug"])}
+                       for p in ps]}
+    cp.write(out, "profile", index_page(ps, window, as_of, root, free),
+             extra={"profiles.json": json.dumps(doc, indent=1, sort_keys=True) + "\n"})
     pdir = os.path.join(out, "profile")                # a seller gone from the Board loses its profile
     for name in os.listdir(pdir):
         p = os.path.join(pdir, name)
