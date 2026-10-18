@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Copied from the Aušrinė lab (commit b3626bf). Edit it there, not here.
+# Copied from the Aušrinė lab (commit 47dc96b). Edit it there, not here.
 """solana_flows.py — who paid whom on Solana: every x402 payment a known payment
 processor settled, read in six-hour windows and assembled into UTC days.
 
@@ -51,7 +51,9 @@ together. Base58 is case-sensitive and no address is ever lowercased here.
 Each edge also carries "first" and "last": the UTC time (to the second) of the pair's first and
 last payment in the file. Payments divided by the span read the pair's rhythm (a metered use
 and a fixed-cadence loop differ). Windows written before 2026-10-11 have no times; merging
-them with newer ones leaves the pair's times to the newer ones.
+them with newer ones leaves the pair's times to the newer ones. Since 2026-10-18 each edge also carries
+"active_hours": the UTC hours (0-23) the pair paid in, so a cron loop (all 24) and a session (a few) can be told apart
+(johnnybucks's ask on Moltbook); len() is the number of active hours.
 
     python3 solana_flows.py catchup --dir flows/sol-windows --snapshot radar/market-2026-10-08.json
     python3 solana_flows.py assemble --day 2026-10-08 --dir flows/sol-windows --out flows/flows-sol-2026-10-08.json
@@ -464,6 +466,7 @@ class Tally:
         self.signatures = signatures
         self.edges = collections.Counter()           # (buyer, seller) -> payments
         self.span = {}                               # (buyer, seller) -> [first, last] as iso strings, when known
+        self.hours = collections.defaultdict(set)    # (buyer, seller) -> the UTC hours (0-23) it paid in, when known
         self.usd = collections.Counter()             # (buyer, seller) -> stablecoin dollars
         self.processors = collections.defaultdict(lambda: {"payments": 0, "usdc": 0.0})
         self.assets = collections.defaultdict(lambda: {"payments": 0, "usdc": 0.0})
@@ -477,6 +480,7 @@ class Tally:
             self.usd[(p["buyer"], p["seller"])] += p["amount"]
             if p.get("time") is not None:
                 self._widen((p["buyer"], p["seller"]), iso(p["time"]), iso(p["time"]))
+                self.hours[(p["buyer"], p["seller"])].add(int(p["time"]) // 3600 % 24)
             self.processors[p["processor"]]["payments"] += 1
             self.processors[p["processor"]]["usdc"] += p["amount"]
             self.assets[p["mint"]]["payments"] += 1
@@ -508,6 +512,9 @@ class Tally:
             self.usd[(e["from"], e["to"])] += e["usdc"]
             if e.get("first") and e.get("last"):         # a window written before times were kept has none
                 self._widen((e["from"], e["to"]), e["first"], e["last"])
+            for h in e.get("active_hours") or []:        # nor one written before active hours were kept
+                if isinstance(h, int) and 0 <= h < 24:
+                    self.hours[(e["from"], e["to"])].add(h)
         for pid, v in f.get("processors", {}).items():
             self.processors[pid]["payments"] += v["payments"]
             self.processors[pid]["usdc"] += v["usdc"]
@@ -531,7 +538,8 @@ class Tally:
             "failed": self.failed, "not_processor": self.not_processor, "rpc": rpcs,
             "edges": [dict({"from": f, "to": t, "n": n, "usdc": round(self.usd[(f, t)], 6),
                             "n_x402": n, "usdc_x402": round(self.usd[(f, t)], 6)},
-                           **({"first": self.span[(f, t)][0], "last": self.span[(f, t)][1]} if (f, t) in self.span else {}))
+                           **({"first": self.span[(f, t)][0], "last": self.span[(f, t)][1]} if (f, t) in self.span else {}),
+                           **({"active_hours": sorted(self.hours[(f, t)])} if self.hours.get((f, t)) else {}))
                       for (f, t), n in sorted(self.edges.items(), key=lambda kv: (-kv[1], kv[0]))],
             "processors": {k: {"payments": v["payments"], "usdc": round(v["usdc"], 6)}
                            for k, v in sorted(self.processors.items(), key=lambda kv: -kv[1]["payments"])},
