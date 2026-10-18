@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Copied from the Aušrinė lab (commit f3ea797). Edit it there, not here.
+# Copied from the Aušrinė lab (commit 699dff7). Edit it there, not here.
 """Tests for seller_profile.py: every seller gets one type by a fixed rule, and a page that gives advice first."""
 
 import os
@@ -47,6 +47,11 @@ class Profiles(unittest.TestCase):
                 idx = f.read()
             self.assertIn("What kind of x402 seller are you?", idx)
             self.assertNotIn("<b>x</b>", idx)
+            import json as _j
+            with open(os.path.join(out, "profile", "profiles.json")) as f:
+                doc = _j.load(f)
+            self.assertEqual([s["type"] for s in doc["sellers"]], ["closed loop", "regulars"])
+            self.assertIn("closed loop", doc["types"])
             b["sellers"] = [row("0x.example")]                             # a name that starts 0x is still a name
             self.assertEqual([p["host"] for p in sp.build(out, b, "https://atlas.example")], ["0x.example"])
             self.assertFalse(os.path.exists(os.path.join(out, "profile", "a.example")))   # gone from the Board, gone here
