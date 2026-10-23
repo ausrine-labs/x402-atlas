@@ -1,0 +1,1922 @@
+{
+ "chain": "solana",
+ "date": "2026-10-23",
+ "day": "2026-10-23",
+ "hours": 6.0,
+ "since": "2026-10-23T06:00:00Z",
+ "until": "2026-10-23T12:00:00Z",
+ "x402_means": "a known payment processor (solana_facilitators.json) paid the fee, and the stablecoin balances moved exactly once down and once up between two owners: that processor settled it",
+ "counts": "every payment a known processor settled, whoever the payee is; a payee the registry does not list is still counted and shows as its wallet",
+ "signatures": 7636,
+ "unread": 0,
+ "other_shape": 29,
+ "failed": 3,
+ "not_processor": 4,
+ "rpc": [
+  "https://solana-rpc.publicnode.com",
+  "https://api.mainnet-beta.solana.com"
+ ],
+ "edges": [
+  {
+   "from": "22CdX2YyLMNb3XJ4cV2VtxbJ7ivQbf59HSpXEyfCSeBb",
+   "to": "AQqnMFBwGZEoti85aTVRy8XYpKrho7GaMDx9ZB3CEeKA",
+   "n": 6628,
+   "usdc": 6.628,
+   "n_x402": 6628,
+   "usdc_x402": 6.628,
+   "first": "2026-10-23T06:01:32Z",
+   "last": "2026-10-23T11:58:30Z",
+   "active_hours": [
+    6,
+    7,
+    8,
+    9,
+    10,
+    11
+   ]
+  },
+  {
+   "from": "2SDQqgZf4wXrMh9bxfKy4YgnqX2yaqjPFrszjWE6jgHo",
+   "to": "7xvuVbuyzfoE8jLRAbdqwjNYgqLs9pVNx9FpkXPwVDVP",
+   "n": 203,
+   "usdc": 859.0,
+   "n_x402": 203,
+   "usdc_x402": 859.0,
+   "first": "2026-10-23T06:29:53Z",
+   "last": "2026-10-23T07:11:44Z",
+   "active_hours": [
+    6,
+    7
+   ]
+  },
+  {
+   "from": "CfniJtJEMZPuKJfLmdXae8sfem1uzkAFWfs3a9bv14T",
+   "to": "AQqnMFBwGZEoti85aTVRy8XYpKrho7GaMDx9ZB3CEeKA",
+   "n": 87,
+   "usdc": 0.375365,
+   "n_x402": 87,
+   "usdc_x402": 0.375365,
+   "first": "2026-10-23T06:03:55Z",
+   "last": "2026-10-23T11:25:52Z",
+   "active_hours": [
+    6,
+    7,
+    8,
+    9,
+    10,
+    11
+   ]
+  },
+  {
+   "from": "CGMqFhvvTUJLoukCSJpq1LUoy7U2eFsgsmvPmQD69Vgu",
+   "to": "AQqnMFBwGZEoti85aTVRy8XYpKrho7GaMDx9ZB3CEeKA",
+   "n": 71,
+   "usdc": 0.189299,
+   "n_x402": 71,
+   "usdc_x402": 0.189299,
+   "first": "2026-10-23T06:02:50Z",
+   "last": "2026-10-23T11:57:36Z",
+   "active_hours": [
+    6,
+    7,
+    8,
+    9,
+    10,
+    11
+   ]
+  },
+  {
+   "from": "6nuTizJHCkuQqLeze7oDVA8szVHLQ1q7bveUtjsMJ6s3",
+   "to": "AQqnMFBwGZEoti85aTVRy8XYpKrho7GaMDx9ZB3CEeKA",
+   "n": 37,
+   "usdc": 0.295259,
+   "n_x402": 37,
+   "usdc_x402": 0.295259,
+   "first": "2026-10-23T09:09:27Z",
+   "last": "2026-10-23T11:47:58Z",
+   "active_hours": [
+    9,
+    11
+   ]
+  },
+  {
+   "from": "EZ83hT7pMcLjAWcezLoi8C1Zt438vXU1ghsWnk3M9q5o",
+   "to": "AQqnMFBwGZEoti85aTVRy8XYpKrho7GaMDx9ZB3CEeKA",
+   "n": 28,
+   "usdc": 0.119064,
+   "n_x402": 28,
+   "usdc_x402": 0.119064,
+   "first": "2026-10-23T06:00:18Z",
+   "last": "2026-10-23T11:55:51Z",
+   "active_hours": [
+    6,
+    7,
+    8,
+    9,
+    11
+   ]
+  },
+  {
+   "from": "HWqdtkVpsNxE9mR1oGGWDbzLP7pNeLi8xsubS6Trg5Ge",
+   "to": "AQqnMFBwGZEoti85aTVRy8XYpKrho7GaMDx9ZB3CEeKA",
+   "n": 25,
+   "usdc": 0.083396,
+   "n_x402": 25,
+   "usdc_x402": 0.083396,
+   "first": "2026-10-23T06:23:38Z",
+   "last": "2026-10-23T11:57:13Z",
+   "active_hours": [
+    6,
+    7,
+    8,
+    9,
+    10,
+    11
+   ]
+  },
+  {
+   "from": "34WhwW7PQwharvScNbEx7kmoABbTCtxEZSxF3nGTWsLj",
+   "to": "Bd2xS189uhhnxUeBeVF3JFXrg8zQgrvqZtpqh8hgkCEQ",
+   "n": 24,
+   "usdc": 0.48,
+   "n_x402": 24,
+   "usdc_x402": 0.48,
+   "first": "2026-10-23T06:03:49Z",
+   "last": "2026-10-23T11:49:44Z",
+   "active_hours": [
+    6,
+    7,
+    8,
+    9,
+    10,
+    11
+   ]
+  },
+  {
+   "from": "3J6GdNjsqmGWE96T8Med8Uyy9EFJcmgta93jBTWDNFHU",
+   "to": "Bd2xS189uhhnxUeBeVF3JFXrg8zQgrvqZtpqh8hgkCEQ",
+   "n": 24,
+   "usdc": 0.48,
+   "n_x402": 24,
+   "usdc_x402": 0.48,
+   "first": "2026-10-23T06:02:39Z",
+   "last": "2026-10-23T11:53:29Z",
+   "active_hours": [
+    6,
+    7,
+    8,
+    9,
+    10,
+    11
+   ]
+  },
+  {
+   "from": "5g6VzjPfH19wWSQLbMLttAdGTFY3MbYGBagLTEeyDuqM",
+   "to": "Bd2xS189uhhnxUeBeVF3JFXrg8zQgrvqZtpqh8hgkCEQ",
+   "n": 24,
+   "usdc": 0.48,
+   "n_x402": 24,
+   "usdc_x402": 0.48,
+   "first": "2026-10-23T06:05:05Z",
+   "last": "2026-10-23T11:56:40Z",
+   "active_hours": [
+    6,
+    7,
+    8,
+    9,
+    10,
+    11
+   ]
+  },
+  {
+   "from": "64s4Mzu3P3AR5xADy5xVdpuszmbHdzg6ywA9FR6MY7qP",
+   "to": "Bd2xS189uhhnxUeBeVF3JFXrg8zQgrvqZtpqh8hgkCEQ",
+   "n": 24,
+   "usdc": 0.48,
+   "n_x402": 24,
+   "usdc_x402": 0.48,
+   "first": "2026-10-23T06:11:15Z",
+   "last": "2026-10-23T11:45:02Z",
+   "active_hours": [
+    6,
+    7,
+    8,
+    9,
+    10,
+    11
+   ]
+  },
+  {
+   "from": "7xneZpyyWdHCfSTHkPPuELiHgFJ8oZxAq3eHW2bKKevS",
+   "to": "Bd2xS189uhhnxUeBeVF3JFXrg8zQgrvqZtpqh8hgkCEQ",
+   "n": 24,
+   "usdc": 0.48,
+   "n_x402": 24,
+   "usdc_x402": 0.48,
+   "first": "2026-10-23T06:08:03Z",
+   "last": "2026-10-23T11:48:56Z",
+   "active_hours": [
+    6,
+    7,
+    8,
+    9,
+    10,
+    11
+   ]
+  },
+  {
+   "from": "CtGZ1iYEHXinfM287BRUhWNth7qx7NRBXV2qdpJF97mr",
+   "to": "Bd2xS189uhhnxUeBeVF3JFXrg8zQgrvqZtpqh8hgkCEQ",
+   "n": 24,
+   "usdc": 0.48,
+   "n_x402": 24,
+   "usdc_x402": 0.48,
+   "first": "2026-10-23T06:12:14Z",
+   "last": "2026-10-23T11:51:41Z",
+   "active_hours": [
+    6,
+    7,
+    8,
+    9,
+    10,
+    11
+   ]
+  },
+  {
+   "from": "EBykkkakoCG2WdJNXmPE2MHLhVaV1yg1vBi3ZgeB4Us7",
+   "to": "Bd2xS189uhhnxUeBeVF3JFXrg8zQgrvqZtpqh8hgkCEQ",
+   "n": 24,
+   "usdc": 0.48,
+   "n_x402": 24,
+   "usdc_x402": 0.48,
+   "first": "2026-10-23T06:14:10Z",
+   "last": "2026-10-23T11:55:18Z",
+   "active_hours": [
+    6,
+    7,
+    8,
+    9,
+    10,
+    11
+   ]
+  },
+  {
+   "from": "k5KE9pspDK13iUcDgGS4kuUdRx5q4LjRssTLHB6rjM6",
+   "to": "Bd2xS189uhhnxUeBeVF3JFXrg8zQgrvqZtpqh8hgkCEQ",
+   "n": 24,
+   "usdc": 0.48,
+   "n_x402": 24,
+   "usdc_x402": 0.48,
+   "first": "2026-10-23T06:08:48Z",
+   "last": "2026-10-23T11:56:58Z",
+   "active_hours": [
+    6,
+    7,
+    8,
+    9,
+    10,
+    11
+   ]
+  },
+  {
+   "from": "vSNpCZMvyuo3dCCMZ2Z7JD3hDd9kZ5XpRYxvi7x89YK",
+   "to": "Bd2xS189uhhnxUeBeVF3JFXrg8zQgrvqZtpqh8hgkCEQ",
+   "n": 24,
+   "usdc": 0.48,
+   "n_x402": 24,
+   "usdc_x402": 0.48,
+   "first": "2026-10-23T06:06:12Z",
+   "last": "2026-10-23T11:45:57Z",
+   "active_hours": [
+    6,
+    7,
+    8,
+    9,
+    10,
+    11
+   ]
+  },
+  {
+   "from": "3C8ZdvNHSkftK6EuSP57cEsxpk6TUWDCpjYAskk3LDmC",
+   "to": "Bd2xS189uhhnxUeBeVF3JFXrg8zQgrvqZtpqh8hgkCEQ",
+   "n": 23,
+   "usdc": 0.46,
+   "n_x402": 23,
+   "usdc_x402": 0.46,
+   "first": "2026-10-23T06:01:23Z",
+   "last": "2026-10-23T11:52:26Z",
+   "active_hours": [
+    6,
+    7,
+    8,
+    9,
+    10,
+    11
+   ]
+  },
+  {
+   "from": "6wcvDUWdHtUN2PgzkJL8s3L7FuoMS9wyuxH3G1Zbtdyx",
+   "to": "Bd2xS189uhhnxUeBeVF3JFXrg8zQgrvqZtpqh8hgkCEQ",
+   "n": 23,
+   "usdc": 0.46,
+   "n_x402": 23,
+   "usdc_x402": 0.46,
+   "first": "2026-10-23T06:09:44Z",
+   "last": "2026-10-23T11:59:15Z",
+   "active_hours": [
+    6,
+    7,
+    8,
+    9,
+    10,
+    11
+   ]
+  },
+  {
+   "from": "8JkuMoTjHr3g8TtFYB68CKmocnwgRJ558iWVSJhcb4Sp",
+   "to": "Bd2xS189uhhnxUeBeVF3JFXrg8zQgrvqZtpqh8hgkCEQ",
+   "n": 23,
+   "usdc": 0.46,
+   "n_x402": 23,
+   "usdc_x402": 0.46,
+   "first": "2026-10-23T06:00:02Z",
+   "last": "2026-10-23T11:47:40Z",
+   "active_hours": [
+    6,
+    7,
+    8,
+    9,
+    10,
+    11
+   ]
+  },
+  {
+   "from": "6cJB1ye3EKz3dF1p45QoABjerSmEUxyDSmkF6QeHBH9y",
+   "to": "HJHeNjURYf3Lwp5iTnfSt8ktn3oGGTV3A8atJHLn281K",
+   "n": 21,
+   "usdc": 0.348,
+   "n_x402": 21,
+   "usdc_x402": 0.348,
+   "first": "2026-10-23T06:00:22Z",
+   "last": "2026-10-23T06:00:50Z",
+   "active_hours": [
+    6
+   ]
+  },
+  {
+   "from": "HMtmon43RkaR3fdEuTKZvrE9TjaKkhFqUi91b2enMNaL",
+   "to": "FJqAJ4dXkFbrp3EEo8E9x98iaBGUQwaU8Srz5ePfUXLH",
+   "n": 19,
+   "usdc": 0.608,
+   "n_x402": 19,
+   "usdc_x402": 0.608,
+   "first": "2026-10-23T08:23:30Z",
+   "last": "2026-10-23T08:24:42Z",
+   "active_hours": [
+    8
+   ]
+  },
+  {
+   "from": "BcDzHQ68cZ55SsgKDUEaTEkSg9aJqJgnNYxyJ46xruun",
+   "to": "7xvuVbuyzfoE8jLRAbdqwjNYgqLs9pVNx9FpkXPwVDVP",
+   "n": 12,
+   "usdc": 60.0,
+   "n_x402": 12,
+   "usdc_x402": 60.0,
+   "first": "2026-10-23T06:16:23Z",
+   "last": "2026-10-23T11:24:54Z",
+   "active_hours": [
+    6,
+    7,
+    8,
+    9,
+    10,
+    11
+   ]
+  },
+  {
+   "from": "E81wDua8KBdC1ArHP7cSVnFDQmdvoxW6N8U7v5Nm5MTo",
+   "to": "J7aN3PLJnTCF5qpEnvJHJsnCjcGuqC2rYtEM8Gv3xwg",
+   "n": 12,
+   "usdc": 0.018,
+   "n_x402": 12,
+   "usdc_x402": 0.018,
+   "first": "2026-10-23T06:55:50Z",
+   "last": "2026-10-23T11:55:50Z",
+   "active_hours": [
+    6,
+    7,
+    8,
+    9,
+    10,
+    11
+   ]
+  },
+  {
+   "from": "5xoboHF74HbdWxAd4aBmNbQxVJ8Lwtr3M7Xx9wFfthPf",
+   "to": "7r4e5dwNS68MDaxbw7N8jbzHq7RCMBp9z6smHFH4NXWw",
+   "n": 11,
+   "usdc": 0.11,
+   "n_x402": 11,
+   "usdc_x402": 0.11,
+   "first": "2026-10-23T06:37:49Z",
+   "last": "2026-10-23T11:22:26Z",
+   "active_hours": [
+    6,
+    8,
+    9,
+    10,
+    11
+   ]
+  },
+  {
+   "from": "97yYecV9Ekd8t6qcvDiryihqxYQp9541oKfWoczb7HjF",
+   "to": "AQqnMFBwGZEoti85aTVRy8XYpKrho7GaMDx9ZB3CEeKA",
+   "n": 9,
+   "usdc": 0.01218,
+   "n_x402": 9,
+   "usdc_x402": 0.01218,
+   "first": "2026-10-23T06:09:17Z",
+   "last": "2026-10-23T11:42:59Z",
+   "active_hours": [
+    6,
+    7,
+    8,
+    9,
+    10,
+    11
+   ]
+  },
+  {
+   "from": "F5oyUYrE2hJXPXQ9BRLHZZhmU9inMaJjJUvgvkMARUC4",
+   "to": "7xvuVbuyzfoE8jLRAbdqwjNYgqLs9pVNx9FpkXPwVDVP",
+   "n": 9,
+   "usdc": 192.12,
+   "n_x402": 9,
+   "usdc_x402": 192.12,
+   "first": "2026-10-23T06:05:17Z",
+   "last": "2026-10-23T11:57:38Z",
+   "active_hours": [
+    6,
+    7,
+    8,
+    9,
+    11
+   ]
+  },
+  {
+   "from": "3HG2HYh5EyGR5BnL5UaHeNkz2qA1tdwFizSbGKmkrcgV",
+   "to": "4s8XQC2WzRfgH8Xiep7ybnCW11VKRCMwxQF6jknx3VPf",
+   "n": 5,
+   "usdc": 0.05,
+   "n_x402": 5,
+   "usdc_x402": 0.05,
+   "first": "2026-10-23T06:10:17Z",
+   "last": "2026-10-23T10:43:58Z",
+   "active_hours": [
+    6,
+    7,
+    8,
+    9,
+    10
+   ]
+  },
+  {
+   "from": "5KBySx2PZHo7ge1P1FtJ9xUWHa1xfC47wniYCN8sn93Z",
+   "to": "7xvuVbuyzfoE8jLRAbdqwjNYgqLs9pVNx9FpkXPwVDVP",
+   "n": 5,
+   "usdc": 140.0,
+   "n_x402": 5,
+   "usdc_x402": 140.0,
+   "first": "2026-10-23T08:33:16Z",
+   "last": "2026-10-23T11:34:21Z",
+   "active_hours": [
+    8,
+    9,
+    11
+   ]
+  },
+  {
+   "from": "9sgrtfb38MG3ajjZ2jfwsH4waeQaeRu1uumgA1xy23s6",
+   "to": "7xvuVbuyzfoE8jLRAbdqwjNYgqLs9pVNx9FpkXPwVDVP",
+   "n": 5,
+   "usdc": 47.0,
+   "n_x402": 5,
+   "usdc_x402": 47.0,
+   "first": "2026-10-23T07:13:16Z",
+   "last": "2026-10-23T09:33:36Z",
+   "active_hours": [
+    7,
+    8,
+    9
+   ]
+  },
+  {
+   "from": "AY9Sak3QtPBWpcriu94DqawGDXGiveWgQq9giAgiJzAh",
+   "to": "7xvuVbuyzfoE8jLRAbdqwjNYgqLs9pVNx9FpkXPwVDVP",
+   "n": 5,
+   "usdc": 100.0,
+   "n_x402": 5,
+   "usdc_x402": 100.0,
+   "first": "2026-10-23T08:05:21Z",
+   "last": "2026-10-23T08:05:23Z",
+   "active_hours": [
+    8
+   ]
+  },
+  {
+   "from": "34CMQ3HB3aDWPxwAbLSbQPrBtrFhi354zAsfbb3z5v2z",
+   "to": "4a8o45skRPcyjAdyR8yES215Swvh8uTpZD6KLarhxCJ7",
+   "n": 4,
+   "usdc": 0.13,
+   "n_x402": 4,
+   "usdc_x402": 0.13,
+   "first": "2026-10-23T06:00:18Z",
+   "last": "2026-10-23T09:30:23Z",
+   "active_hours": [
+    6,
+    9
+   ]
+  },
+  {
+   "from": "BveR2eAGcCLheSqn6XxgU6wSsLk5HYFkgyA9waMD9N2A",
+   "to": "AQqnMFBwGZEoti85aTVRy8XYpKrho7GaMDx9ZB3CEeKA",
+   "n": 4,
+   "usdc": 0.011028,
+   "n_x402": 4,
+   "usdc_x402": 0.011028,
+   "first": "2026-10-23T07:54:59Z",
+   "last": "2026-10-23T10:47:21Z",
+   "active_hours": [
+    7,
+    8,
+    9,
+    10
+   ]
+  },
+  {
+   "from": "3s9Ez8o7fx32rKVtHAhB7KupBwq396DVQmPNgVKVvTVf",
+   "to": "AQqnMFBwGZEoti85aTVRy8XYpKrho7GaMDx9ZB3CEeKA",
+   "n": 3,
+   "usdc": 0.126912,
+   "n_x402": 3,
+   "usdc_x402": 0.126912,
+   "first": "2026-10-23T11:40:43Z",
+   "last": "2026-10-23T11:40:54Z",
+   "active_hours": [
+    11
+   ]
+  },
+  {
+   "from": "3sng11LXu3jeAiHvqcEgpqLnErFDfKyqSz3k2VunT8oS",
+   "to": "7Wa311YGsRXh31ewdcfV6TnVcHocbZoGSVRDiXQ29iXt",
+   "n": 3,
+   "usdc": 0.006,
+   "n_x402": 3,
+   "usdc_x402": 0.006,
+   "first": "2026-10-23T09:54:54Z",
+   "last": "2026-10-23T10:57:51Z",
+   "active_hours": [
+    9,
+    10
+   ]
+  },
+  {
+   "from": "CNvXgwCC5WrAVLPA4XcJHzimy7mRLH2PmcutS6oxUJ6v",
+   "to": "7xvuVbuyzfoE8jLRAbdqwjNYgqLs9pVNx9FpkXPwVDVP",
+   "n": 3,
+   "usdc": 15.0,
+   "n_x402": 3,
+   "usdc_x402": 15.0,
+   "first": "2026-10-23T09:47:56Z",
+   "last": "2026-10-23T11:09:36Z",
+   "active_hours": [
+    9,
+    11
+   ]
+  },
+  {
+   "from": "EjXiWF9JEHFsJH2g5mPFWpLd4C5Y8K9PJKwWaL1Ve4mo",
+   "to": "7xvuVbuyzfoE8jLRAbdqwjNYgqLs9pVNx9FpkXPwVDVP",
+   "n": 3,
+   "usdc": 15.0,
+   "n_x402": 3,
+   "usdc_x402": 15.0,
+   "first": "2026-10-23T10:37:15Z",
+   "last": "2026-10-23T11:00:24Z",
+   "active_hours": [
+    10,
+    11
+   ]
+  },
+  {
+   "from": "YeR7zcz7rvZMSgBokESG9FoY5GoxK34aYAhPnDYgoHt",
+   "to": "9MkM5Ra48KFcSv9HDQ8sb3C3r5HjouEwGQ6sp1cx1vde",
+   "n": 3,
+   "usdc": 0.015,
+   "n_x402": 3,
+   "usdc_x402": 0.015,
+   "first": "2026-10-23T11:02:21Z",
+   "last": "2026-10-23T11:43:58Z",
+   "active_hours": [
+    11
+   ]
+  },
+  {
+   "from": "2eczs3GScWBAkyoLkSVxjiSUxjKKnsMn1uS8nqM4MUCg",
+   "to": "7Wa311YGsRXh31ewdcfV6TnVcHocbZoGSVRDiXQ29iXt",
+   "n": 2,
+   "usdc": 0.004,
+   "n_x402": 2,
+   "usdc_x402": 0.004,
+   "first": "2026-10-23T09:31:19Z",
+   "last": "2026-10-23T11:01:26Z",
+   "active_hours": [
+    9,
+    11
+   ]
+  },
+  {
+   "from": "34CMQ3HB3aDWPxwAbLSbQPrBtrFhi354zAsfbb3z5v2z",
+   "to": "9iubApKktcxphCVgBg9CPRPhSH8nkzVRSapxhYwxfCVS",
+   "n": 2,
+   "usdc": 0.007,
+   "n_x402": 2,
+   "usdc_x402": 0.007,
+   "first": "2026-10-23T09:30:17Z",
+   "last": "2026-10-23T09:30:19Z",
+   "active_hours": [
+    9
+   ]
+  },
+  {
+   "from": "3WXC96xBig1GcTmpMvkuu5bGPwD6NCZuuGQt8aVJXZ7i",
+   "to": "ANhAZ9uuc7wGh1ssKXhSk7xMM7vP4AXHxYZsk1V9PqoU",
+   "n": 2,
+   "usdc": 4.29,
+   "n_x402": 2,
+   "usdc_x402": 4.29,
+   "first": "2026-10-23T11:26:56Z",
+   "last": "2026-10-23T11:28:18Z",
+   "active_hours": [
+    11
+   ]
+  },
+  {
+   "from": "3sng11LXu3jeAiHvqcEgpqLnErFDfKyqSz3k2VunT8oS",
+   "to": "J7aN3PLJnTCF5qpEnvJHJsnCjcGuqC2rYtEM8Gv3xwg",
+   "n": 2,
+   "usdc": 0.002,
+   "n_x402": 2,
+   "usdc_x402": 0.002,
+   "first": "2026-10-23T07:50:04Z",
+   "last": "2026-10-23T11:02:39Z",
+   "active_hours": [
+    7,
+    11
+   ]
+  },
+  {
+   "from": "42hk81LJC9rQRzEC412MsH2BkqA94QGirmxYWuFVyCqa",
+   "to": "d8X2MdS7QMiMFVWzYMVTeKhm1BVx75GoHskf9ws74nM",
+   "n": 2,
+   "usdc": 0.02,
+   "n_x402": 2,
+   "usdc_x402": 0.02,
+   "first": "2026-10-23T08:50:30Z",
+   "last": "2026-10-23T08:50:56Z",
+   "active_hours": [
+    8
+   ]
+  },
+  {
+   "from": "4PssUgV8jiZYGjzc3uZWGGCRA61jkBgxS5MZmxDb95Xn",
+   "to": "Fs2zgBUo3jTs3AeZrXyjBQ4FVw1f9HViNudmzxw7rz4B",
+   "n": 2,
+   "usdc": 0.2,
+   "n_x402": 2,
+   "usdc_x402": 0.2,
+   "first": "2026-10-23T09:04:22Z",
+   "last": "2026-10-23T09:04:27Z",
+   "active_hours": [
+    9
+   ]
+  },
+  {
+   "from": "4XfjEqw3uX9YM6FbsCr2Yzu2ZFACBAXvVQtFWaqHQrHK",
+   "to": "Fs2zgBUo3jTs3AeZrXyjBQ4FVw1f9HViNudmzxw7rz4B",
+   "n": 2,
+   "usdc": 2.0,
+   "n_x402": 2,
+   "usdc_x402": 2.0,
+   "first": "2026-10-23T09:17:09Z",
+   "last": "2026-10-23T09:17:15Z",
+   "active_hours": [
+    9
+   ]
+  },
+  {
+   "from": "5aB7X6fSCtH18RhvuWmx8hysdoRxvUtoAaPAdFKgxh51",
+   "to": "D6HJetrKzbaTVnCPmHN4pSXK4z4WcCg4jM9zKRTsBbwR",
+   "n": 2,
+   "usdc": 1.53,
+   "n_x402": 2,
+   "usdc_x402": 1.53,
+   "first": "2026-10-23T09:34:21Z",
+   "last": "2026-10-23T09:46:27Z",
+   "active_hours": [
+    9
+   ]
+  },
+  {
+   "from": "63J3ZQ43ruaYDJdo8DENFi6AeEjou9eZHPK9JHuqBNJR",
+   "to": "7xvuVbuyzfoE8jLRAbdqwjNYgqLs9pVNx9FpkXPwVDVP",
+   "n": 2,
+   "usdc": 20.0,
+   "n_x402": 2,
+   "usdc_x402": 20.0,
+   "first": "2026-10-23T06:09:13Z",
+   "last": "2026-10-23T09:44:01Z",
+   "active_hours": [
+    6,
+    9
+   ]
+  },
+  {
+   "from": "92xynuBhQSMvS8ifDHEAsj5au1hzaQSHBEhrjM9a1fDD",
+   "to": "7LSjfrJf8fNsB8VA9u7N3WEn25smQLpob3SvyUvXacy7",
+   "n": 2,
+   "usdc": 0.02,
+   "n_x402": 2,
+   "usdc_x402": 0.02,
+   "first": "2026-10-23T11:31:31Z",
+   "last": "2026-10-23T11:59:11Z",
+   "active_hours": [
+    11
+   ]
+  },
+  {
+   "from": "9KTYu8Ccc9h1NCxzwykjFXseEmjnxnxyzraq2GAP7PxH",
+   "to": "7xvuVbuyzfoE8jLRAbdqwjNYgqLs9pVNx9FpkXPwVDVP",
+   "n": 2,
+   "usdc": 45.0,
+   "n_x402": 2,
+   "usdc_x402": 45.0,
+   "first": "2026-10-23T07:06:09Z",
+   "last": "2026-10-23T09:45:09Z",
+   "active_hours": [
+    7,
+    9
+   ]
+  },
+  {
+   "from": "BAsRU28RuhvsmeAivFshfUzVsSW4cunBYXBkRgPyz9vc",
+   "to": "d8X2MdS7QMiMFVWzYMVTeKhm1BVx75GoHskf9ws74nM",
+   "n": 2,
+   "usdc": 0.02,
+   "n_x402": 2,
+   "usdc_x402": 0.02,
+   "first": "2026-10-23T08:50:42Z",
+   "last": "2026-10-23T08:50:56Z",
+   "active_hours": [
+    8
+   ]
+  },
+  {
+   "from": "BTJbnG2vG8BBrvbn4ryTfQUAofVSGxXS9CnfwNWybxtK",
+   "to": "DabzwRcyMvxhT6REXfH2fvP1BTd7qBP5r9Tj6fR4qC4h",
+   "n": 2,
+   "usdc": 0.002,
+   "n_x402": 2,
+   "usdc_x402": 0.002,
+   "first": "2026-10-23T11:34:17Z",
+   "last": "2026-10-23T11:59:13Z",
+   "active_hours": [
+    11
+   ]
+  },
+  {
+   "from": "EU36u7KUr4QRLQsZerfpowYVuHBnBJ2zwoCXiWxE7sjB",
+   "to": "d8X2MdS7QMiMFVWzYMVTeKhm1BVx75GoHskf9ws74nM",
+   "n": 2,
+   "usdc": 0.02,
+   "n_x402": 2,
+   "usdc_x402": 0.02,
+   "first": "2026-10-23T08:50:29Z",
+   "last": "2026-10-23T08:50:56Z",
+   "active_hours": [
+    8
+   ]
+  },
+  {
+   "from": "GTSsWNk4BZi5zMWyqk9AnLHHbRPyv7TT68AzMNx57LXM",
+   "to": "7xvuVbuyzfoE8jLRAbdqwjNYgqLs9pVNx9FpkXPwVDVP",
+   "n": 2,
+   "usdc": 15.0,
+   "n_x402": 2,
+   "usdc_x402": 15.0,
+   "first": "2026-10-23T07:51:57Z",
+   "last": "2026-10-23T09:44:23Z",
+   "active_hours": [
+    7,
+    9
+   ]
+  },
+  {
+   "from": "J27hmYhf4AptM5fCFpSn4R4H6Gr2QuutfjejftQCW6DA",
+   "to": "7Wa311YGsRXh31ewdcfV6TnVcHocbZoGSVRDiXQ29iXt",
+   "n": 2,
+   "usdc": 0.004,
+   "n_x402": 2,
+   "usdc_x402": 0.004,
+   "first": "2026-10-23T09:59:32Z",
+   "last": "2026-10-23T11:00:25Z",
+   "active_hours": [
+    9,
+    11
+   ]
+  },
+  {
+   "from": "J27hmYhf4AptM5fCFpSn4R4H6Gr2QuutfjejftQCW6DA",
+   "to": "9csHbkGGeQqNxvtZw8hPnC34NCcmZoZXVTEGC1MiDNRE",
+   "n": 2,
+   "usdc": 0.005,
+   "n_x402": 2,
+   "usdc_x402": 0.005,
+   "first": "2026-10-23T07:02:06Z",
+   "last": "2026-10-23T09:30:28Z",
+   "active_hours": [
+    7,
+    9
+   ]
+  },
+  {
+   "from": "23DaYZsNswfjrSkEovorko2VsMB2EBFFdZngHYMuzBzm",
+   "to": "7xvuVbuyzfoE8jLRAbdqwjNYgqLs9pVNx9FpkXPwVDVP",
+   "n": 1,
+   "usdc": 20.0,
+   "n_x402": 1,
+   "usdc_x402": 20.0,
+   "first": "2026-10-23T10:26:17Z",
+   "last": "2026-10-23T10:26:17Z",
+   "active_hours": [
+    10
+   ]
+  },
+  {
+   "from": "26C3AbG61pcNPzHsYNprM1gRrtm1KVpU7YRn8LzP7beo",
+   "to": "7xvuVbuyzfoE8jLRAbdqwjNYgqLs9pVNx9FpkXPwVDVP",
+   "n": 1,
+   "usdc": 50.0,
+   "n_x402": 1,
+   "usdc_x402": 50.0,
+   "first": "2026-10-23T11:16:28Z",
+   "last": "2026-10-23T11:16:28Z",
+   "active_hours": [
+    11
+   ]
+  },
+  {
+   "from": "26CvxksNygqZTSjL2ZBEgY7LUGTG3qftss3gcpedKSt7",
+   "to": "Fs2zgBUo3jTs3AeZrXyjBQ4FVw1f9HViNudmzxw7rz4B",
+   "n": 1,
+   "usdc": 0.1,
+   "n_x402": 1,
+   "usdc_x402": 0.1,
+   "first": "2026-10-23T09:04:11Z",
+   "last": "2026-10-23T09:04:11Z",
+   "active_hours": [
+    9
+   ]
+  },
+  {
+   "from": "2PByYEFv3zusjoXWaQhCxF2qKfc52xpBgTDds5gbfLeY",
+   "to": "7xvuVbuyzfoE8jLRAbdqwjNYgqLs9pVNx9FpkXPwVDVP",
+   "n": 1,
+   "usdc": 50.0,
+   "n_x402": 1,
+   "usdc_x402": 50.0,
+   "first": "2026-10-23T09:58:24Z",
+   "last": "2026-10-23T09:58:24Z",
+   "active_hours": [
+    9
+   ]
+  },
+  {
+   "from": "2eCsdsxaguL3vXjb1yMso2gz617Lyzah6DgbGtbdw7N7",
+   "to": "7xvuVbuyzfoE8jLRAbdqwjNYgqLs9pVNx9FpkXPwVDVP",
+   "n": 1,
+   "usdc": 40.0,
+   "n_x402": 1,
+   "usdc_x402": 40.0,
+   "first": "2026-10-23T11:14:27Z",
+   "last": "2026-10-23T11:14:27Z",
+   "active_hours": [
+    11
+   ]
+  },
+  {
+   "from": "2eczs3GScWBAkyoLkSVxjiSUxjKKnsMn1uS8nqM4MUCg",
+   "to": "5TFqz69gpVTV3LJokYEvtFhCpySGCoqpeMwcSAvfxfbd",
+   "n": 1,
+   "usdc": 0.002,
+   "n_x402": 1,
+   "usdc_x402": 0.002,
+   "first": "2026-10-23T11:08:29Z",
+   "last": "2026-10-23T11:08:29Z",
+   "active_hours": [
+    11
+   ]
+  },
+  {
+   "from": "2eczs3GScWBAkyoLkSVxjiSUxjKKnsMn1uS8nqM4MUCg",
+   "to": "7JAuWxcEpZL2wK3gm6eTR2p7d1SAofM4EHxuTgemAAae",
+   "n": 1,
+   "usdc": 0.005,
+   "n_x402": 1,
+   "usdc_x402": 0.005,
+   "first": "2026-10-23T07:08:35Z",
+   "last": "2026-10-23T07:08:35Z",
+   "active_hours": [
+    7
+   ]
+  },
+  {
+   "from": "2eczs3GScWBAkyoLkSVxjiSUxjKKnsMn1uS8nqM4MUCg",
+   "to": "DBPBtnKHHJVD2r6zTcsngzk8PXooYDogwMudqjSVaB7",
+   "n": 1,
+   "usdc": 0.005,
+   "n_x402": 1,
+   "usdc_x402": 0.005,
+   "first": "2026-10-23T10:58:51Z",
+   "last": "2026-10-23T10:58:51Z",
+   "active_hours": [
+    10
+   ]
+  },
+  {
+   "from": "34CMQ3HB3aDWPxwAbLSbQPrBtrFhi354zAsfbb3z5v2z",
+   "to": "8iZbjedTiMYVYGE9PZBHPm7k2KeXRqWAuCpSAxHm7j68",
+   "n": 1,
+   "usdc": 0.02,
+   "n_x402": 1,
+   "usdc_x402": 0.02,
+   "first": "2026-10-23T06:00:26Z",
+   "last": "2026-10-23T06:00:26Z",
+   "active_hours": [
+    6
+   ]
+  },
+  {
+   "from": "3RkkKuRbrUXvXqh6MbJQRt71cBHZzi2pA62Gf1kYqpvZ",
+   "to": "7xvuVbuyzfoE8jLRAbdqwjNYgqLs9pVNx9FpkXPwVDVP",
+   "n": 1,
+   "usdc": 12.0,
+   "n_x402": 1,
+   "usdc_x402": 12.0,
+   "first": "2026-10-23T10:27:02Z",
+   "last": "2026-10-23T10:27:02Z",
+   "active_hours": [
+    10
+   ]
+  },
+  {
+   "from": "3kdKkMqG2JGpxpJY2fx4nvvuz1cBPbMapKpvs5JwDndm",
+   "to": "7xvuVbuyzfoE8jLRAbdqwjNYgqLs9pVNx9FpkXPwVDVP",
+   "n": 1,
+   "usdc": 20.0,
+   "n_x402": 1,
+   "usdc_x402": 20.0,
+   "first": "2026-10-23T10:23:00Z",
+   "last": "2026-10-23T10:23:00Z",
+   "active_hours": [
+    10
+   ]
+  },
+  {
+   "from": "3sng11LXu3jeAiHvqcEgpqLnErFDfKyqSz3k2VunT8oS",
+   "to": "6srFz6v3mSUWBmz6Fx2XUaHQGHCNFJ59z85Cp9UDCvbK",
+   "n": 1,
+   "usdc": 0.005,
+   "n_x402": 1,
+   "usdc_x402": 0.005,
+   "first": "2026-10-23T11:08:46Z",
+   "last": "2026-10-23T11:08:46Z",
+   "active_hours": [
+    11
+   ]
+  },
+  {
+   "from": "3sng11LXu3jeAiHvqcEgpqLnErFDfKyqSz3k2VunT8oS",
+   "to": "7JAuWxcEpZL2wK3gm6eTR2p7d1SAofM4EHxuTgemAAae",
+   "n": 1,
+   "usdc": 0.005,
+   "n_x402": 1,
+   "usdc_x402": 0.005,
+   "first": "2026-10-23T06:02:23Z",
+   "last": "2026-10-23T06:02:23Z",
+   "active_hours": [
+    6
+   ]
+  },
+  {
+   "from": "3sng11LXu3jeAiHvqcEgpqLnErFDfKyqSz3k2VunT8oS",
+   "to": "9csHbkGGeQqNxvtZw8hPnC34NCcmZoZXVTEGC1MiDNRE",
+   "n": 1,
+   "usdc": 0.003,
+   "n_x402": 1,
+   "usdc_x402": 0.003,
+   "first": "2026-10-23T09:29:24Z",
+   "last": "2026-10-23T09:29:24Z",
+   "active_hours": [
+    9
+   ]
+  },
+  {
+   "from": "3sng11LXu3jeAiHvqcEgpqLnErFDfKyqSz3k2VunT8oS",
+   "to": "ATWJ82T8nRdQwZnaysB68N5EpaSvLRsQP4h6eWmaJBH9",
+   "n": 1,
+   "usdc": 0.001,
+   "n_x402": 1,
+   "usdc_x402": 0.001,
+   "first": "2026-10-23T07:01:34Z",
+   "last": "2026-10-23T07:01:34Z",
+   "active_hours": [
+    7
+   ]
+  },
+  {
+   "from": "3sng11LXu3jeAiHvqcEgpqLnErFDfKyqSz3k2VunT8oS",
+   "to": "Bd2xS189uhhnxUeBeVF3JFXrg8zQgrvqZtpqh8hgkCEQ",
+   "n": 1,
+   "usdc": 0.001,
+   "n_x402": 1,
+   "usdc_x402": 0.001,
+   "first": "2026-10-23T07:09:19Z",
+   "last": "2026-10-23T07:09:19Z",
+   "active_hours": [
+    7
+   ]
+  },
+  {
+   "from": "3ueYSmK342bvVFWVULKeLdZ4gCFr4km8XvDhD1BysmGy",
+   "to": "7xvuVbuyzfoE8jLRAbdqwjNYgqLs9pVNx9FpkXPwVDVP",
+   "n": 1,
+   "usdc": 40.0,
+   "n_x402": 1,
+   "usdc_x402": 40.0,
+   "first": "2026-10-23T11:15:35Z",
+   "last": "2026-10-23T11:15:35Z",
+   "active_hours": [
+    11
+   ]
+  },
+  {
+   "from": "47TfpicKeN265FTAmpFHEWobznWrb5ZGu56jC2VzaRRr",
+   "to": "DdeMfXrDae49VAkvVZHUhWh7FDuirAuFCuuJruqXv5G2",
+   "n": 1,
+   "usdc": 0.1,
+   "n_x402": 1,
+   "usdc_x402": 0.1,
+   "first": "2026-10-23T09:39:50Z",
+   "last": "2026-10-23T09:39:50Z",
+   "active_hours": [
+    9
+   ]
+  },
+  {
+   "from": "4tkmptdyyqcTvxQWRjEWJGNqQ5LZBbgsFZ7ohFEiSKMF",
+   "to": "7xvuVbuyzfoE8jLRAbdqwjNYgqLs9pVNx9FpkXPwVDVP",
+   "n": 1,
+   "usdc": 40.0,
+   "n_x402": 1,
+   "usdc_x402": 40.0,
+   "first": "2026-10-23T10:46:27Z",
+   "last": "2026-10-23T10:46:27Z",
+   "active_hours": [
+    10
+   ]
+  },
+  {
+   "from": "562xmccoBnjPs4jjx4Q751nMULqZW26UkpZcY3vi6Guk",
+   "to": "7xvuVbuyzfoE8jLRAbdqwjNYgqLs9pVNx9FpkXPwVDVP",
+   "n": 1,
+   "usdc": 5.0,
+   "n_x402": 1,
+   "usdc_x402": 5.0,
+   "first": "2026-10-23T09:24:02Z",
+   "last": "2026-10-23T09:24:02Z",
+   "active_hours": [
+    9
+   ]
+  },
+  {
+   "from": "5SR18z8GPYRLuV8gQf3LbSeAtEksRyMBynrYvatB9YS8",
+   "to": "Fs2zgBUo3jTs3AeZrXyjBQ4FVw1f9HViNudmzxw7rz4B",
+   "n": 1,
+   "usdc": 0.1,
+   "n_x402": 1,
+   "usdc_x402": 0.1,
+   "first": "2026-10-23T09:16:49Z",
+   "last": "2026-10-23T09:16:49Z",
+   "active_hours": [
+    9
+   ]
+  },
+  {
+   "from": "5Zg8y9eGkMMo3eaXGHoTPtRwTvKzZn2ipZUL68QoMd2J",
+   "to": "d8X2MdS7QMiMFVWzYMVTeKhm1BVx75GoHskf9ws74nM",
+   "n": 1,
+   "usdc": 0.01,
+   "n_x402": 1,
+   "usdc_x402": 0.01,
+   "first": "2026-10-23T08:50:29Z",
+   "last": "2026-10-23T08:50:29Z",
+   "active_hours": [
+    8
+   ]
+  },
+  {
+   "from": "5vVEx4UHLNFK8nPWjWWqWtUQKYMN2Tes4UXoUKtT1MUc",
+   "to": "7xvuVbuyzfoE8jLRAbdqwjNYgqLs9pVNx9FpkXPwVDVP",
+   "n": 1,
+   "usdc": 31.0,
+   "n_x402": 1,
+   "usdc_x402": 31.0,
+   "first": "2026-10-23T08:44:46Z",
+   "last": "2026-10-23T08:44:46Z",
+   "active_hours": [
+    8
+   ]
+  },
+  {
+   "from": "6AehDMpjLgV6k4aA8BUpEPMwhJNcHyXUdmeRvTexavh7",
+   "to": "7xvuVbuyzfoE8jLRAbdqwjNYgqLs9pVNx9FpkXPwVDVP",
+   "n": 1,
+   "usdc": 40.0,
+   "n_x402": 1,
+   "usdc_x402": 40.0,
+   "first": "2026-10-23T11:09:49Z",
+   "last": "2026-10-23T11:09:49Z",
+   "active_hours": [
+    11
+   ]
+  },
+  {
+   "from": "6mSjBEt9FSMWKEiLakbSAmjSmkK9xKcy6TwTZYoxEbbe",
+   "to": "7xvuVbuyzfoE8jLRAbdqwjNYgqLs9pVNx9FpkXPwVDVP",
+   "n": 1,
+   "usdc": 20.0,
+   "n_x402": 1,
+   "usdc_x402": 20.0,
+   "first": "2026-10-23T11:17:27Z",
+   "last": "2026-10-23T11:17:27Z",
+   "active_hours": [
+    11
+   ]
+  },
+  {
+   "from": "78h2b89LQcMnssWZ1eTQSiGHsHkiFHQk1EGGZ9dU1GHD",
+   "to": "7xvuVbuyzfoE8jLRAbdqwjNYgqLs9pVNx9FpkXPwVDVP",
+   "n": 1,
+   "usdc": 30.0,
+   "n_x402": 1,
+   "usdc_x402": 30.0,
+   "first": "2026-10-23T10:58:41Z",
+   "last": "2026-10-23T10:58:41Z",
+   "active_hours": [
+    10
+   ]
+  },
+  {
+   "from": "7QenAAtufmhGBuBp5kr2LVp9YmrHiUHfyWsYP7LFQz45",
+   "to": "7xvuVbuyzfoE8jLRAbdqwjNYgqLs9pVNx9FpkXPwVDVP",
+   "n": 1,
+   "usdc": 14.0,
+   "n_x402": 1,
+   "usdc_x402": 14.0,
+   "first": "2026-10-23T11:43:15Z",
+   "last": "2026-10-23T11:43:15Z",
+   "active_hours": [
+    11
+   ]
+  },
+  {
+   "from": "7V5wVFYkZi44DyPL87xHWyp1c5Qoq73ca7n6DTaHXe8z",
+   "to": "9MkM5Ra48KFcSv9HDQ8sb3C3r5HjouEwGQ6sp1cx1vde",
+   "n": 1,
+   "usdc": 0.005,
+   "n_x402": 1,
+   "usdc_x402": 0.005,
+   "first": "2026-10-23T11:54:06Z",
+   "last": "2026-10-23T11:54:06Z",
+   "active_hours": [
+    11
+   ]
+  },
+  {
+   "from": "83NyaMLLiyyJEunchFADdG15vLLyVc1YmGmgL9KaNWda",
+   "to": "7xvuVbuyzfoE8jLRAbdqwjNYgqLs9pVNx9FpkXPwVDVP",
+   "n": 1,
+   "usdc": 100.0,
+   "n_x402": 1,
+   "usdc_x402": 100.0,
+   "first": "2026-10-23T07:57:28Z",
+   "last": "2026-10-23T07:57:28Z",
+   "active_hours": [
+    7
+   ]
+  },
+  {
+   "from": "89R9QvV6Kfgzb5LV2HgacZdhFJiVQmmE7Df6k4iUkaZ7",
+   "to": "7xvuVbuyzfoE8jLRAbdqwjNYgqLs9pVNx9FpkXPwVDVP",
+   "n": 1,
+   "usdc": 15.0,
+   "n_x402": 1,
+   "usdc_x402": 15.0,
+   "first": "2026-10-23T10:23:58Z",
+   "last": "2026-10-23T10:23:58Z",
+   "active_hours": [
+    10
+   ]
+  },
+  {
+   "from": "8uYvLtTDPUfQtqkXikyXJLzWPh2AMVWxx82rV4d8vpHX",
+   "to": "7xvuVbuyzfoE8jLRAbdqwjNYgqLs9pVNx9FpkXPwVDVP",
+   "n": 1,
+   "usdc": 70.0,
+   "n_x402": 1,
+   "usdc_x402": 70.0,
+   "first": "2026-10-23T11:10:53Z",
+   "last": "2026-10-23T11:10:53Z",
+   "active_hours": [
+    11
+   ]
+  },
+  {
+   "from": "8unLA8AEQatB6GBYiXcx3nzYAgMUM8mcYecpVywsEcUz",
+   "to": "7xvuVbuyzfoE8jLRAbdqwjNYgqLs9pVNx9FpkXPwVDVP",
+   "n": 1,
+   "usdc": 5.0,
+   "n_x402": 1,
+   "usdc_x402": 5.0,
+   "first": "2026-10-23T10:52:01Z",
+   "last": "2026-10-23T10:52:01Z",
+   "active_hours": [
+    10
+   ]
+  },
+  {
+   "from": "92xynuBhQSMvS8ifDHEAsj5au1hzaQSHBEhrjM9a1fDD",
+   "to": "J7ZvJEspvwP1oRxQZ7mYmNmT22NTm3GWq3t7HEbvPZYx",
+   "n": 1,
+   "usdc": 0.01,
+   "n_x402": 1,
+   "usdc_x402": 0.01,
+   "first": "2026-10-23T11:31:31Z",
+   "last": "2026-10-23T11:31:31Z",
+   "active_hours": [
+    11
+   ]
+  },
+  {
+   "from": "92xynuBhQSMvS8ifDHEAsj5au1hzaQSHBEhrjM9a1fDD",
+   "to": "J7aN3PLJnTCF5qpEnvJHJsnCjcGuqC2rYtEM8Gv3xwg",
+   "n": 1,
+   "usdc": 0.005,
+   "n_x402": 1,
+   "usdc_x402": 0.005,
+   "first": "2026-10-23T11:59:16Z",
+   "last": "2026-10-23T11:59:16Z",
+   "active_hours": [
+    11
+   ]
+  },
+  {
+   "from": "9EMAayAfBR32J5d3ApEAG3NdKArRBtAqN7LA8c2WRM5o",
+   "to": "J7aN3PLJnTCF5qpEnvJHJsnCjcGuqC2rYtEM8Gv3xwg",
+   "n": 1,
+   "usdc": 0.007,
+   "n_x402": 1,
+   "usdc_x402": 0.007,
+   "first": "2026-10-23T09:13:03Z",
+   "last": "2026-10-23T09:13:03Z",
+   "active_hours": [
+    9
+   ]
+  },
+  {
+   "from": "9WtDeUUfRMokDFEveKYyH2hHkbZGLKGrGPPCgCC5Vk2Y",
+   "to": "SAT8g2xU7AFy7eUmNJ9SNrM6yYo7LDCi13GXJ8Ez9kC",
+   "n": 1,
+   "usdc": 1.0,
+   "n_x402": 1,
+   "usdc_x402": 1.0,
+   "first": "2026-10-23T06:35:25Z",
+   "last": "2026-10-23T06:35:25Z",
+   "active_hours": [
+    6
+   ]
+  },
+  {
+   "from": "9Zsi4pyXQZzZNYNdYdNNfcUiNvCEMvkwbcQqUWegCCPM",
+   "to": "7xvuVbuyzfoE8jLRAbdqwjNYgqLs9pVNx9FpkXPwVDVP",
+   "n": 1,
+   "usdc": 70.0,
+   "n_x402": 1,
+   "usdc_x402": 70.0,
+   "first": "2026-10-23T11:05:49Z",
+   "last": "2026-10-23T11:05:49Z",
+   "active_hours": [
+    11
+   ]
+  },
+  {
+   "from": "9dxd7nZXX5qWc3ivkWSBCqVpRonfMAhcmgAcAF7RpSmg",
+   "to": "7xvuVbuyzfoE8jLRAbdqwjNYgqLs9pVNx9FpkXPwVDVP",
+   "n": 1,
+   "usdc": 40.0,
+   "n_x402": 1,
+   "usdc_x402": 40.0,
+   "first": "2026-10-23T11:08:52Z",
+   "last": "2026-10-23T11:08:52Z",
+   "active_hours": [
+    11
+   ]
+  },
+  {
+   "from": "9fv7Wg3qNPpB2eA81dc7SzqY27Bc7sKGvQMkTJwXffTt",
+   "to": "7xvuVbuyzfoE8jLRAbdqwjNYgqLs9pVNx9FpkXPwVDVP",
+   "n": 1,
+   "usdc": 25.0,
+   "n_x402": 1,
+   "usdc_x402": 25.0,
+   "first": "2026-10-23T10:24:38Z",
+   "last": "2026-10-23T10:24:38Z",
+   "active_hours": [
+    10
+   ]
+  },
+  {
+   "from": "9oqm3Xrz4txNLB5PiDD4Ss8r9XmvQUsDXQRvZKk2q3HP",
+   "to": "7xvuVbuyzfoE8jLRAbdqwjNYgqLs9pVNx9FpkXPwVDVP",
+   "n": 1,
+   "usdc": 11.0,
+   "n_x402": 1,
+   "usdc_x402": 11.0,
+   "first": "2026-10-23T10:55:57Z",
+   "last": "2026-10-23T10:55:57Z",
+   "active_hours": [
+    10
+   ]
+  },
+  {
+   "from": "BadoFaNBqPRQzeFPcXtEb6YvcqRSz4j4ve8diMn8CnKL",
+   "to": "7xvuVbuyzfoE8jLRAbdqwjNYgqLs9pVNx9FpkXPwVDVP",
+   "n": 1,
+   "usdc": 40.0,
+   "n_x402": 1,
+   "usdc_x402": 40.0,
+   "first": "2026-10-23T11:04:43Z",
+   "last": "2026-10-23T11:04:43Z",
+   "active_hours": [
+    11
+   ]
+  },
+  {
+   "from": "Bb9apMqb1E8UmQn5FfGDDfRW6GrUtRFARouWoV76Dr4B",
+   "to": "7xvuVbuyzfoE8jLRAbdqwjNYgqLs9pVNx9FpkXPwVDVP",
+   "n": 1,
+   "usdc": 50.0,
+   "n_x402": 1,
+   "usdc_x402": 50.0,
+   "first": "2026-10-23T11:11:57Z",
+   "last": "2026-10-23T11:11:57Z",
+   "active_hours": [
+    11
+   ]
+  },
+  {
+   "from": "BdfifsxGZuU9zt4hJnPwzupwuLLfcspBv6VNhEYqQw37",
+   "to": "7xvuVbuyzfoE8jLRAbdqwjNYgqLs9pVNx9FpkXPwVDVP",
+   "n": 1,
+   "usdc": 30.0,
+   "n_x402": 1,
+   "usdc_x402": 30.0,
+   "first": "2026-10-23T11:01:28Z",
+   "last": "2026-10-23T11:01:28Z",
+   "active_hours": [
+    11
+   ]
+  },
+  {
+   "from": "BmfTfk51ydcL1c3XXxNXL1FPKA81k59EqfmBnkMYmeME",
+   "to": "7xvuVbuyzfoE8jLRAbdqwjNYgqLs9pVNx9FpkXPwVDVP",
+   "n": 1,
+   "usdc": 35.0,
+   "n_x402": 1,
+   "usdc_x402": 35.0,
+   "first": "2026-10-23T11:51:29Z",
+   "last": "2026-10-23T11:51:29Z",
+   "active_hours": [
+    11
+   ]
+  },
+  {
+   "from": "CE9xZm6WY4Q3jVjGD2dbm7Ue6BSWzGAaEmXVB4R2Tyvf",
+   "to": "7xvuVbuyzfoE8jLRAbdqwjNYgqLs9pVNx9FpkXPwVDVP",
+   "n": 1,
+   "usdc": 5.0,
+   "n_x402": 1,
+   "usdc_x402": 5.0,
+   "first": "2026-10-23T06:14:19Z",
+   "last": "2026-10-23T06:14:19Z",
+   "active_hours": [
+    6
+   ]
+  },
+  {
+   "from": "CN4X7NTj6TX5GayEhyZqU3ARjjBXjspTARUg6hohaHsA",
+   "to": "7xvuVbuyzfoE8jLRAbdqwjNYgqLs9pVNx9FpkXPwVDVP",
+   "n": 1,
+   "usdc": 5.0,
+   "n_x402": 1,
+   "usdc_x402": 5.0,
+   "first": "2026-10-23T10:49:53Z",
+   "last": "2026-10-23T10:49:53Z",
+   "active_hours": [
+    10
+   ]
+  },
+  {
+   "from": "D4jv9psJwJ6V2M7Y1f17SeQyErFZEW8RDVoiTArVFaTt",
+   "to": "7xvuVbuyzfoE8jLRAbdqwjNYgqLs9pVNx9FpkXPwVDVP",
+   "n": 1,
+   "usdc": 30.0,
+   "n_x402": 1,
+   "usdc_x402": 30.0,
+   "first": "2026-10-23T11:08:01Z",
+   "last": "2026-10-23T11:08:01Z",
+   "active_hours": [
+    11
+   ]
+  },
+  {
+   "from": "D4wHWKybGrsbfbBP1R3zNtCZ8t5K6tTiMpi9ui9VXjZC",
+   "to": "7xvuVbuyzfoE8jLRAbdqwjNYgqLs9pVNx9FpkXPwVDVP",
+   "n": 1,
+   "usdc": 5.0,
+   "n_x402": 1,
+   "usdc_x402": 5.0,
+   "first": "2026-10-23T10:57:45Z",
+   "last": "2026-10-23T10:57:45Z",
+   "active_hours": [
+    10
+   ]
+  },
+  {
+   "from": "EPcyt2g6muLs3aUQHbpbyEgCcckknFWifCTC95TuyqSK",
+   "to": "7xvuVbuyzfoE8jLRAbdqwjNYgqLs9pVNx9FpkXPwVDVP",
+   "n": 1,
+   "usdc": 5.0,
+   "n_x402": 1,
+   "usdc_x402": 5.0,
+   "first": "2026-10-23T11:42:08Z",
+   "last": "2026-10-23T11:42:08Z",
+   "active_hours": [
+    11
+   ]
+  },
+  {
+   "from": "ETEBvVQAoknN9h2D3PhR25E69KMxpr22o1Z2dFEjucdn",
+   "to": "7xvuVbuyzfoE8jLRAbdqwjNYgqLs9pVNx9FpkXPwVDVP",
+   "n": 1,
+   "usdc": 17.0,
+   "n_x402": 1,
+   "usdc_x402": 17.0,
+   "first": "2026-10-23T10:25:42Z",
+   "last": "2026-10-23T10:25:42Z",
+   "active_hours": [
+    10
+   ]
+  },
+  {
+   "from": "EzKB2p9pQB6r4kKY5tgm5JkFbPTfWJD12Ru8WWVJi5Dn",
+   "to": "7xvuVbuyzfoE8jLRAbdqwjNYgqLs9pVNx9FpkXPwVDVP",
+   "n": 1,
+   "usdc": 15.0,
+   "n_x402": 1,
+   "usdc_x402": 15.0,
+   "first": "2026-10-23T10:23:30Z",
+   "last": "2026-10-23T10:23:30Z",
+   "active_hours": [
+    10
+   ]
+  },
+  {
+   "from": "FbTJB2MnymMh2gxY6YXfJsPerZygziVu9tYPTgJf6YbE",
+   "to": "7xvuVbuyzfoE8jLRAbdqwjNYgqLs9pVNx9FpkXPwVDVP",
+   "n": 1,
+   "usdc": 80.0,
+   "n_x402": 1,
+   "usdc_x402": 80.0,
+   "first": "2026-10-23T11:18:46Z",
+   "last": "2026-10-23T11:18:46Z",
+   "active_hours": [
+    11
+   ]
+  },
+  {
+   "from": "FrtqoXjhS1681nGbWd3PFzbgegXyVf1m23s5VEWyDpZm",
+   "to": "D6HJetrKzbaTVnCPmHN4pSXK4z4WcCg4jM9zKRTsBbwR",
+   "n": 1,
+   "usdc": 0.18,
+   "n_x402": 1,
+   "usdc_x402": 0.18,
+   "first": "2026-10-23T08:40:47Z",
+   "last": "2026-10-23T08:40:47Z",
+   "active_hours": [
+    8
+   ]
+  },
+  {
+   "from": "GBH1isF7j14icSvRG3CBESkDeLC5v7Wd291nyogeVXaE",
+   "to": "7xvuVbuyzfoE8jLRAbdqwjNYgqLs9pVNx9FpkXPwVDVP",
+   "n": 1,
+   "usdc": 50.0,
+   "n_x402": 1,
+   "usdc_x402": 50.0,
+   "first": "2026-10-23T09:51:26Z",
+   "last": "2026-10-23T09:51:26Z",
+   "active_hours": [
+    9
+   ]
+  },
+  {
+   "from": "GFjQmEPgyHgmiD9Am2BsYKvSF4nUXktLEkxrPTFJek1k",
+   "to": "7xvuVbuyzfoE8jLRAbdqwjNYgqLs9pVNx9FpkXPwVDVP",
+   "n": 1,
+   "usdc": 17.0,
+   "n_x402": 1,
+   "usdc_x402": 17.0,
+   "first": "2026-10-23T10:33:56Z",
+   "last": "2026-10-23T10:33:56Z",
+   "active_hours": [
+    10
+   ]
+  },
+  {
+   "from": "Gey42Pp5C5YGuumuqDLyP2mhmXNgjaW8Yr3DzgWekpBS",
+   "to": "7xvuVbuyzfoE8jLRAbdqwjNYgqLs9pVNx9FpkXPwVDVP",
+   "n": 1,
+   "usdc": 40.0,
+   "n_x402": 1,
+   "usdc_x402": 40.0,
+   "first": "2026-10-23T11:07:13Z",
+   "last": "2026-10-23T11:07:13Z",
+   "active_hours": [
+    11
+   ]
+  },
+  {
+   "from": "H27vt23AFvB4fxU9s3vJ9mmqXyYwF6AS8gP17CdaqMF6",
+   "to": "7xvuVbuyzfoE8jLRAbdqwjNYgqLs9pVNx9FpkXPwVDVP",
+   "n": 1,
+   "usdc": 5.0,
+   "n_x402": 1,
+   "usdc_x402": 5.0,
+   "first": "2026-10-23T06:04:18Z",
+   "last": "2026-10-23T06:04:18Z",
+   "active_hours": [
+    6
+   ]
+  },
+  {
+   "from": "HVUoDoRwXsUZwvYmii1Dx67YZuC1e1DnmQeir7BLrT6q",
+   "to": "7xvuVbuyzfoE8jLRAbdqwjNYgqLs9pVNx9FpkXPwVDVP",
+   "n": 1,
+   "usdc": 5.0,
+   "n_x402": 1,
+   "usdc_x402": 5.0,
+   "first": "2026-10-23T08:01:07Z",
+   "last": "2026-10-23T08:01:07Z",
+   "active_hours": [
+    8
+   ]
+  },
+  {
+   "from": "HWYdFkmum2ExcBSDVeQKNodd3APqqHTQP8L2gGeGhYe9",
+   "to": "7xvuVbuyzfoE8jLRAbdqwjNYgqLs9pVNx9FpkXPwVDVP",
+   "n": 1,
+   "usdc": 30.0,
+   "n_x402": 1,
+   "usdc_x402": 30.0,
+   "first": "2026-10-23T11:13:15Z",
+   "last": "2026-10-23T11:13:15Z",
+   "active_hours": [
+    11
+   ]
+  },
+  {
+   "from": "HaVJhkDKs9MHbbqUbEXvHXinMSTukxphqtyRmGzYXSAp",
+   "to": "7xvuVbuyzfoE8jLRAbdqwjNYgqLs9pVNx9FpkXPwVDVP",
+   "n": 1,
+   "usdc": 40.0,
+   "n_x402": 1,
+   "usdc_x402": 40.0,
+   "first": "2026-10-23T10:53:14Z",
+   "last": "2026-10-23T10:53:14Z",
+   "active_hours": [
+    10
+   ]
+  },
+  {
+   "from": "J27hmYhf4AptM5fCFpSn4R4H6Gr2QuutfjejftQCW6DA",
+   "to": "9QJDjm5dBuZFXx43nMKD4u9tozYCZThAHKreNYkNvG3q",
+   "n": 1,
+   "usdc": 0.001,
+   "n_x402": 1,
+   "usdc_x402": 0.001,
+   "first": "2026-10-23T10:58:01Z",
+   "last": "2026-10-23T10:58:01Z",
+   "active_hours": [
+    10
+   ]
+  },
+  {
+   "from": "J27hmYhf4AptM5fCFpSn4R4H6Gr2QuutfjejftQCW6DA",
+   "to": "Aqgp4nKbk3WV1e7fLHepkcdwLLz3j8DwHqLTLHVEa6GK",
+   "n": 1,
+   "usdc": 0.003,
+   "n_x402": 1,
+   "usdc_x402": 0.003,
+   "first": "2026-10-23T07:42:56Z",
+   "last": "2026-10-23T07:42:56Z",
+   "active_hours": [
+    7
+   ]
+  },
+  {
+   "from": "J27hmYhf4AptM5fCFpSn4R4H6Gr2QuutfjejftQCW6DA",
+   "to": "Bd2xS189uhhnxUeBeVF3JFXrg8zQgrvqZtpqh8hgkCEQ",
+   "n": 1,
+   "usdc": 0.001,
+   "n_x402": 1,
+   "usdc_x402": 0.001,
+   "first": "2026-10-23T06:03:09Z",
+   "last": "2026-10-23T06:03:09Z",
+   "active_hours": [
+    6
+   ]
+  },
+  {
+   "from": "eGPLEKaXw9KKZXjQzi8fiJfLnQ59eVupss9kwQAdrWP",
+   "to": "9MkM5Ra48KFcSv9HDQ8sb3C3r5HjouEwGQ6sp1cx1vde",
+   "n": 1,
+   "usdc": 0.005,
+   "n_x402": 1,
+   "usdc_x402": 0.005,
+   "first": "2026-10-23T11:49:14Z",
+   "last": "2026-10-23T11:49:14Z",
+   "active_hours": [
+    11
+   ]
+  },
+  {
+   "from": "pbaY4kzxFUND4u6iEWWVbaRFMnK8RDEv6tbX4nTUViK",
+   "to": "7xvuVbuyzfoE8jLRAbdqwjNYgqLs9pVNx9FpkXPwVDVP",
+   "n": 1,
+   "usdc": 14.0,
+   "n_x402": 1,
+   "usdc_x402": 14.0,
+   "first": "2026-10-23T08:50:34Z",
+   "last": "2026-10-23T08:50:34Z",
+   "active_hours": [
+    8
+   ]
+  },
+  {
+   "from": "wwwwwDxFWRn7grgr3Esrsg5C6NvDoDHSA4gaCffccrU",
+   "to": "X4o2UuVNMxnrgkzVy97kPF5gmS6CLRCVJGB48VastML",
+   "n": 1,
+   "usdc": 0.102,
+   "n_x402": 1,
+   "usdc_x402": 0.102,
+   "first": "2026-10-23T09:59:15Z",
+   "last": "2026-10-23T09:59:15Z",
+   "active_hours": [
+    9
+   ]
+  }
+ ],
+ "processors": {
+  "payAI": {
+   "payments": 6939,
+   "usdc": 17.572503
+  },
+  "coinbase": {
+   "payments": 653,
+   "usdc": 2781.001
+  },
+  "dexter": {
+   "payments": 7,
+   "usdc": 0.07
+  },
+  "three-ws": {
+   "payments": 1,
+   "usdc": 0.102
+  }
+ },
+ "assets": {
+  "USDC": {
+   "mint": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+   "payments": 7557,
+   "usdc": 2029.625503
+  },
+  "USDT": {
+   "mint": "Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB",
+   "payments": 43,
+   "usdc": 769.12
+  }
+ },
+ "sellers": {
+  "8iZbjedTiMYVYGE9PZBHPm7k2KeXRqWAuCpSAxHm7j68": [
+   "47620.xyz"
+  ],
+  "8tosK4UvkrkhBq1fFquS4ecZKvHpeYtjCoMRMgMvcsQz": [
+   "aidatatools.dev",
+   "astro-agent.dev"
+  ],
+  "8FpaqrVv86FESBBn1qYgPNvL8EbTbk7W9ccMPqvNELZb": [
+   "aijobsboom-x402.sonofgus.workers.dev"
+  ],
+  "9YLxx6HtrN4HFd2wBTcBX5Uwn2rtMUYxcUwohzG9aBGT": [
+   "anime-intelligence.goodmy0312.workers.dev"
+  ],
+  "HpZ7TcKzX5GQ1jbFFYB3Npq321g8UrmsnaTKVNicu1Dv": [
+   "api.cookin.fun"
+  ],
+  "Bn7sLNmcL9ru5kt9gNwVn8e8Sx912dBTxiUBNiwjbiY8": [
+   "api.deepnets.ai"
+  ],
+  "FrbPNVy38p2czvMSaQDAW5EU7UYHG1VTykfcornDdVHH": [
+   "api.ekospor.com"
+  ],
+  "cpCDBTacxDtgXpKNCeK4WgtCT2EcGRG3GD9rjQYayTP": [
+   "api.groundtruths.xyz"
+  ],
+  "HpmX6jRpRahpsac32kGNVV7JnPmVLNuUtwvREU5EzCjp": [
+   "api.hodlodds.com"
+  ],
+  "9HkwyUhDMyjbpSpnyu5xuZ9vRaFQeajnJsavhie7XcsT": [
+   "api.loopholetape.com"
+  ],
+  "9mMDrHabSf73MPn1ANdANSmsNw2wKiqE7JZ7eD6EUSRc": [
+   "api.mekler.ai",
+   "citation-overlap-checker.mekler.ai",
+   "csv-validator.mekler.ai",
+   "static-page-extractor.mekler.ai",
+   "vme5zb7fll.execute-api.us-east-1.amazonaws.com"
+  ],
+  "66Qvhr1xnwqbCT36KfHfZF1JpoWdmCQ3uFYTN335CGXe": [
+   "api.solenrich.com"
+  ],
+  "HwXJGH7FMugPCoLiQnuG1nCUMWhBejMhkjdswNHmLeN8": [
+   "api.solsentry.app"
+  ],
+  "CBYMYxfMGdA98qkzrYqTzTiQhP3H2scU95EB4ZxoRxuM": [
+   "api.suverse.io"
+  ],
+  "AMbsiP9F8YY2y8n9uFdqtw7yNZZHvTWFEWSQGHKtmkoQ": [
+   "api.urbangametheory.xyz"
+  ],
+  "HcjfmZLgWRZzwj4deEiS7pewc4KBYSw39mW5nTyt3pz2": [
+   "api.vextorium.com"
+  ],
+  "9DJAmTJ2ucuHZRtQo4EuDLwKiFjQjGWYTgkQmMyuGm1E": [
+   "api.zendiq.ai",
+   "zendiq-backend.onrender.com"
+  ],
+  "FdQ2FmAydXBe87Nm7w4MjksRqTUjahPaqjj7mVshKvNa": [
+   "app.fortiblox.com"
+  ],
+  "4an2sqamWWhny9mjLsMtGXCDXakeNtg6vSLq4QvhdmQu": [
+   "ask.singitai.app"
+  ],
+  "9U88CgNF2AxvuoE9QRCyBVN6d7Ybvgh8VB2XxPdH6CAf": [
+   "bob.assimilatethis.com"
+  ],
+  "52Ca4rDuLd4RuxA2sZC7GJoGVnPrE77Z6nXEFDTnvtqw": [
+   "compute-inference.opencovenant.org"
+  ],
+  "9iubApKktcxphCVgBg9CPRPhSH8nkzVRSapxhYwxfCVS": [
+   "cyre.dev"
+  ],
+  "DCi9X5mmacNGLeJvCw9fdWgX3G8V4QquDn4EuXATkcYr": [
+   "derivatives-pricer-production.up.railway.app"
+  ],
+  "6Zrx53nxqmYtyqQNskSqjd8ypgKrx4yLvh1qJmRKrgtL": [
+   "echomarkets.xyz"
+  ],
+  "J2AjnRuaBKWXmAyrnPpU9S1PEm1AtZh61qDJaLE4fsnW": [
+   "fmcsa-mcp-843680657471.us-central1.run.app"
+  ],
+  "9QJDjm5dBuZFXx43nMKD4u9tozYCZThAHKreNYkNvG3q": [
+   "gdzlcxskuhupymyxywzm.supabase.co"
+  ],
+  "9MkM5Ra48KFcSv9HDQ8sb3C3r5HjouEwGQ6sp1cx1vde": [
+   "glim.sh",
+   "surf.cascade.fyi",
+   "twitter.surf.cascade.fyi"
+  ],
+  "DxnVaGNqTm1yX4Bm5YqtRzfUytF5ZiZ7N2eVXZpVPPP3": [
+   "grov.fun"
+  ],
+  "44QXKrTUzT1j5MPkZCQAE1y5jur6mxvugSrB7g61ERZ3": [
+   "inference.algono.co"
+  ],
+  "8D5DSpGroX5P9v6oGHLUVLFXujp6En1zYdf5KTTQ5N8V": [
+   "insider-radar-agent.insider-radar-agent.workers.dev",
+   "whodeployed.wtf"
+  ],
+  "GFpLvocNdEjnSsLH3VJQL6wGcjGxTbUBrj6fqN3Qe1Gs": [
+   "intel.twzrd.xyz"
+  ],
+  "9qCyPu7sLjnwgcbHYY76eqvtjsrdDxis9nn1sjD8CyJo": [
+   "mcp.blocksize.info"
+  ],
+  "3E6GLvUrVhynV7q19ZUNNJ5qeaL67BkWwx3bcEM43bCs": [
+   "myceliumfinance.com"
+  ],
+  "GqSs5L9aPWGJwyRQe35YKQaWMDPh3R1dMqfSEPhSgkM": [
+   "palmyr.ai",
+   "tiktok.palmyr.ai"
+  ],
+  "E75637r67jVjdYuG6C6Taaf9Gtur4S98GkFmSWwazLC": [
+   "piquesignal.xyz"
+  ],
+  "HFYkH6SUuXLvzGbuB76vJ8u76NG3X25wdd1A7mDM4cSw": [
+   "proxy.suverse.io"
+  ],
+  "BrYj2PMe2YLpEYnUkUDm5B5age2zTp3chWJr2hoAmG5S": [
+   "pumpdata.fun"
+  ],
+  "35tCuyL3E7M88jfhTeEaRxhrbuKFyQLWgxJQyf5QcLLe": [
+   "sanctions.nsgoods.org"
+  ],
+  "7LSjfrJf8fNsB8VA9u7N3WEn25smQLpob3SvyUvXacy7": [
+   "saylorinnovations.com"
+  ],
+  "CTKigV78yuErumvqm7Qor8j1hMK2oxNxdhwpVrAKV85d": [
+   "scry.solanahub.de"
+  ],
+  "9csHbkGGeQqNxvtZw8hPnC34NCcmZoZXVTEGC1MiDNRE": [
+   "softbot-emailcheck-mainnet.softbot.workers.dev",
+   "softbot-reader-mainnet.softbot.workers.dev",
+   "softbot-screenshot-mainnet.softbot.workers.dev",
+   "softbot-sitecheck-mainnet.softbot.workers.dev",
+   "softbot-tokencheck-mainnet.softbot.workers.dev",
+   "softbot-walletcheck-mainnet.softbot.workers.dev"
+  ],
+  "9DbpH2Mf9D26ak4bASsv6KA4Ra4V571oLpiVdZjAjcU8": [
+   "sol.mapleai.shop"
+  ],
+  "4ofUMGcRHsfr6LMY6AuaRSQpqyKsvibSbXmieQL4i8Dc": [
+   "svm402.com"
+  ],
+  "F1AbWuXJcBT9arW9wc6Xr2vom5NBtngWsz6Ht16jRBLM": [
+   "tick.twzrd.xyz"
+  ],
+  "7d2rfr7DEzDFBc1fBvwsHkKJmR7hEcqMT7mReGjQM1iq": [
+   "tokenctl.io"
+  ],
+  "FSnwAPTNNSxqnR8MtuNrtwLkyYusZ4hncp684HxYpdLb": [
+   "toolvend.dev"
+  ],
+  "4WvcrHiCTLEqWod3PeW3iFfjmJFsCbprQfkeNb2Rq59b": [
+   "travel.brij.fi"
+  ],
+  "6wPPGga1ihYNW693GJmBaumV1GKXXQQqQFSWfJ1W3KNr": [
+   "ultra-endpoints.com"
+  ],
+  "agTiz33pSciyYZJzYyaiHQJ9uxSdJjciT3verMVAULT": [
+   "vaultbags.app"
+  ],
+  "226DYoWb2e6uYxDkFp7vK8jZhzzh2VNvHH6DgbDsNueC": [
+   "whaletape.xyz"
+  ],
+  "8xbXHAhiVe2BrYDq4qpTA5SSYJG9XNjNN6jcrudhTKCM": [
+   "x402-seller.opencovenant.org"
+  ],
+  "4JVizZAF12UxgMF1Fi1nqcrfBhuuCpHiRM7o9FFfeGdc": [
+   "x402-service-production-e242.up.railway.app"
+  ],
+  "4a8o45skRPcyjAdyR8yES215Swvh8uTpZD6KLarhxCJ7": [
+   "x402.ochinimus.app"
+  ],
+  "Bd2xS189uhhnxUeBeVF3JFXrg8zQgrvqZtpqh8hgkCEQ": [
+   "x402.sniperx.fun"
+  ]
+ },
+ "window": "sol-2026-10-23T06"
+}
