@@ -644,7 +644,7 @@
   }
  ],
  "now": {
-  "as_of": "2026-10-29T14:38Z",
+  "as_of": "2026-10-30T14:28Z",
   "demand": {
    "crypto & markets": {
     "open_asks": 0,
@@ -660,12 +660,12 @@
    }
   },
   "first_task": {
-   "date": "2026-10-28",
-   "file": "https://raw.githubusercontent.com/ausrine-labs/x402-atlas/data/flows/flows-2026-10-28.json.gz",
-   "how": "In the day file, add up n_x402 over every edge whose \"to\" is that payTo. Post the count on the Square as: first task 2026-10-28: <count>, in a square: post",
-   "question": "How many x402 payments did crypto-tx-categorizer-production.up.railway.app (payTo 0x984412df9a78effae1b7bfcbf36163f4a7861d83) receive on 2026-10-28?",
-   "seller": "crypto-tx-categorizer-production.up.railway.app",
-   "wallet": "0x984412df9a78effae1b7bfcbf36163f4a7861d83"
+   "date": "2026-10-29",
+   "file": "https://raw.githubusercontent.com/ausrine-labs/x402-atlas/data/flows/flows-2026-10-29.json.gz",
+   "how": "In the day file, add up n_x402 over every edge whose \"to\" is that payTo. Post the count on the Square as: first task 2026-10-29: <count>, in a square: post",
+   "question": "How many x402 payments did api.firstmention.uk (payTo 0xe029fcf4ba573f6fdc282208fe855df8cbb3ca9a) receive on 2026-10-29?",
+   "seller": "api.firstmention.uk",
+   "wallet": "0xe029fcf4ba573f6fdc282208fe855df8cbb3ca9a"
   },
   "founding": {
    "left": 96,
@@ -838,17 +838,17 @@
  "version": 1,
  "window": {
   "dates": [
-   "2026-10-22",
    "2026-10-23",
    "2026-10-24",
    "2026-10-25",
    "2026-10-26",
    "2026-10-27",
-   "2026-10-28"
+   "2026-10-28",
+   "2026-10-29"
   ],
   "days": 7,
   "files": 7,
-  "from": "2026-10-22",
-  "to": "2026-10-28"
+  "from": "2026-10-23",
+  "to": "2026-10-29"
  }
 }
