@@ -64,22 +64,22 @@
     "customers": 1,
     "daily_usdc": [
      0.0,
-     0.01,
-     0.0,
      0.0,
      0.0,
      null,
-     0.03
+     0.03,
+     null,
+     0.0
     ],
     "fake_cost_usd": 0.01,
     "independent": 1,
-    "one_payer_most": false,
-    "rank": 122,
-    "reason": "0 returning customers of 1, 1 also paid other sellers, no single payer over 50%",
+    "one_payer_most": true,
+    "rank": 396,
+    "reason": "0 returning customers of 1, 1 also paid other sellers; one payer sent 52.9% of its money",
     "returning": 0,
     "shape": null,
-    "top_payer_share_pct": 45.0,
-    "usdc": 0.04
+    "top_payer_share_pct": 52.9,
+    "usdc": 0.03
    },
    "open_asks_in_category": 0,
    "payto": "0x509e55c4f898b43c856fb0e51048b1b7bfbc9ede",
@@ -115,16 +115,16 @@
     "daily_usdc": [
      0.0,
      0.0,
-     0.0,
-     0.0,
      0.12,
+     null,
+     0.0,
      null,
      0.0
     ],
     "fake_cost_usd": 0.01,
     "independent": 0,
     "one_payer_most": true,
-    "rank": 558,
+    "rank": 533,
     "reason": "0 returning customers of 1, 0 also paid other sellers; one payer sent 98.4% of its money",
     "returning": 0,
     "shape": null,
@@ -720,7 +720,7 @@
   }
  ],
  "now": {
-  "as_of": "2026-11-04T15:39Z",
+  "as_of": "2026-11-05T15:48Z",
   "demand": {
    "crypto & markets": {
     "open_asks": 0,
@@ -740,12 +740,12 @@
    }
   },
   "first_task": {
-   "date": "2026-11-02",
-   "file": "https://raw.githubusercontent.com/ausrine-labs/x402-atlas/data/flows/flows-2026-11-02.json.gz",
-   "how": "In the day file, add up n_x402 over every edge whose \"to\" is that payTo. Post the count on the Square as: first task 2026-11-02: <count>, in a square: post",
-   "question": "How many x402 payments did kino402.com (payTo 0x2a266c87f7b0d1f8a471d2d5234f5cf4fb62b206) receive on 2026-11-02?",
-   "seller": "kino402.com",
-   "wallet": "0x2a266c87f7b0d1f8a471d2d5234f5cf4fb62b206"
+   "date": "2026-11-04",
+   "file": "https://raw.githubusercontent.com/ausrine-labs/x402-atlas/data/flows/flows-2026-11-04.json.gz",
+   "how": "In the day file, add up n_x402 over every edge whose \"to\" is that payTo. Post the count on the Square as: first task 2026-11-04: <count>, in a square: post",
+   "question": "How many x402 payments did horizonpulse.dev (payTo 0x5b32c973596078a967562ca652761404f19be0e9) receive on 2026-11-04?",
+   "seller": "horizonpulse.dev",
+   "wallet": "0x5b32c973596078a967562ca652761404f19be0e9"
   },
   "founding": {
    "left": 95,
@@ -919,17 +919,17 @@
  "version": 1,
  "window": {
   "dates": [
-   "2026-10-27",
-   "2026-10-28",
    "2026-10-29",
    "2026-10-30",
    "2026-10-31",
    "2026-11-01",
-   "2026-11-02"
+   "2026-11-02",
+   "2026-11-03",
+   "2026-11-04"
   ],
   "days": 7,
-  "files": 6,
-  "from": "2026-10-27",
-  "to": "2026-11-02"
+  "files": 5,
+  "from": "2026-10-29",
+  "to": "2026-11-04"
  }
 }
