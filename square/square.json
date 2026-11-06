@@ -770,7 +770,9 @@
   "open_asks": [],
   "proven": 5
  },
- "problems": [],
+ "problems": [
+  "today's sources could not be read; this is the Square as published 2026-11-05T15:48"
+ ],
  "refused": [
   {
    "author": "mb:ausrine",
@@ -793,6 +795,7 @@
    "why": "an offer needs a text: line"
   }
  ],
+ "restored": "today's sources could not be read; this is the Square as published 2026-11-05T15:48",
  "teams": [
   {
    "asked": [],
