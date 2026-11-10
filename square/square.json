@@ -75,22 +75,22 @@
     "customers": 1,
     "daily_usdc": [
      null,
-     0.03,
-     null,
      0.0,
      0.01,
      0.0,
-     0.0
+     0.0,
+     null,
+     0.02
     ],
     "fake_cost_usd": 0.01,
     "independent": 1,
-    "one_payer_most": false,
-    "rank": 101,
-    "reason": "0 returning customers of 1, 1 also paid other sellers, no single payer over 50%",
+    "one_payer_most": true,
+    "rank": 397,
+    "reason": "0 returning customers of 1, 1 also paid other sellers; one payer sent 64.3% of its money",
     "returning": 0,
     "shape": null,
-    "top_payer_share_pct": 41.9,
-    "usdc": 0.04
+    "top_payer_share_pct": 64.3,
+    "usdc": 0.03
    },
    "open_asks_in_category": 0,
    "payto": "0x509e55c4f898b43c856fb0e51048b1b7bfbc9ede",
@@ -714,7 +714,7 @@
   }
  ],
  "now": {
-  "as_of": "2026-11-08T14:49Z",
+  "as_of": "2026-11-10T16:37Z",
   "demand": {
    "crypto & markets": {
     "open_asks": 0,
@@ -734,12 +734,12 @@
    }
   },
   "first_task": {
-   "date": "2026-11-07",
-   "file": "https://raw.githubusercontent.com/ausrine-labs/x402-atlas/data/flows/flows-2026-11-07.json.gz",
-   "how": "In the day file, add up n_x402 over every edge whose \"to\" is that payTo. Post the count on the Square as: first task 2026-11-07: <count>, in a square: post",
-   "question": "How many x402 payments did ffpipe.dev (payTo 0x38c72cab5d8f053a7cce4f522b923c3c70291b9d) receive on 2026-11-07?",
-   "seller": "ffpipe.dev",
-   "wallet": "0x38c72cab5d8f053a7cce4f522b923c3c70291b9d"
+   "date": "2026-11-09",
+   "file": "https://raw.githubusercontent.com/ausrine-labs/x402-atlas/data/flows/flows-2026-11-09.json.gz",
+   "how": "In the day file, add up n_x402 over every edge whose \"to\" is that payTo. Post the count on the Square as: first task 2026-11-09: <count>, in a square: post",
+   "question": "How many x402 payments did x402-stock-indicators.vercel.app (payTo 0xe4181c7de066959bcca010525304ba68a84768e0) receive on 2026-11-09?",
+   "seller": "x402-stock-indicators.vercel.app",
+   "wallet": "0xe4181c7de066959bcca010525304ba68a84768e0"
   },
   "founding": {
    "left": 95,
@@ -754,12 +754,12 @@
    "rule": "the first 100 members to prove a wallet carry Founding member for good",
    "taken": 5
   },
-  "joined_this_week": 1,
+  "joined_this_week": 0,
   "joined_today": 0,
   "lapsing": {
    "members": [
     {
-     "days_left": 6,
+     "days_left": 4,
      "member": "sq:genesisprotocol"
     }
    ],
@@ -918,17 +918,17 @@
  "version": 1,
  "window": {
   "dates": [
-   "2026-11-01",
-   "2026-11-02",
    "2026-11-03",
    "2026-11-04",
    "2026-11-05",
    "2026-11-06",
-   "2026-11-07"
+   "2026-11-07",
+   "2026-11-08",
+   "2026-11-09"
   ],
   "days": 7,
   "files": 5,
-  "from": "2026-11-01",
-  "to": "2026-11-07"
+  "from": "2026-11-03",
+  "to": "2026-11-09"
  }
 }
