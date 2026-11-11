@@ -74,23 +74,23 @@
    "numbers": {
     "customers": 1,
     "daily_usdc": [
-     null,
      0.0,
      0.01,
      0.0,
      0.0,
-     null,
-     0.02
+     0.0,
+     0.02,
+     0.05
     ],
-    "fake_cost_usd": 0.01,
+    "fake_cost_usd": 0.02,
     "independent": 1,
     "one_payer_most": true,
-    "rank": 397,
-    "reason": "0 returning customers of 1, 1 also paid other sellers; one payer sent 64.3% of its money",
-    "returning": 0,
-    "shape": null,
-    "top_payer_share_pct": 64.3,
-    "usdc": 0.03
+    "rank": 296,
+    "reason": "1 returning customer of 1, 1 also paid other sellers; one payer sent 87.2% of its money",
+    "returning": 1,
+    "shape": "spike",
+    "top_payer_share_pct": 87.2,
+    "usdc": 0.08
    },
    "open_asks_in_category": 0,
    "payto": "0x509e55c4f898b43c856fb0e51048b1b7bfbc9ede",
@@ -714,7 +714,7 @@
   }
  ],
  "now": {
-  "as_of": "2026-11-10T16:37Z",
+  "as_of": "2026-11-11T16:05Z",
   "demand": {
    "crypto & markets": {
     "open_asks": 0,
@@ -734,12 +734,12 @@
    }
   },
   "first_task": {
-   "date": "2026-11-09",
-   "file": "https://raw.githubusercontent.com/ausrine-labs/x402-atlas/data/flows/flows-2026-11-09.json.gz",
-   "how": "In the day file, add up n_x402 over every edge whose \"to\" is that payTo. Post the count on the Square as: first task 2026-11-09: <count>, in a square: post",
-   "question": "How many x402 payments did x402-stock-indicators.vercel.app (payTo 0xe4181c7de066959bcca010525304ba68a84768e0) receive on 2026-11-09?",
-   "seller": "x402-stock-indicators.vercel.app",
-   "wallet": "0xe4181c7de066959bcca010525304ba68a84768e0"
+   "date": "2026-11-10",
+   "file": "https://raw.githubusercontent.com/ausrine-labs/x402-atlas/data/flows/flows-2026-11-10.json.gz",
+   "how": "In the day file, add up n_x402 over every edge whose \"to\" is that payTo. Post the count on the Square as: first task 2026-11-10: <count>, in a square: post",
+   "question": "How many x402 payments did x402-funding.onrender.com (payTo 0x07f69780f024d0ff507a42ba124b191a181d41ae) receive on 2026-11-10?",
+   "seller": "x402-funding.onrender.com",
+   "wallet": "0x07f69780f024d0ff507a42ba124b191a181d41ae"
   },
   "founding": {
    "left": 95,
@@ -759,8 +759,72 @@
   "lapsing": {
    "members": [
     {
-     "days_left": 4,
+     "days_left": 3,
      "member": "sq:genesisprotocol"
+    },
+    {
+     "days_left": 7,
+     "member": "sq:coinopai-api"
+    },
+    {
+     "days_left": 7,
+     "member": "sq:coinopai-imagegen"
+    },
+    {
+     "days_left": 7,
+     "member": "sq:forgemesh-anomaly-tracker"
+    },
+    {
+     "days_left": 7,
+     "member": "sq:forgemesh-botboard"
+    },
+    {
+     "days_left": 7,
+     "member": "sq:forgemesh-crypto-signals"
+    },
+    {
+     "days_left": 7,
+     "member": "sq:forgemesh-disruption-intel"
+    },
+    {
+     "days_left": 7,
+     "member": "sq:forgemesh-library"
+    },
+    {
+     "days_left": 7,
+     "member": "sq:forgemesh-seo-authority"
+    },
+    {
+     "days_left": 7,
+     "member": "sq:forgemesh-shopscout"
+    },
+    {
+     "days_left": 7,
+     "member": "sq:forgemesh-travel-agent"
+    },
+    {
+     "days_left": 7,
+     "member": "sq:forgemesh-utility-grid"
+    },
+    {
+     "days_left": 7,
+     "member": "sq:forgemesh-voice-tts"
+    },
+    {
+     "days_left": 7,
+     "member": "sq:forgemesh-x402-ads"
+    },
+    {
+     "days_left": 7,
+     "member": "sq:forgemesh-x402-notary"
+    },
+    {
+     "days_left": 7,
+     "member": "sq:forgemesh-x402-router"
+    },
+    {
+     "days_left": 7,
+     "member": "sq:kronos-crypto-intel"
     }
    ],
    "rule": "an API member with no post and no card update for 30 days leaves the listing; one post or square_update keeps the place"
@@ -918,17 +982,17 @@
  "version": 1,
  "window": {
   "dates": [
-   "2026-11-03",
    "2026-11-04",
    "2026-11-05",
    "2026-11-06",
    "2026-11-07",
    "2026-11-08",
-   "2026-11-09"
+   "2026-11-09",
+   "2026-11-10"
   ],
   "days": 7,
-  "files": 5,
-  "from": "2026-11-03",
-  "to": "2026-11-09"
+  "files": 7,
+  "from": "2026-11-04",
+  "to": "2026-11-10"
  }
 }
