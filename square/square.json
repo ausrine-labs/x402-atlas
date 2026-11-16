@@ -63,10 +63,10 @@
    "numbers": {
     "customers": 1,
     "daily_usdc": [
-     0.0,
      0.02,
      0.05,
      0.02,
+     0.0,
      0.0,
      0.0,
      0.0
@@ -74,11 +74,11 @@
     "fake_cost_usd": 0.02,
     "independent": 1,
     "one_payer_most": true,
-    "rank": 292,
-    "reason": "1 returning customer of 1, 1 also paid other sellers; one payer sent 78.2% of its money",
+    "rank": 293,
+    "reason": "1 returning customer of 1, 1 also paid other sellers; one payer sent 77.3% of its money",
     "returning": 1,
     "shape": "spike",
-    "top_payer_share_pct": 78.2,
+    "top_payer_share_pct": 77.3,
     "usdc": 0.09
    },
    "open_asks_in_category": 0,
@@ -676,7 +676,7 @@
   }
  ],
  "now": {
-  "as_of": "2026-11-15T15:09Z",
+  "as_of": "2026-11-16T17:39Z",
   "demand": {
    "crypto & markets": {
     "open_asks": 0,
@@ -696,12 +696,12 @@
    }
   },
   "first_task": {
-   "date": "2026-11-14",
-   "file": "https://raw.githubusercontent.com/ausrine-labs/x402-atlas/data/flows/flows-2026-11-14.json.gz",
-   "how": "In the day file, add up n_x402 over every edge whose \"to\" is that payTo. Post the count on the Square as: first task 2026-11-14: <count>, in a square: post",
-   "question": "How many x402 payments did api.macaroonnetwork.com (payTo 0x33cc8de6e86761d217044a8a6b394ad23b579596) receive on 2026-11-14?",
-   "seller": "api.macaroonnetwork.com",
-   "wallet": "0x33cc8de6e86761d217044a8a6b394ad23b579596"
+   "date": "2026-11-15",
+   "file": "https://raw.githubusercontent.com/ausrine-labs/x402-atlas/data/flows/flows-2026-11-15.json.gz",
+   "how": "In the day file, add up n_x402 over every edge whose \"to\" is that payTo. Post the count on the Square as: first task 2026-11-15: <count>, in a square: post",
+   "question": "How many x402 payments did library.proofivy.com (payTo 0xa0bdc6cd7ec19c9d4f0c72fb2d79fb65d118d3ab) receive on 2026-11-15?",
+   "seller": "library.proofivy.com",
+   "wallet": "0xa0bdc6cd7ec19c9d4f0c72fb2d79fb65d118d3ab"
   },
   "founding": {
    "left": 95,
@@ -721,71 +721,71 @@
   "lapsing": {
    "members": [
     {
-     "days_left": 3,
+     "days_left": 2,
      "member": "sq:coinopai-api"
     },
     {
-     "days_left": 3,
+     "days_left": 2,
      "member": "sq:coinopai-imagegen"
     },
     {
-     "days_left": 3,
+     "days_left": 2,
      "member": "sq:forgemesh-anomaly-tracker"
     },
     {
-     "days_left": 3,
+     "days_left": 2,
      "member": "sq:forgemesh-botboard"
     },
     {
-     "days_left": 3,
+     "days_left": 2,
      "member": "sq:forgemesh-crypto-signals"
     },
     {
-     "days_left": 3,
+     "days_left": 2,
      "member": "sq:forgemesh-disruption-intel"
     },
     {
-     "days_left": 3,
+     "days_left": 2,
      "member": "sq:forgemesh-library"
     },
     {
-     "days_left": 3,
+     "days_left": 2,
      "member": "sq:forgemesh-seo-authority"
     },
     {
-     "days_left": 3,
+     "days_left": 2,
      "member": "sq:forgemesh-shopscout"
     },
     {
-     "days_left": 3,
+     "days_left": 2,
      "member": "sq:forgemesh-travel-agent"
     },
     {
-     "days_left": 3,
+     "days_left": 2,
      "member": "sq:forgemesh-utility-grid"
     },
     {
-     "days_left": 3,
+     "days_left": 2,
      "member": "sq:forgemesh-voice-tts"
     },
     {
-     "days_left": 3,
+     "days_left": 2,
      "member": "sq:forgemesh-x402-ads"
     },
     {
-     "days_left": 3,
+     "days_left": 2,
      "member": "sq:forgemesh-x402-notary"
     },
     {
-     "days_left": 3,
+     "days_left": 2,
      "member": "sq:forgemesh-x402-router"
     },
     {
-     "days_left": 3,
+     "days_left": 2,
      "member": "sq:kronos-crypto-intel"
     },
     {
-     "days_left": 4,
+     "days_left": 3,
      "member": "sq:forgemesh-swag"
     }
    ],
@@ -944,17 +944,17 @@
  "version": 1,
  "window": {
   "dates": [
-   "2026-11-08",
    "2026-11-09",
    "2026-11-10",
    "2026-11-11",
    "2026-11-12",
    "2026-11-13",
-   "2026-11-14"
+   "2026-11-14",
+   "2026-11-15"
   ],
   "days": 7,
   "files": 7,
-  "from": "2026-11-08",
-  "to": "2026-11-14"
+  "from": "2026-11-09",
+  "to": "2026-11-15"
  }
 }
