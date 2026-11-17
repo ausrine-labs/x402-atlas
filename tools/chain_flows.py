@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Copied from the Aušrinė lab (commit 0f48b70). Edit it there, not here.
+# Copied from the Aušrinė lab (commit efd1bfd). Edit it there, not here.
 """chain_flows.py — who paid whom: x402 payments read straight off Base.
 
 The registry says how many calls a seller got. The chain says who paid.
@@ -109,6 +109,13 @@ def rpc(method, params, tries=4):
             time.sleep(2 * (i + 1))
 
 
+# USDC sent to the zero address is destroyed, not paid to anyone: Circle's bridge
+# (CCTP) burns it on Base before minting it on another chain, and some registry
+# listings name this address as payTo. From 9 to 15 Nov 2026 one bridge contract's
+# burns in authorized transactions were up to 94% of a day's "x402" money.
+ZERO = "0x" + "0" * 40
+
+
 def topic_addr(w):
     return "0x" + "0" * 24 + w[2:].lower()
 
@@ -119,7 +126,7 @@ def wallets_from_items(items):
     for it in items:
         host = urllib.parse.urlparse(it.get("resource", "")).netloc.replace("www.", "")
         for acc in it.get("accepts", []):
-            if acc.get("network") == "eip155:8453" and acc.get("payTo"):
+            if acc.get("network") == "eip155:8453" and acc.get("payTo") and acc["payTo"].lower() != ZERO:
                 hosts_of[acc["payTo"].lower()].add(host)
     return hosts_of
 
@@ -132,7 +139,7 @@ def wallets_from_snapshot(snap):
     hosts_of = collections.defaultdict(set)
     for host, s in snap["sellers"].items():
         for w in s.get("wallets", []):
-            if isinstance(w, str) and len(w) == 42 and w.startswith("0x"):
+            if isinstance(w, str) and len(w) == 42 and w.startswith("0x") and w.lower() != ZERO:
                 hosts_of[w.lower()].add(host)
     return hosts_of
 
@@ -225,6 +232,8 @@ def tally(logs, authorized, seen, edges, usdc, n_x402, usdc_x402):
         seen.add(key)
         frm = "0x" + l["topics"][1][26:]
         to = "0x" + l["topics"][2][26:]
+        if frm == ZERO or to == ZERO:
+            continue                    # a mint or a burn moves no money between two parties
         amount = int(l["data"], 16) / 1e6
         edges[(frm, to)] += 1
         usdc[(frm, to)] += amount
