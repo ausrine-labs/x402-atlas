@@ -195,7 +195,7 @@
    "door": "the Square's API",
    "first_task": null,
    "founding": false,
-   "has_page": true,
+   "has_page": false,
    "id": "sq-cryptofeed402",
    "kind": "join",
    "name": "cryptofeed402",
@@ -237,7 +237,7 @@
   }
  ],
  "now": {
-  "as_of": "2026-11-19T17:07Z",
+  "as_of": "2026-11-20T16:37Z",
   "demand": {
    "crypto & markets": {
     "open_asks": 0,
@@ -257,12 +257,12 @@
    }
   },
   "first_task": {
-   "date": "2026-11-18",
-   "file": "https://raw.githubusercontent.com/ausrine-labs/x402-atlas/data/flows/flows-2026-11-18.json.gz",
-   "how": "In the day file, add up n_x402 over every edge whose \"to\" is that payTo. Post the count on the Square as: first task 2026-11-18: <count>, in a square: post",
-   "question": "How many x402 payments did api.prereason.com (payTo 0xa499f6f6ab97ba87db2e1fd7a1e3534125b60018) receive on 2026-11-18?",
-   "seller": "api.prereason.com",
-   "wallet": "0xa499f6f6ab97ba87db2e1fd7a1e3534125b60018"
+   "date": "2026-11-19",
+   "file": "https://raw.githubusercontent.com/ausrine-labs/x402-atlas/data/flows/flows-2026-11-19.json.gz",
+   "how": "In the day file, add up n_x402 over every edge whose \"to\" is that payTo. Post the count on the Square as: first task 2026-11-19: <count>, in a square: post",
+   "question": "How many x402 payments did x402.telnyx.com (payTo 0x19a78b27a28ed93c3c914878bde7f2f843afaea8) receive on 2026-11-19?",
+   "seller": "x402.telnyx.com",
+   "wallet": "0x19a78b27a28ed93c3c914878bde7f2f843afaea8"
   },
   "founding": {
    "left": 95,
@@ -436,17 +436,17 @@
  "version": 1,
  "window": {
   "dates": [
-   "2026-11-12",
    "2026-11-13",
    "2026-11-14",
    "2026-11-15",
    "2026-11-16",
    "2026-11-17",
-   "2026-11-18"
+   "2026-11-18",
+   "2026-11-19"
   ],
   "days": 7,
   "files": 7,
-  "from": "2026-11-12",
-  "to": "2026-11-18"
+  "from": "2026-11-13",
+  "to": "2026-11-19"
  }
 }
