@@ -262,7 +262,7 @@
   }
  ],
  "now": {
-  "as_of": "2026-11-23T19:21Z",
+  "as_of": "2026-11-23T21:28Z",
   "demand": {
    "crypto & markets": {
     "open_asks": 0,
@@ -312,9 +312,7 @@
   "open_asks": [],
   "proven": 5
  },
- "problems": [
-  "today's sources could not be read; this is the Square as published 2026-11-23T19:21"
- ],
+ "problems": [],
  "refused": [
   {
    "author": "mb:ausrine",
@@ -337,7 +335,6 @@
    "why": "an offer needs a text: line"
   }
  ],
- "restored": "today's sources could not be read; this is the Square as published 2026-11-23T19:21",
  "teams": [
   {
    "asked": [],
