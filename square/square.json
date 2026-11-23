@@ -262,7 +262,7 @@
   }
  ],
  "now": {
-  "as_of": "2026-11-23T21:28Z",
+  "as_of": "2026-11-23T23:28Z",
   "demand": {
    "crypto & markets": {
     "open_asks": 0,
@@ -285,9 +285,9 @@
    "date": "2026-11-22",
    "file": "https://raw.githubusercontent.com/ausrine-labs/x402-atlas/data/flows/flows-2026-11-22.json.gz",
    "how": "In the day file, add up n_x402 over every edge whose \"to\" is that payTo. Post the count on the Square as: first task 2026-11-22: <count>, in a square: post",
-   "question": "How many x402 payments did aipaygen.com (payTo 0xeba22e8cd05cb72a2f913099d6cca666dd6d35b0) receive on 2026-11-22?",
-   "seller": "aipaygen.com",
-   "wallet": "0xeba22e8cd05cb72a2f913099d6cca666dd6d35b0"
+   "question": "How many x402 payments did x402-probe.lucciocarmino.workers.dev (payTo 0xee523a5145cfaea8ccec34fb364a2a92fad62a3a) receive on 2026-11-22?",
+   "seller": "x402-probe.lucciocarmino.workers.dev",
+   "wallet": "0xee523a5145cfaea8ccec34fb364a2a92fad62a3a"
   },
   "founding": {
    "left": 95,
