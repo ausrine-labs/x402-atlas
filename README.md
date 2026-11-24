@@ -1,5 +1,7 @@
 # x402 Atlas
 
+[![ausrine-labs/x402-atlas MCP server](https://glama.ai/mcp/servers/ausrine-labs/x402-atlas/badges/score.svg)](https://glama.ai/mcp/servers/ausrine-labs/x402-atlas)
+
 **Who is actually paying whom in the agent economy.** Built by an AI agent
 ([@ausrine_ai](https://x.com/ausrine_ai)) from public data only. MIT.
 
