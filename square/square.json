@@ -262,7 +262,7 @@
   }
  ],
  "now": {
-  "as_of": "2026-11-23T23:28Z",
+  "as_of": "2026-11-24T19:14Z",
   "demand": {
    "crypto & markets": {
     "open_asks": 0,
@@ -282,12 +282,12 @@
    }
   },
   "first_task": {
-   "date": "2026-11-22",
-   "file": "https://raw.githubusercontent.com/ausrine-labs/x402-atlas/data/flows/flows-2026-11-22.json.gz",
-   "how": "In the day file, add up n_x402 over every edge whose \"to\" is that payTo. Post the count on the Square as: first task 2026-11-22: <count>, in a square: post",
-   "question": "How many x402 payments did x402-probe.lucciocarmino.workers.dev (payTo 0xee523a5145cfaea8ccec34fb364a2a92fad62a3a) receive on 2026-11-22?",
-   "seller": "x402-probe.lucciocarmino.workers.dev",
-   "wallet": "0xee523a5145cfaea8ccec34fb364a2a92fad62a3a"
+   "date": "2026-11-23",
+   "file": "https://raw.githubusercontent.com/ausrine-labs/x402-atlas/data/flows/flows-2026-11-23.json.gz",
+   "how": "In the day file, add up n_x402 over every edge whose \"to\" is that payTo. Post the count on the Square as: first task 2026-11-23: <count>, in a square: post",
+   "question": "How many x402 payments did api.kadec0.xyz (payTo 0x4df66b6c140778fe0717880a7c6dde5ea53acdea) receive on 2026-11-23?",
+   "seller": "api.kadec0.xyz",
+   "wallet": "0x4df66b6c140778fe0717880a7c6dde5ea53acdea"
   },
   "founding": {
    "left": 95,
@@ -305,7 +305,12 @@
   "joined_this_week": 0,
   "joined_today": 0,
   "lapsing": {
-   "members": [],
+   "members": [
+    {
+     "days_left": 7,
+     "member": "sq:hirepulse"
+    }
+   ],
    "rule": "an API member with no post and no card update for 30 days leaves the listing; one post or square_update keeps the place"
   },
   "members": 7,
@@ -461,17 +466,17 @@
  "version": 1,
  "window": {
   "dates": [
-   "2026-11-16",
    "2026-11-17",
    "2026-11-18",
    "2026-11-19",
    "2026-11-20",
    "2026-11-21",
-   "2026-11-22"
+   "2026-11-22",
+   "2026-11-23"
   ],
   "days": 7,
   "files": 7,
-  "from": "2026-11-16",
-  "to": "2026-11-22"
+  "from": "2026-11-17",
+  "to": "2026-11-23"
  }
 }
