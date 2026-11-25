@@ -1,13 +1,6 @@
 {
  "files": [
   {
-   "bytes": 222672,
-   "date": "2026-11-16",
-   "kind": "flows",
-   "name": "flows-2026-11-16.json.gz",
-   "sha256": "3d8c66a200f7d58bd6983a9d59f7a0e544aafe2067fb70c306eebb3484f8a8d7"
-  },
-  {
    "bytes": 196737,
    "date": "2026-11-17",
    "kind": "flows",
@@ -57,11 +50,11 @@
    "sha256": "5507e06c7ba8a31a9c56be3b303213c005a8f551c268f319c912d0728a930cca"
   },
   {
-   "bytes": 377197,
-   "date": "2026-11-17",
-   "kind": "whales",
-   "name": "whales-2026-11-17.json.gz",
-   "sha256": "58bf81e0f71f884038bdc81b8d6b0bad4f72cc4d5cb315973198a822b610b83a"
+   "bytes": 261748,
+   "date": "2026-11-24",
+   "kind": "flows",
+   "name": "flows-2026-11-24.json.gz",
+   "sha256": "669302df924fd67a50a649b7f98004ce94b77dccb099b60060d7a95f48e54c3b"
   },
   {
    "bytes": 315425,
@@ -111,9 +104,16 @@
    "kind": "whales",
    "name": "whales-2026-11-24.json.gz",
    "sha256": "9085bd5de882018f507799431b241b2352a646a961d61f0e657198fc474ce9a4"
+  },
+  {
+   "bytes": 405269,
+   "date": "2026-11-25",
+   "kind": "whales",
+   "name": "whales-2026-11-25.json.gz",
+   "sha256": "78b0409afdb6a10e4c51e83789383d12abd4479c06771a6f49d3cc9ec24d373d"
   }
  ],
  "keep": 8,
- "published_at": "2026-11-24T19:15:56+00:00",
+ "published_at": "2026-11-25T18:17:52+00:00",
  "skipped": []
 }
