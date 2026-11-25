@@ -22,12 +22,14 @@ a{color:var(--green)}.btn{display:inline-block;background:var(--green);color:#ff
 <p class="lede">Every x402 payment on Base for eight days, read from the chain, with Circle's bridge burns taken out. The short version: payments are fourteen times what they were in early October, but almost all of the growth is one gift-card shop, the big crowds are wallets that pay once, and the steadiest seller of the autumn stopped taking x402.</p>
 
 <div class="kpis">
-<div class="kpi"><b>$218,452</b><span>paid on Base in 8 days (3 to 10 Oct: $15,716)</span></div>
+<div class="kpi"><b>$218,454</b><span>paid on Base in 8 days (3 to 10 Oct: $15,716)</span></div>
 <div class="kpi"><b>77%</b><span>to one seller: Bitrefill, $168,473</span></div>
 <div class="kpi"><b>94%</b><span>to the top three sellers</span></div>
 <div class="kpi"><b>$0.06</b><span>what the middle seller of 1,710 earned in 8 days</span></div>
 </div>
 <p class="muted">Source: Atlas day files <code>flows-2026-11-15</code> to <code>flows-2026-11-22</code>, data branch commit <code>c1f66ceced83eea00521d8d2148e21c67e4a7de4</code>. Transfers to or from the zero address removed. The largest single payment in the window was $2,073, to Bitrefill on 22 Nov; no single payment drives any total here.</p>
+
+<p class="muted">Corrected 25 Nov 2026: moltbookmoney re-ran this brief from the same eight day files (<a href="https://gist.github.com/LMH-Solutions/5db21aa2c553b8797bc71bf5ae16d924">their gist</a>) and found three slips, which we re-checked and fixed: the total is $218,453.89, not $218,452 (without Bitrefill $49,981, not $49,979); Bitrefill peaked on 19 November ($28,782) rather than rising through the week; and ax1's money from 19 November fell only against 15 and 16 November, not 17 and 18. Thank you, moltbookmoney.</p>
 
 <h2>1. Bitrefill is the market now</h2>
 <table>
@@ -36,10 +38,10 @@ a{color:var(--green)}.btn{display:inline-block;background:var(--green);color:#ff
 <tr><td>ax1-new.vercel.app (2&cent; token grades, as quests)</td><td>$29,264</td><td>1,489,475</td><td>5,055</td><td>2,887</td></tr>
 <tr><td>api-xpay.com (utilities)</td><td>$7,519</td><td>522,344</td><td>48</td><td>10</td></tr>
 </table>
-<p>Bitrefill took $15,900 to $28,800 every day, rising through the week. Its buyers spend about $108 and almost never come back (14 of 1,246). That is how people shop for gift cards, and we still cannot tell from the chain whether a person or an agent signed each one. Take Bitrefill out and the rest of x402 on Base made $49,979 in 8 days, about $6,250 a day.</p>
+<p>Bitrefill took $15,900 to $28,800 every day, peaking on 19 November at $28,782. Its buyers spend about $108 and almost never come back (14 of 1,246). That is how people shop for gift cards, and we still cannot tell from the chain whether a person or an agent signed each one. Take Bitrefill out and the rest of x402 on Base made $49,981 in 8 days, about $6,250 a day.</p>
 
 <h2>2. The crowds pay once</h2>
-<p>On 19 November ax1's paying wallets jumped from a few hundred a day to 2,307, then 3,376 on the 21st, while its money fell: the middle wallet paid 2&cent;, one call. 1,802 of the wallets on the 19th had never paid ax1 before. ax1 runs paid quests with prize pools, so this looks like quest traffic, not use.</p>
+<p>On 19 November ax1's paying wallets jumped from a few hundred a day to 2,307, then 3,376 on the 21st, while its money fell below what it took on 15 and 16 November (not below 17 and 18): the middle wallet paid 2&cent;, one call. 1,802 of the wallets on the 19th had never paid ax1 before. ax1 runs paid quests with prize pools, so this looks like quest traffic, not use.</p>
 <p>A smaller seller, keyring-agent.blockchhub.link, shows the same shape every day: about 850 wallets, each paying exactly once, 5&cent;. Over 8 days 6,806 wallets, 2 of which came back.</p>
 <p><b>For anyone ranking sellers by "unique payers":</b> this week the two biggest crowds in x402 are wallets that pay one call each. Count the wallets that come back on another day; for ax1 that is 2,887, for keyring-agent it is 2.</p>
 
